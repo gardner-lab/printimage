@@ -125,6 +125,9 @@ view([-135 35]);
 rotate3d on;
 
 STL.resolution = [128 128 128];
+%STL.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger ...
+%    length(hSI.hWaveformManager.scannerAO.ao_volts.Bpb / hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger) ...
+%    128];
 
 STL.gridOutput = VOXELISE(STL.resolution(1), STL.resolution(2), STL.resolution(3), STL.mesh);
 zslider_Callback(handles.zslider, [], handles);
@@ -132,8 +135,12 @@ zslider_Callback(handles.zslider, [], handles);
 end
 
 
-function zslider_Callback(hObject, eventdata, handles)
+function zslider_Callback(hObject, eventdata, handles, pos)
 global STL;
+
+if exist('pos', 'var')
+    set(handles.zslider, 'Value', pos/STL.resolution(STL.buildaxis));
+end
 
 if isempty(STL)
     return;
@@ -169,4 +176,58 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 set(hObject, 'String', {'x', 'y', 'z'});
+end
+
+
+
+function automatedGrab(STL, handles)
+global STL;
+% example for using the ScanImage API to set up a grab
+%hSI = evalin('base','hSI');% get hSI from the base workspace
+if ~strcmpi(hSI.acqState,'idle')
+    hSI.componentAbort();
+end
+%hSI.hMotors.motorPosition = [0 0 0];  % move stage to origin Note: depending on motor this value is a 1x3 OR 1x4 matrix
+%hSI.hScan2D.logFilePath = 'C:\';      % set the folder for logging Tiff files
+%hSI.hScan2D.logFileStem = 'myfile'    % set the base file name for the Tiff file
+%hSI.hScan2D.logFileCounter = 1;       % set the current Tiff file number
+hSI.hChannels.loggingEnable = false;
+%hSI.hRoiManager.scanZoomFactor = 2;   % define the zoom factor
+%hSI.hRoiManager.framesPerSlice = 100; % set number of frames to capture in one Grab
+STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+    length(hSI.hWaveformManager.scannerAO.ao_volts.Bpb) / hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+    128];
+
+% Reconfigure the printable mesh so that printing can proceed along Z:
+switch STL.buildaxis
+    case 1
+        STL.print.mesh = STL.mesh(:, [2 3 1]);
+    case 2
+        STL.print.mesh = STL.mesh(:, [1 3 2]);
+    case 3
+        %STL.print.mesh = STL.mesh(:, [1 2 3]);
+end
+
+% correct for sinusoidal velocity.  This computes the locations of pixel
+% centres, so is the inverse of the powerBoxes one above.
+xc = (linspace(0, 1, STL.print.resolution(1)) - 0.5) * 2;
+xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
+xc = sin(xc);
+xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
+STL.print.respos = (xc + 1) / 2;
+  
+STL.print.voxels = VOXELISE(STL.print.respos, STL.print.resolution(2), STL.print.resolution(3), STL.print.mesh);
+
+
+hSI.hFastZ.enable = 1;
+hSI.hFastZ.numVolumes = 1;
+hSI.hFastZ.numFramesPerVolume = STL.resolution(STL.buildaxis);
+
+for zframe = 1:STL.resolution(STL.buildaxis)
+    zslider_Callback(handles.zslider, [], handles, zframe);
+    hSI.hWaveformManager.scannerAO.ao_volts.Bpb = ...
+        reshape(STL.print.voxels(:, :, zframe), [], 1);
+end
+
+hSI.startGrab(); %startLoop();
 end
