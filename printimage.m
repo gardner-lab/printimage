@@ -57,7 +57,8 @@ handles.output = hObject;
 
 global STL;
 
-STL.buildaxis = 1;
+STL.buildaxis = 2;
+set(handles.buildaxis, 'Value', STL.buildaxis);
 
 addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
 
