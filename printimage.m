@@ -182,7 +182,12 @@ end
 
 function print_Callback(hObject, eventdata, handles)
 global STL;
+
+evalin('base', 'hSI.hFastZ.enable = 1');
+
+STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
+STL.print.armed = false;
 end
 
 
