@@ -2,7 +2,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 
 global STL;
 
-hSI = evalin('base','hSI');% get hSI from the base workspace
+hSI = evalin('base', 'hSI');
 %hSI.hMotors.motorPosition = [0 0 0];  % move stage to origin Note: depending on motor this value is a 1x3 OR 1x4 matrix
 %hSI.hScan2D.logFilePath = 'C:\';      % set the folder for logging Tiff files
 %hSI.hScan2D.logFileStem = 'myfile'    % set the base file name for the Tiff file
@@ -10,10 +10,6 @@ hSI = evalin('base','hSI');% get hSI from the base workspace
 hSI.hChannels.loggingEnable = false;
 %hSI.hRoiManager.scanZoomFactor = 2;   % define the zoom factor
 %hSI.hRoiManager.framesPerSlice = 100; % set number of frames to capture in one Grab
-STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
-    length(hSI.hWaveformManager.scannerAO.ao_volts.B) / (hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B * hSI.hFastZ.numFramesPerVolume) ...
-    hSI.hFastZ.numFramesPerVolume];
-warning('This should figure out Z based on how many microns (roughly 1um/slice) are needed given zoom/FOV.');
 
 % Reconfigure the printable mesh so that printing can proceed along Z:
 switch STL.buildaxis
@@ -24,6 +20,11 @@ switch STL.buildaxis
     case 3
         STL.print.mesh = STL.mesh;
 end
+
+height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
+STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+    hSI.hRoiManager.linesPerFrame ...
+    height];
 
 % correct for sinusoidal velocity.  This computes the locations of pixel
 % centres.

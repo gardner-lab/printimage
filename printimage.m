@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 16-Nov-2016 17:30:46
+% Last Modified by GUIDE v2.5 17-Nov-2016 12:30:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -59,15 +59,26 @@ global STL;
 
 STL.buildaxis = 2;
 STL.print.power = 1;
-set(handles.buildaxis, 'Value', STL.buildaxis);
+STL.print.largestdim = 270;
+
 
 addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
-set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 
 guidata(hObject, handles);
 
+update_gui(handles);
 
 colormap(handles.axes2, 'gray');
+end
+
+
+function update_gui(handles);
+global STL;
+
+set(handles.buildaxis, 'Value', STL.buildaxis);
+set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
+set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
+
 end
 
 
@@ -77,18 +88,10 @@ end
 
 
 
-function STLfile_Callback(hObject, eventdata, handles)
-end
-
-function STLfile_CreateFcn(hObject, eventdata, handles)
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-end
 
 function chooseSTL_Callback(hObject, eventdata, handles)
 [FileName,PathName] = uigetfile('*.stl');
-set(handles.STLfile, 'String', strcat(PathName, FileName));
+set(hObject, 'String', strcat(PathName, FileName));
 updateSTLfile(handles, strcat(PathName, FileName));
 end
 
@@ -169,6 +172,7 @@ STL.buildaxis = get(hObject, 'Value');
 zslider_Callback(handles.zslider, [], handles);
 end
 
+
 function buildaxis_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
@@ -183,11 +187,33 @@ end
 function print_Callback(hObject, eventdata, handles)
 global STL;
 
-evalin('base', 'hSI.hFastZ.enable = 1');
+
+hSI = evalin('base', 'hSI');
+
+% Set the zoom factor for highest resolution:
+hSI.hRoiManager.scanZoomFactor = 1;
+fov = hSI.hRoiManager.imagingFovUm;
+fov_ranges = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+if fov_ranges(1) ~= fov_ranges(2)
+    warning('FOV is not square. You could try rotating the object.');
+end
+hSI.hRoiManager.scanZoomFactor = fov_ranges(1) / STL.print.largestdim;
+if hSI.hRoiManager.scanZoomFactor ~= 1
+    warning('Zoom factor changed. Modify output power?');
+end
+
+
+% Number of slices at 1 micron per slice:
+height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
+hSI.hFastZ.enable = 1;
+hSI.hStackManager.numSlices = height;
+
+
 
 STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
 STL.print.armed = false;
+
 end
 
 
@@ -201,6 +227,23 @@ end
 
 
 function printpowerpercent_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+
+function largestdim_Callback(hObject, eventdata, handles)
+global STL;
+
+% in ?m
+STL.print.largestdim = str2double(get(hObject,'String'));
+end
+
+
+
+function largestdim_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
