@@ -101,14 +101,18 @@ function updateSTLfile(handles, STLfile)
 global STL;
 
 STL.file = STLfile;
-STL.mesh = READ_stl(STLfile);
+STL.mesh = READ_stl(STL.file);
 % This is stupid, but patch() likes this format, so easiest to just read it
 % again.
-patchobj = stlread(STLfile);
-ranges_scale = [min(min(patchobj.vertices)) max(max(patchobj.vertices))];
+patchobj = stlread(STL.file);
+
+% Scale into a 1x1x1 box:
+aspect_ratio = max(patchobj.vertices) - min(patchobj.vertices);
+range_scale = max(aspect_ratio);
+aspect_ratio = aspect_ratio / range_scale;
 llim = min(patchobj.vertices);
-patchobj.vertices = bsxfun(@minus, patchobj.vertices, llim) / (ranges_scale(2) - ranges_scale(1));
-STL.mesh = bsxfun(@minus, STL.mesh, llim) / (ranges_scale(2) - ranges_scale(1));
+patchobj.vertices = bsxfun(@minus, patchobj.vertices, llim) / range_scale;
+STL.mesh = bsxfun(@minus, STL.mesh, llim) / range_scale;
 STL.patchobj = patchobj;
 
 axes(handles.axes1);
@@ -128,7 +132,8 @@ daspect([1 1 1]);
 view([-135 35]);
 rotate3d on;
 
-STL.resolution = [100 100 100];
+STL.resolution = round(100 * aspect_ratio);
+STL.aspect_ratio = aspect_ratio;
 
 STL.gridOutput = VOXELISE(STL.resolution(1), STL.resolution(2), STL.resolution(3), STL.mesh);
 zslider_Callback(handles.zslider, [], handles);
@@ -150,12 +155,13 @@ zind = round(STL.resolution(STL.buildaxis)*get(handles.zslider, 'Value'));
 zind = max(min(zind, STL.resolution(STL.buildaxis)), 1);
 switch STL.buildaxis
     case 1
-        imagesc(squeeze(STL.gridOutput(zind, :, :)), 'Parent', handles.axes2);
+        imagesc(squeeze(STL.gridOutput(zind, :, :))', 'Parent', handles.axes2);
     case 2
-        imagesc(squeeze(STL.gridOutput(:, zind, :)), 'Parent', handles.axes2);
+        imagesc(squeeze(STL.gridOutput(:, zind, :))', 'Parent', handles.axes2);
     case 3
-        imagesc(squeeze(STL.gridOutput(:, :, zind)), 'Parent', handles.axes2);
+        imagesc(squeeze(STL.gridOutput(:, :, zind))', 'Parent', handles.axes2);
 end
+axis(handles.axes2, 'image', 'ij');
 end
 
 
@@ -198,10 +204,19 @@ if fov_ranges(1) ~= fov_ranges(2)
     warning('FOV is not square. You could try rotating the object.');
 end
 hSI.hRoiManager.scanZoomFactor = fov_ranges(1) / STL.print.largestdim;
-if hSI.hRoiManager.scanZoomFactor ~= 1
-    warning('Zoom factor changed. Modify output power?');
-end
 
+% Make the build axis the third column in the print mesh.
+switch STL.buildaxis
+    case 1
+        STL.print.mesh = STL.mesh(:, [2 3 1], :);
+        STL.print.aspect_ratio = STL.aspect_ratio([2 3 1]);
+    case 2
+        STL.print.mesh = STL.mesh(:, [1 3 2], :);
+        STL.print.aspect_ratio = STL.aspect_ratio([1 3 2]);
+    case 3
+        STL.print.mesh = STL.mesh;
+        STL.print.aspect_ratio = STL.aspect_ratio;        
+end
 
 % Number of slices at 1 micron per slice:
 height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
