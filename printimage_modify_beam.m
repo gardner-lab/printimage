@@ -56,7 +56,7 @@ v = double(STL.print.voxels(:)) * STL.print.power;
 STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
 
 % Decrease power as appropriate for current zoom level:
-STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
+%STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
 
 ao_volts_out = ao_volts_raw;
 ao_volts_out.B = STL.print.ao_volts_raw.B;

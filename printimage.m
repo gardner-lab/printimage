@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 17-Nov-2016 12:30:54
+% Last Modified by GUIDE v2.5 18-Nov-2016 19:42:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -43,11 +43,6 @@ else
 end
 % End initialization code - DO NOT EDIT
 end
-
-
-
-
-
 
 
 
@@ -88,11 +83,16 @@ end
 
 
 
-
 function chooseSTL_Callback(hObject, eventdata, handles)
 [FileName,PathName] = uigetfile('*.stl');
-set(hObject, 'String', strcat(PathName, FileName));
-updateSTLfile(handles, strcat(PathName, FileName));
+
+if isequal(FileName, 0) 
+    return;
+end
+
+STLfile = strcat(PathName, FileName);
+set(hObject, 'String', STLfile);
+updateSTLfile(handles, STLfile);
 end
 
 
@@ -125,12 +125,14 @@ patch(patchobj, ...
 xlabel('x');
 ylabel('y');
 zlabel('z');
-camlight('right');
 material('dull');
 axis('image');
 daspect([1 1 1]);
 view([-135 35]);
-rotate3d on;
+camlight_handle = camlight('right');
+rotate_handle = rotate3d;
+%rotate_handle.ActionPostCallback = @RotationCallback;
+rotate_handle.enable = 'on';
 
 STL.resolution = round(100 * aspect_ratio);
 STL.aspect_ratio = aspect_ratio;
@@ -138,7 +140,9 @@ STL.aspect_ratio = aspect_ratio;
 STL.gridOutput = VOXELISE(STL.resolution(1), STL.resolution(2), STL.resolution(3), STL.mesh);
 zslider_Callback(handles.zslider, [], handles);
 
+
 end
+
 
 
 function zslider_Callback(hObject, eventdata, handles, pos)
@@ -196,7 +200,31 @@ global STL;
 
 hSI = evalin('base', 'hSI');
 
+if ~strcmpi(hSI.acqState,'idle')
+    set(handles.messages, 'String', 'Cannot print.  Abort the current ScanImage operation first.');
+    return;
+else
+    set(handles.messages, 'String', '');
+end
+
 % Set the zoom factor for highest resolution:
+%if ~isfield(STL, 'print') | ~isfield(STL.print, 'ResScanResolution')
+% If no acquisition has been run yet, run one. THIS DOESN'T WORK.
+%if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+%    % Get ScanImage to compute the resonant scanner's resolution
+%    evalin('base', 'hSI.startGrab()');
+%end
+%STL.print.ResScanResolution = hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B;
+%end
+
+if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+    set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
+    return;
+else
+    set(handles.messages, 'String', '');
+end
+
+
 hSI.hRoiManager.scanZoomFactor = 1;
 fov = hSI.hRoiManager.imagingFovUm;
 fov_ranges = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
@@ -215,7 +243,7 @@ switch STL.buildaxis
         STL.print.aspect_ratio = STL.aspect_ratio([1 3 2]);
     case 3
         STL.print.mesh = STL.mesh;
-        STL.print.aspect_ratio = STL.aspect_ratio;        
+        STL.print.aspect_ratio = STL.aspect_ratio;
 end
 
 % Number of slices at 1 micron per slice:
@@ -251,8 +279,6 @@ end
 
 function largestdim_Callback(hObject, eventdata, handles)
 global STL;
-
-% in ?m
 STL.print.largestdim = str2double(get(hObject,'String'));
 end
 
