@@ -143,20 +143,20 @@ rotate_handle.enable = 'on';
 %            end
 
 
-STL.resolution = round(100 * aspect_ratio);
 STL.aspect_ratio = aspect_ratio;
 
-STL.gridOutput = VOXELISE(STL.resolution(1), STL.resolution(2), STL.resolution(3), STL.mesh);
-zslider_Callback(handles.zslider, [], handles);
+voxelise();
 
+zslider_Callback(handles.zslider, [], handles);
 
 end
 
 
-
+% When the zSlider is moved, update things. If a build mesh is available, use that.
 function zslider_Callback(hObject, eventdata, handles, pos)
 global STL;
 
+    
 if exist('pos', 'var')
     set(handles.zslider, 'Value', pos/STL.resolution(STL.buildaxis));
 end
@@ -166,16 +166,30 @@ if isempty(STL)
 end
 zind = round(STL.resolution(STL.buildaxis)*get(handles.zslider, 'Value'));
 zind = max(min(zind, STL.resolution(STL.buildaxis)), 1);
-switch STL.buildaxis
-    case 1
-        imagesc(squeeze(STL.gridOutput(zind, :, :))', 'Parent', handles.axes2);
-    case 2
-        imagesc(squeeze(STL.gridOutput(:, zind, :))', 'Parent', handles.axes2);
-    case 3
-        imagesc(squeeze(STL.gridOutput(:, :, zind))', 'Parent', handles.axes2);
+
+if isfield(STL, 'print') & isfield(STL.print, 'resolution')
+    grid = STL.print.voxles;
+else
+    grid = STL.voxels;
 end
+
+if isfield(STL.print, 'voxels')
+    imagesc(squeeze(STL.print.voxels(:, :, zind))', 'Parent', handles.axes2);
+else
+    switch STL.buildaxis
+        case 1
+            imagesc(squeeze(STL.voxels(zind, :, :))', 'Parent', handles.axes2);
+        case 2
+            imagesc(squeeze(STL.voxels(:, zind, :))', 'Parent', handles.axes2);
+        case 3
+            imagesc(squeeze(STL.voxels(:, :, zind))', 'Parent', handles.axes2);
+    end
+end
+
 axis(handles.axes2, 'image', 'ij');
 end
+
+
 
 
 function zslider_CreateFcn(hObject, eventdata, handles)
@@ -276,6 +290,7 @@ STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
 STL.print.armed = false;
 
+zSlider_Callback(hObject);
 end
 
 
@@ -310,8 +325,8 @@ end
 end
 
 
-% --- Executes on button press in resetFastZ.
 function resetFastZ_Callback(hObject, eventdata, handles)
-% hObject    handle to resetFastZ (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+hSI = evalin('base', 'hSI');
+hSI.hBeams.zprvGoHome();
+hSI.hMotors.zprvGoHome();
+end
