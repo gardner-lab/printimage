@@ -202,12 +202,21 @@ end
 
 
 
-
+% Called when the user presses "PRINT". Various things need to happen, some of them before the scan
+% is initiated and some right before the print waveform goes out. This function handles the former,
+% and instructs WaveformManager to call printimage_modify_beam() to do the latter.
 function print_Callback(hObject, eventdata, handles)
 global STL;
 
 
 hSI = evalin('base', 'hSI');
+
+
+% Save home positions. They won't be restored so as not to crush the printed object, but they should be
+% reset later.
+hSI.hMotors.zprvResetHome();
+hSI.hBeams.zprvResetHome();
+
 
 if ~strcmpi(hSI.acqState,'idle')
     set(handles.messages, 'String', 'Cannot print.  Abort the current ScanImage operation first.');
