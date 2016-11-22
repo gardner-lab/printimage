@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 18-Nov-2016 19:42:49
+% Last Modified by GUIDE v2.5 22-Nov-2016 16:16:16
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -133,6 +133,14 @@ camlight_handle = camlight('right');
 rotate_handle = rotate3d;
 %rotate_handle.ActionPostCallback = @RotationCallback;
 rotate_handle.enable = 'on';
+
+            if obj.hasBeams
+                hBm = obj.beams;
+                [~,lineAcquisitionPeriod] = obj.linePeriod([]);
+                bExtendSamples = floor(hBm.beamClockExtend * 1e-6 * hBm.sampleRateHz);
+                samplesPerTrigger.B = ceil( lineAcquisitionPeriod * hBm.sampleRateHz ) + 1 + bExtendSamples;
+            end
+
 
 STL.resolution = round(100 * aspect_ratio);
 STL.aspect_ratio = aspect_ratio;
@@ -290,3 +298,10 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 end
+
+
+% --- Executes on button press in resetFastZ.
+function resetFastZ_Callback(hObject, eventdata, handles)
+% hObject    handle to resetFastZ (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
