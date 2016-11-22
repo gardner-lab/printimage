@@ -134,6 +134,15 @@ rotate_handle = rotate3d;
 %rotate_handle.ActionPostCallback = @RotationCallback;
 rotate_handle.enable = 'on';
 
+%% FIXME Compute resolution as done in ResonantGalvo:448:
+%            if obj.hasBeams
+%                hBm = obj.beams;
+%                [~,lineAcquisitionPeriod] = obj.linePeriod([]);
+%                bExtendSamples = floor(hBm.beamClockExtend * 1e-6 * hBm.sampleRateHz);
+%                samplesPerTrigger.B = ceil( lineAcquisitionPeriod * hBm.sampleRateHz ) + 1 + bExtendSamples;
+%            end
+
+
 STL.resolution = round(100 * aspect_ratio);
 STL.aspect_ratio = aspect_ratio;
 
