@@ -33,6 +33,7 @@ xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
 xc = sin(xc);
 xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
 STL.print.respos = (xc + 1) / 2;
+warning('You computed the sinusoid compensation, but didn''t adjust the output power to match.');
 
 % y centres. These should be spaced equally along Y Galvo scanlines.
 yc = linspace(0, 1, STL.print.resolution(2));
@@ -56,7 +57,7 @@ v = double(STL.print.voxels(:)) * STL.print.power;
 STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
 
 % Decrease power as appropriate for current zoom level:
-%STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
+STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
 
 ao_volts_out = ao_volts_raw;
 ao_volts_out.B = STL.print.ao_volts_raw.B;

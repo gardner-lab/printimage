@@ -226,6 +226,7 @@ end
 
 
 hSI.hRoiManager.scanZoomFactor = 1;
+hSI.hStackManager.stackReturnHome = 0;
 fov = hSI.hRoiManager.imagingFovUm;
 fov_ranges = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 if fov_ranges(1) ~= fov_ranges(2)
