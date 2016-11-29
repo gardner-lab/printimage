@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 28-Nov-2016 18:46:04
+% Last Modified by GUIDE v2.5 29-Nov-2016 11:24:07
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -75,7 +75,7 @@ set(handles.buildaxis, 'Value', STL.print.axis);
 set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
 set(handles.fastZhome, 'String', sprintf('%d', round(STL.print.fastZhome)));
-set(handles.powertest_start, 'String', sprintf('%g', 0.1));
+set(handles.powertest_start, 'String', sprintf('%g', 3));
 set(handles.powertest_end, 'String', sprintf('%g', 100));
 
 end
@@ -223,7 +223,7 @@ global STL;
 hSI = evalin('base', 'hSI');
 
 if ~strcmpi(hSI.acqState,'idle')
-    set(handles.messages, 'String', 'Cannot print.  Abort the current ScanImage operation first.');
+    set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
     return;
 else
     set(handles.messages, 'String', '');
@@ -361,11 +361,24 @@ function powertest_Callback(hObject, eventdata, handles)
 global STL;
 hSI = evalin('base', 'hSI');
 
+if ~strcmpi(hSI.acqState,'idle')
+    set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
+    return;
+else
+    set(handles.messages, 'String', '');
+end
+
+
 grid = 5;
 low = str2double(get(handles.powertest_start, 'String')) / 100;
 high = str2double(get(handles.powertest_end, 'String')) / 100;
-pow_incr = (high/low)^(1/(grid^2-1));
-powers = (low) * pow_incr.^[0:grid^2-1];
+
+if strcmp(handles.powertest_spacing.SelectedObject.String, 'Log')
+    pow_incr = (high/low)^(1/(grid^2-1));
+    powers = (low) * pow_incr.^[0:grid^2-1];
+else
+    powers = linspace(low, high, grid^2);
+end
 
 sz = 1/grid;
 buffer = 0.01;
@@ -391,19 +404,24 @@ end
 
 nframes = 20;
 
+hSI.hFastZ.enable = 1;
+hSI.hStackManager.stackZStepSize = -1;
+hSI.hStackManager.stackReturnHome = false; % This seems useless.
+
 hSI.hStackManager.numSlices = nframes;
 hSI.hBeams.powerLimits = 100;
-hSI.hBeams.powerBoxStartFrame = 1;
-hSI.hBeams.powerBoxEndFrame = nframes;
+%hSI.hBeams.powerBoxStartFrame = 1;
+%hSI.hBeams.powerBoxEndFrame = nframes;
 hSI.hStackManager.stackZStepSize = -1;
 hSI.hBeams.enablePowerBox = true;
 
 hSI.startLoop();
+hSI.hBeams.enablePowerBox = false;
 
 %hSI.hBeams = oldBeams;
 
 end
-        
+
 
 
 
@@ -426,4 +444,8 @@ function powertest_end_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+end
+
+
+function powertest_spacing_lin_Callback(hObject, eventdata, handles)
 end
