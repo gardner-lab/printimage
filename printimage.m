@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 22-Nov-2016 16:16:16
+% Last Modified by GUIDE v2.5 28-Nov-2016 18:46:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -52,10 +52,11 @@ handles.output = hObject;
 
 global STL;
 
-STL.buildaxis = 2;
+STL.print.axis = 2;
 STL.print.power = 1;
 STL.print.largestdim = 270;
-
+STL.print.valid = false;
+STL.print.fastZhome = 450;
 
 addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
 
@@ -70,9 +71,12 @@ end
 function update_gui(handles);
 global STL;
 
-set(handles.buildaxis, 'Value', STL.buildaxis);
+set(handles.buildaxis, 'Value', STL.print.axis);
 set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
+set(handles.fastZhome, 'String', sprintf('%d', round(STL.print.fastZhome)));
+set(handles.powertest_start, 'String', sprintf('%g', 0.1));
+set(handles.powertest_end, 'String', sprintf('%g', 100));
 
 end
 
@@ -86,7 +90,7 @@ end
 function chooseSTL_Callback(hObject, eventdata, handles)
 [FileName,PathName] = uigetfile('*.stl');
 
-if isequal(FileName, 0) 
+if isequal(FileName, 0)
     return;
 end
 
@@ -100,6 +104,7 @@ end
 function updateSTLfile(handles, STLfile)
 global STL;
 
+STL.print.valid = false;
 STL.file = STLfile;
 STL.mesh = READ_stl(STL.file);
 % This is stupid, but patch() likes this format, so easiest to just read it
@@ -143,50 +148,39 @@ rotate_handle.enable = 'on';
 %            end
 
 
+
 STL.aspect_ratio = aspect_ratio;
 
-voxelise();
+voxelise(handles);
 
 zslider_Callback(handles.zslider, [], handles);
 
 end
 
 
+
+
+
 % When the zSlider is moved, update things. If a build mesh is available, use that.
 function zslider_Callback(hObject, eventdata, handles, pos)
 global STL;
 
-    
-if exist('pos', 'var')
-    set(handles.zslider, 'Value', pos/STL.resolution(STL.buildaxis));
-end
-
 if isempty(STL)
     return;
 end
-zind = round(STL.resolution(STL.buildaxis)*get(handles.zslider, 'Value'));
-zind = max(min(zind, STL.resolution(STL.buildaxis)), 1);
 
-if isfield(STL, 'print') & isfield(STL.print, 'resolution')
-    grid = STL.print.voxles;
-else
-    grid = STL.voxels;
+if get(handles.zslider, 'Max') ~= STL.print.resolution(3)
+    set(handles.zslider, 'Max', STL.print.resolution(3));
 end
 
-if isfield(STL.print, 'voxels')
-    imagesc(squeeze(STL.print.voxels(:, :, zind))', 'Parent', handles.axes2);
-else
-    switch STL.buildaxis
-        case 1
-            imagesc(squeeze(STL.voxels(zind, :, :))', 'Parent', handles.axes2);
-        case 2
-            imagesc(squeeze(STL.voxels(:, zind, :))', 'Parent', handles.axes2);
-        case 3
-            imagesc(squeeze(STL.voxels(:, :, zind))', 'Parent', handles.axes2);
-    end
+if exist('pos', 'var')
+    set(handles.zslider, 'Value', pos*STL.print.resolution(3));
 end
 
-axis(handles.axes2, 'image', 'ij');
+zind = round(get(handles.zslider, 'Value'));
+zind = max(min(zind, STL.resolution(3)), 1);
+
+draw_slice(handles, zind);
 end
 
 
@@ -201,7 +195,10 @@ end
 
 function buildaxis_Callback(hObject, eventdata, handles)
 global STL;
-STL.buildaxis = get(hObject, 'Value');
+
+STL.print.valid = 0;
+STL.print.axis = get(hObject, 'Value');
+voxelise(handles);
 zslider_Callback(handles.zslider, [], handles);
 end
 
@@ -225,19 +222,25 @@ global STL;
 
 hSI = evalin('base', 'hSI');
 
-
-% Save home positions. They won't be restored so as not to crush the printed object, but they should be
-% reset later.
-hSI.hMotors.zprvResetHome();
-hSI.hBeams.zprvResetHome();
-
-
 if ~strcmpi(hSI.acqState,'idle')
     set(handles.messages, 'String', 'Cannot print.  Abort the current ScanImage operation first.');
     return;
 else
     set(handles.messages, 'String', '');
 end
+
+
+
+% Save home positions. They won't be restored so as not to crush the
+% printed object, but they should be reset later.
+
+%foo = hSI.hFastZ.positionTarget;
+%hSI.hFastZ.positionTarget = 0;
+%pause(0.1);
+%hSI.hMotors.zprvResetHome();
+%hSI.hBeams.zprvResetHome();
+%hSI.hFastZ.positionTarget = foo;
+
 
 % Set the zoom factor for highest resolution:
 %if ~isfield(STL, 'print') | ~isfield(STL.print, 'ResScanResolution')
@@ -256,9 +259,21 @@ else
     set(handles.messages, 'String', '');
 end
 
+% Make sure we haven't changed the desired resolution or anything else that
+% ScanImage can change without telling us. This should be a separate
+% function eventually!
+height = floor(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
+resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+    hSI.hRoiManager.linesPerFrame ...
+    height];
+if any(resolution ~= STL.print.resolution)
+    voxelise(handles);
+end
+
+
+
 
 hSI.hRoiManager.scanZoomFactor = 1;
-hSI.hStackManager.stackReturnHome = 0;
 fov = hSI.hRoiManager.imagingFovUm;
 fov_ranges = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 if fov_ranges(1) ~= fov_ranges(2)
@@ -266,31 +281,25 @@ if fov_ranges(1) ~= fov_ranges(2)
 end
 hSI.hRoiManager.scanZoomFactor = fov_ranges(1) / STL.print.largestdim;
 
-% Make the build axis the third column in the print mesh.
-switch STL.buildaxis
-    case 1
-        STL.print.mesh = STL.mesh(:, [2 3 1], :);
-        STL.print.aspect_ratio = STL.aspect_ratio([2 3 1]);
-    case 2
-        STL.print.mesh = STL.mesh(:, [1 3 2], :);
-        STL.print.aspect_ratio = STL.aspect_ratio([1 3 2]);
-    case 3
-        STL.print.mesh = STL.mesh;
-        STL.print.aspect_ratio = STL.aspect_ratio;
+if ~STL.print.valid
+    warning('STL.print.valid is false.');
+    return;
 end
 
 % Number of slices at 1 micron per slice:
 height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
 hSI.hFastZ.enable = 1;
 hSI.hStackManager.numSlices = height;
-
-
+hSI.hStackManager.stackZStepSize = -1;
+hSI.hStackManager.stackReturnHome = false; % This seems useless.
+%hSI.hStackManager.stackZStartPos = 0;
+%hSI.hStackManager.stackZEndPos = NaN;
 
 STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
 STL.print.armed = false;
 
-zSlider_Callback(hObject);
+zslider_Callback([], [], handles);
 end
 
 
@@ -326,7 +335,95 @@ end
 
 
 function resetFastZ_Callback(hObject, eventdata, handles)
+global STL;
 hSI = evalin('base', 'hSI');
-hSI.hBeams.zprvGoHome();
-hSI.hMotors.zprvGoHome();
+hSI.hFastZ.positionTarget = STL.print.fastZhome;
+end
+
+
+
+function fastZhome_Callback(hObject, eventdata, handles)
+global STL;
+
+STL.print.fastZhome = str2double(get(hObject, 'String'));
+end
+
+
+function fastZhome_CreateFcn(hObject, eventdata, handles)
+global STL;
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+function powertest_Callback(hObject, eventdata, handles)
+global STL;
+hSI = evalin('base', 'hSI');
+
+grid = 5;
+low = str2double(get(handles.powertest_start, 'String')) / 100;
+high = str2double(get(handles.powertest_end, 'String')) / 100;
+pow_incr = (high/low)^(1/(grid^2-1));
+powers = (low) * pow_incr.^[0:grid^2-1];
+
+sz = 1/grid;
+buffer = 0.01;
+
+% A bunch of stuff needs to be set up for this. Should undo it all later!
+oldBeams = hSI.hBeams;
+hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
+
+
+for i = 1:grid
+    for j = 1:grid
+        ind = j+grid*(i-1);
+
+        pb.rect = [sz*(j-1)+buffer sz*(i-1)+buffer [sz sz]-(2*buffer)];
+        pb.powers = powers(ind);
+        pb.name = sprintf('%.1f', round(1000*powers(ind))/10);
+        pb.oddLines = 1;
+        pb.evenLines = 1;
+        
+        hSI.hBeams.powerBoxes(ind) = pb;
+    end
+end
+
+nframes = 20;
+
+hSI.hStackManager.numSlices = nframes;
+hSI.hBeams.powerLimits = 100;
+hSI.hBeams.powerBoxStartFrame = 1;
+hSI.hBeams.powerBoxEndFrame = nframes;
+hSI.hStackManager.stackZStepSize = -1;
+hSI.hBeams.enablePowerBox = true;
+
+hSI.startLoop();
+
+%hSI.hBeams = oldBeams;
+
+end
+        
+
+
+
+function powertest_start_Callback(hObject, eventdata, handles)
+end
+
+
+function powertest_start_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+function powertest_end_Callback(hObject, eventdata, handles)
+end
+
+    
+function powertest_end_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
 end

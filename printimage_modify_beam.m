@@ -1,14 +1,18 @@
 function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
-
 global STL;
+global ao_volts_out; % Expose this for easier debugging
 
 % For debugging, ao_volts_raw = hSI.hWaveformManager.scannerAO.ao_volts_raw
+
+ao_volts_out = ao_volts_raw;
 
 hSI = evalin('base', 'hSI');
 hSI.hChannels.loggingEnable = false;
 %hSI.hRoiManager.framesPerSlice = 100; % set number of frames to capture in one Grab
 
-voxelise();
+if ~STL.print.valid
+    voxelise();
+end
 
 v = double(STL.print.voxels(:)) * STL.print.power;
 
@@ -17,8 +21,13 @@ STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
 % Decrease power as appropriate for current zoom level:
 STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
 
-ao_volts_out = ao_volts_raw;
 ao_volts_out.B = STL.print.ao_volts_raw.B;
+
+% Z will decrease (moving the fastZ stage towards 0 (highest position) and
+% then reset. Delete the reset:
+[val pos] = min(ao_volts_out.Z);
+n = length(ao_volts_out.Z) - pos;
+ao_volts_out.Z(pos+1:end) = ao_volts_out.Z(pos) * ones(1, n);
 
 if 0
     figure(32);
@@ -40,3 +49,5 @@ if 0
         pause(0.01);
     end
 end
+figure(33);
+plot(ao_volts_out.Z);
