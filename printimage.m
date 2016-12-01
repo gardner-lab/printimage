@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 29-Nov-2016 11:24:07
+% Last Modified by GUIDE v2.5 01-Dec-2016 14:29:38
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -56,7 +56,13 @@ STL.print.axis = 2;
 STL.print.power = 1;
 STL.print.largestdim = 270;
 STL.print.valid = false;
-STL.print.fastZhome = 450;
+STL.fastZ_reverse = false;
+STL.print.invert_z = false;
+if STL.fastZ_reverse
+    STL.print.fastZhome = 450;
+else
+    STL.print.fastZhome = 0;
+end
 
 addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
 
@@ -75,9 +81,9 @@ set(handles.buildaxis, 'Value', STL.print.axis);
 set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
 set(handles.fastZhome, 'String', sprintf('%d', round(STL.print.fastZhome)));
-set(handles.powertest_start, 'String', sprintf('%g', 3));
+set(handles.powertest_start, 'String', sprintf('%g', 1));
 set(handles.powertest_end, 'String', sprintf('%g', 100));
-
+set(handles.invert_z, 'Value', STL.print.invert_z);
 end
 
 
@@ -178,7 +184,7 @@ if exist('pos', 'var')
 end
 
 zind = round(get(handles.zslider, 'Value'));
-zind = max(min(zind, STL.resolution(3)), 1);
+zind = max(min(zind, STL.print.resolution(3)), 1);
 
 draw_slice(handles, zind);
 end
@@ -229,7 +235,8 @@ else
     set(handles.messages, 'String', '');
 end
 
-
+% Do a stupid dance to reset the final position
+%hSI.hFastZ.positionTarget = 0;
 
 % Save home positions. They won't be restored so as not to crush the
 % printed object, but they should be reset later.
@@ -288,9 +295,15 @@ end
 
 % Number of slices at 1 micron per slice:
 height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
+hSI.hScan2D.bidirectional = false;
+
 hSI.hFastZ.enable = 1;
 hSI.hStackManager.numSlices = height;
-hSI.hStackManager.stackZStepSize = -1;
+if STL.fastZ_reverse
+    hSI.hStackManager.stackZStepSize = 1;
+else
+    hSI.hStackManager.stackZStepSize = -1;
+end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
 %hSI.hStackManager.stackZStartPos = 0;
 %hSI.hStackManager.stackZEndPos = NaN;
@@ -334,27 +347,6 @@ end
 end
 
 
-function resetFastZ_Callback(hObject, eventdata, handles)
-global STL;
-hSI = evalin('base', 'hSI');
-hSI.hFastZ.positionTarget = STL.print.fastZhome;
-end
-
-
-
-function fastZhome_Callback(hObject, eventdata, handles)
-global STL;
-
-STL.print.fastZhome = str2double(get(hObject, 'String'));
-end
-
-
-function fastZhome_CreateFcn(hObject, eventdata, handles)
-global STL;
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-end
 
 
 function powertest_Callback(hObject, eventdata, handles)
@@ -369,32 +361,37 @@ else
 end
 
 
-grid = 5;
-low = str2double(get(handles.powertest_start, 'String')) / 100;
-high = str2double(get(handles.powertest_end, 'String')) / 100;
+gridx = 5;
+gridy = 9;
+gridn = gridx * gridy;
+low = str2double(get(handles.powertest_start, 'String'));
+high = str2double(get(handles.powertest_end, 'String'));
 
 if strcmp(handles.powertest_spacing.SelectedObject.String, 'Log')
-    pow_incr = (high/low)^(1/(grid^2-1));
-    powers = (low) * pow_incr.^[0:grid^2-1];
+    pow_incr = (high/low)^(1/((gridn)-1));
+    powers = (low) * pow_incr.^[0:(gridn)-1];
+    powers(end) = high; % In case roundoff error resulted in 100.0000001
 else
-    powers = linspace(low, high, grid^2);
+    powers = linspace(low, high, gridn);
 end
 
-sz = 1/grid;
-buffer = 0.01;
+sx = 1/gridx;
+sy = 1/gridy;
+bufferx = 0.03;
+buffery = 0.01;
 
 % A bunch of stuff needs to be set up for this. Should undo it all later!
 oldBeams = hSI.hBeams;
 hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
 
 
-for i = 1:grid
-    for j = 1:grid
-        ind = j+grid*(i-1);
+for i = 1:gridy
+    for j = 1:gridx
+        ind = j+gridx*(i-1);
 
-        pb.rect = [sz*(j-1)+buffer sz*(i-1)+buffer [sz sz]-(2*buffer)];
+        pb.rect = [sx*(j-1)+bufferx sy*(i-1)+buffery sx-2*bufferx sy-2*buffery];
         pb.powers = powers(ind);
-        pb.name = sprintf('%.1f', round(1000*powers(ind))/10);
+        pb.name = sigfig(powers(ind), 2);
         pb.oddLines = 1;
         pb.evenLines = 1;
         
@@ -402,17 +399,18 @@ for i = 1:grid
     end
 end
 
-nframes = 20;
+nframes = 450;
 
 hSI.hFastZ.enable = 1;
-hSI.hStackManager.stackZStepSize = -1;
+if STL.fastZ_reverse
+    hSI.hStackManager.stackZStepSize = 1;
+else
+    hSI.hStackManager.stackZStepSize = -1;
+end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
-
+hSI.hScan2D.bidirectional = false;
 hSI.hStackManager.numSlices = nframes;
 hSI.hBeams.powerLimits = 100;
-%hSI.hBeams.powerBoxStartFrame = 1;
-%hSI.hBeams.powerBoxEndFrame = nframes;
-hSI.hStackManager.stackZStepSize = -1;
 hSI.hBeams.enablePowerBox = true;
 
 hSI.startLoop();
@@ -448,4 +446,38 @@ end
 
 
 function powertest_spacing_lin_Callback(hObject, eventdata, handles)
+end
+
+function fastZset_Callback(hObject, eventdata, handles)
+global STL;
+hSI = evalin('base', 'hSI');
+hSI.hFastZ.positionTarget = STL.print.fastZhome;
+end
+
+
+
+function fastZhome_Callback(hObject, eventdata, handles)
+global STL;
+STL.print.fastZhome = str2double(get(hObject, 'String'));
+end
+
+
+function fastZhome_CreateFcn(hObject, eventdata, handles)
+global STL;
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+function fastZlower_Callback(hObject, eventdata, handles)
+global STL;
+hSI = evalin('base', 'hSI');
+hSI.hFastZ.positionTarget = 450;
+end
+
+
+function invert_z_Callback(hObject, eventdata, handles)
+global STL;
+STL.print.invert_z = get(hObject, 'Value');
 end
