@@ -290,13 +290,13 @@ end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
 %hSI.hStackManager.stackZStartPos = 0;
 %hSI.hStackManager.stackZEndPos = NaN;
-FastZhold('on');
+FastZhold(handles, 'on');
 
 STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
 STL.print.armed = false;
 
-FastZhold('off');
+FastZhold(handles, 'off');
 
 zslider_Callback([], [], handles);
 end
@@ -304,7 +304,7 @@ end
 
 
 
-function FastZhold(v);
+function FastZhold(handles, v);
 % Control FastZ position-hold-before-reset: 'on', 'off', 'reset'
 global STL;
 hSI = evalin('base', 'hSI');
@@ -417,7 +417,7 @@ else
     hSI.hStackManager.stackZStepSize = -1;
 end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
-FastZhold('on');
+FastZhold(handles, 'on');
 hSI.hScan2D.bidirectional = false;
 hSI.hStackManager.numSlices = nframes;
 hSI.hBeams.powerLimits = 100;
@@ -425,7 +425,7 @@ hSI.hBeams.enablePowerBox = true;
 
 hSI.startLoop();
 hSI.hBeams.enablePowerBox = false;
-FastZhold('off');
+FastZhold(handles, 'off');
 end
 
 
@@ -500,11 +500,11 @@ end
 
 
 
-function fastZset_Callback(hObject, eventdata, handles)
+function resetFastZ_Callback(hObject, eventdata, handles)
 global STL;
 hSI = evalin('base', 'hSI');
 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-FastZhold('reset');
+%FastZhold(handles, 'reset');
 end
 
 
@@ -527,7 +527,7 @@ function fastZlower_Callback(hObject, eventdata, handles)
 global STL;
 hSI = evalin('base', 'hSI');
 hSI.hFastZ.positionTarget = 450;
-FastZhold('reset');
+FastZhold(handles, 'reset');
 end
 
 
@@ -538,5 +538,5 @@ end
 
 function fastZhome_Callback(hObject, eventdata, handles)
 hSI = evalin('base', 'hSI');
-FastZhold('reset');
+FastZhold(handles, 'reset');
 end
