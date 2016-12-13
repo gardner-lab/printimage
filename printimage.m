@@ -437,6 +437,10 @@ global STL;
 
 STL.print.valid = 0;
 STL.print.xaxis = get(hObject, 'Value');
+if STL.print.zaxis == STL.print.xaxis
+    STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
+    update_gui(handles);
+end
 voxelise(handles);
 end
 
@@ -452,6 +456,10 @@ global STL;
 
 STL.print.valid = 0;
 STL.print.zaxis = get(hObject, 'Value');
+if STL.print.zaxis == STL.print.xaxis
+    STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
+    update_gui(handles);
+end
 voxelise(handles);
 zslider_Callback(handles.zslider, [], handles);
 end

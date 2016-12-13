@@ -13,17 +13,15 @@ end
 %end
 
 % Reconfigure the printable mesh so that printing can proceed along Z:
-switch STL.print.axis
-    case 1
-        STL.print.mesh = STL.mesh(:, [2 3 1], :);
-        STL.print.aspect_ratio = STL.aspect_ratio([2 3 1]);
-    case 2
-        STL.print.mesh = STL.mesh(:, [1 3 2], :);
-        STL.print.aspect_ratio = STL.aspect_ratio([1 3 2]);
-    case 3
-        STL.print.mesh = STL.mesh;
-        STL.print.aspect_ratio = STL.aspect_ratio;
+if STL.print.xaxis == STL.print.yaxis
+    error('X and Z can''t both be on axis %d.', STL.print.xaxis);
 end
+
+yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
+
+dims = [STL.print.xaxis yaxis STL.print.zaxis];
+STL.print.mesh = STL.mesh(:, dims, :);
+STL.print.aspect_ratio = STL.aspect_ratio(dims);
 
 height = floor(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
 
