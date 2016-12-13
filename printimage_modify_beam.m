@@ -30,13 +30,13 @@ ao_volts_out.B = STL.print.ao_volts_raw.B;
 
 % Z will decrease (moving the fastZ stage towards 0 (highest position) and
 % then reset. Delete the reset:
-if STL.fastZ_reverse
-    [val pos] = max(ao_volts_out.Z);
-else
-    [val pos] = min(ao_volts_out.Z);
-end    
-n = length(ao_volts_out.Z) - pos;
-ao_volts_out.Z(pos+1:end) = ao_volts_out.Z(pos) * ones(1, n);
+%if STL.fastZ_reverse
+%    [val pos] = max(ao_volts_out.Z);
+%else
+%    [val pos] = min(ao_volts_out.Z);
+%end    
+%n = length(ao_volts_out.Z) - pos;
+%ao_volts_out.Z(pos+1:end) = ao_volts_out.Z(pos) * ones(1, n);
 
 if 0
     figure(32);
@@ -58,5 +58,5 @@ if 0
         pause(0.01);
     end
 end
-figure(33);
-plot(ao_volts_out.Z);
+%figure(33);
+%plot(ao_volts_out.Z);
