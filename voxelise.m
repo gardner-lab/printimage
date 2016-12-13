@@ -13,7 +13,7 @@ end
 %end
 
 % Reconfigure the printable mesh so that printing can proceed along Z:
-if STL.print.xaxis == STL.print.yaxis
+if STL.print.xaxis == STL.print.zaxis
     error('X and Z can''t both be on axis %d.', STL.print.xaxis);
 end
 

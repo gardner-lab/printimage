@@ -438,7 +438,8 @@ global STL;
 STL.print.valid = 0;
 STL.print.xaxis = get(hObject, 'Value');
 if STL.print.zaxis == STL.print.xaxis
-    STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
+    foo = setdiff([1 2 3], STL.print.xaxis);
+    STL.print.zaxis = foo(1);
     update_gui(handles);
 end
 voxelise(handles);
@@ -457,7 +458,8 @@ global STL;
 STL.print.valid = 0;
 STL.print.zaxis = get(hObject, 'Value');
 if STL.print.zaxis == STL.print.xaxis
-    STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
+    foo = setdiff([1 2 3], STL.print.zaxis);
+    STL.print.zaxis = foo(1);
     update_gui(handles);
 end
 voxelise(handles);
