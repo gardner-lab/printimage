@@ -64,6 +64,8 @@ else
     STL.print.fastZhome = 0;
 end
 
+STL.bounds = [270 270 450]; % Should take this from software!!!
+
 addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
 
 guidata(hObject, handles);
@@ -129,7 +131,7 @@ STL.patchobj = patchobj;
 axes(handles.axes1);
 cla;
 patch(patchobj, ...
-    'FaceColor',       [0.8 0.8 0.8], ...
+    'FaceColor',       [0.8 1 0.8], ...
     'EdgeColor',       'none',        ...
     'FaceLighting',    'gouraud',     ...
     'AmbientStrength', 0.15);
@@ -377,7 +379,7 @@ end
 
 sx = 1/gridx;
 sy = 1/gridy;
-bufferx = 0.03;
+bufferx = 0.025;
 buffery = 0.01;
 
 % A bunch of stuff needs to be set up for this. Should undo it all later!
@@ -399,7 +401,7 @@ for i = 1:gridy
     end
 end
 
-nframes = 450;
+nframes = 300;
 
 hSI.hFastZ.enable = 1;
 if STL.fastZ_reverse
@@ -416,10 +418,7 @@ hSI.hBeams.enablePowerBox = true;
 hSI.startLoop();
 hSI.hBeams.enablePowerBox = false;
 
-%hSI.hBeams = oldBeams;
-
 end
-
 
 
 
