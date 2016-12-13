@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 29-Nov-2016 11:24:07
+% Last Modified by GUIDE v2.5 13-Dec-2016 11:48:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -71,7 +71,7 @@ end
 function update_gui(handles);
 global STL;
 
-set(handles.buildaxis, 'Value', STL.print.axis);
+set(handles.build_z_axis, 'Value', STL.print.axis);
 set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
 set(handles.fastZhome, 'String', sprintf('%d', round(STL.print.fastZhome)));
@@ -193,7 +193,7 @@ end
 end
 
 
-function buildaxis_Callback(hObject, eventdata, handles)
+function build_z_axis_Callback(hObject, eventdata, handles)
 global STL;
 
 STL.print.valid = 0;
@@ -203,7 +203,7 @@ zslider_Callback(handles.zslider, [], handles);
 end
 
 
-function buildaxis_CreateFcn(hObject, eventdata, handles)
+function build_z_axis_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
@@ -448,4 +448,27 @@ end
 
 
 function powertest_spacing_lin_Callback(hObject, eventdata, handles)
+end
+
+
+% --- Executes on selection change in build_x_axis.
+function build_x_axis_Callback(hObject, eventdata, handles)
+% hObject    handle to build_x_axis (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns build_x_axis contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from build_x_axis
+
+
+% --- Executes during object creation, after setting all properties.
+function build_x_axis_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to build_x_axis (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
