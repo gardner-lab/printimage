@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
 
 % Edit the above text to modify the response to help printimage
 
-% Last Modified by GUIDE v2.5 01-Dec-2016 14:29:38
+% Last Modified by GUIDE v2.5 13-Dec-2016 13:01:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -60,9 +60,9 @@ STL.print.valid = false;
 STL.fastZ_reverse = false;
 STL.print.invert_z = false;
 if STL.fastZ_reverse
-    STL.print.fastZhome = 450;
+    STL.print.fastZhomePos = 450;
 else
-    STL.print.fastZhome = 0;
+    STL.print.fastZhomePos = 0;
 end
 
 STL.bounds = [270 270 450]; % Should take this from software!!!
@@ -84,7 +84,7 @@ set(handles.build_x_axis, 'Value', STL.print.xaxis);
 set(handles.build_z_axis, 'Value', STL.print.zaxis);
 set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
 set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
-set(handles.fastZhome, 'String', sprintf('%d', round(STL.print.fastZhome)));
+set(handles.fastZhomePos, 'String', sprintf('%d', round(STL.print.fastZhomePos)));
 set(handles.powertest_start, 'String', sprintf('%g', 1));
 set(handles.powertest_end, 'String', sprintf('%g', 100));
 set(handles.invert_z, 'Value', STL.print.invert_z);
@@ -221,9 +221,6 @@ else
     set(handles.messages, 'String', '');
 end
 
-% Do a stupid dance to reset the final position
-%hSI.hFastZ.positionTarget = 0;
-
 % Save home positions. They won't be restored so as not to crush the
 % printed object, but they should be reset later.
 
@@ -293,14 +290,40 @@ end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
 %hSI.hStackManager.stackZStartPos = 0;
 %hSI.hStackManager.stackZEndPos = NaN;
+FastZhold('on');
 
 STL.print.armed = true;
 evalin('base', 'hSI.startLoop()');
 STL.print.armed = false;
 
+FastZhold('off');
+
 zslider_Callback([], [], handles);
 end
 
+
+
+
+function FastZhold(v);
+% Control FastZ position-hold-before-reset: 'on', 'off', 'reset'
+global STL;
+hSI = evalin('base', 'hSI');
+
+if strcmp(v, 'on')
+    set(handles.fastZhome, 'BackgroundColor', [1 0 0]);
+    STL.print.FastZhold = true;
+end
+
+if strcmp(v, 'off')
+    STL.print.FastZhold = false;
+end
+
+if strcmp(v, 'reset')
+    STL.print.FastZhold = false;
+    hSI.hFastZ.goHome;
+    set(handles.fastZhome, 'BackgroundColor', 0.94 * [1 1 1]);
+end
+end
 
 
 function printpowerpercent_Callback(hObject, eventdata, handles)
@@ -348,7 +371,7 @@ end
 
 
 gridx = 5;
-gridy = 9;
+gridy = 8;
 gridn = gridx * gridy;
 low = str2double(get(handles.powertest_start, 'String'));
 high = str2double(get(handles.powertest_end, 'String'));
@@ -394,6 +417,7 @@ else
     hSI.hStackManager.stackZStepSize = -1;
 end
 hSI.hStackManager.stackReturnHome = false; % This seems useless.
+FastZhold('on');
 hSI.hScan2D.bidirectional = false;
 hSI.hStackManager.numSlices = nframes;
 hSI.hBeams.powerLimits = 100;
@@ -401,7 +425,7 @@ hSI.hBeams.enablePowerBox = true;
 
 hSI.startLoop();
 hSI.hBeams.enablePowerBox = false;
-
+FastZhold('off');
 end
 
 
@@ -438,8 +462,7 @@ global STL;
 STL.print.valid = 0;
 STL.print.xaxis = get(hObject, 'Value');
 if STL.print.zaxis == STL.print.xaxis
-    foo = setdiff([1 2 3], STL.print.xaxis);
-    STL.print.zaxis = foo(1);
+    STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
     update_gui(handles);
 end
 voxelise(handles);
@@ -458,8 +481,7 @@ global STL;
 STL.print.valid = 0;
 STL.print.zaxis = get(hObject, 'Value');
 if STL.print.zaxis == STL.print.xaxis
-    foo = setdiff([1 2 3], STL.print.zaxis);
-    STL.print.zaxis = foo(1);
+    STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
     update_gui(handles);
 end
 voxelise(handles);
@@ -481,18 +503,19 @@ end
 function fastZset_Callback(hObject, eventdata, handles)
 global STL;
 hSI = evalin('base', 'hSI');
-hSI.hFastZ.positionTarget = STL.print.fastZhome;
+hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+FastZhold('reset');
 end
 
 
 
-function fastZhome_Callback(hObject, eventdata, handles)
+function fastZhomePos_Callback(hObject, eventdata, handles)
 global STL;
-STL.print.fastZhome = str2double(get(hObject, 'String'));
+STL.print.fastZhomePos = str2double(get(hObject, 'String'));
 end
 
 
-function fastZhome_CreateFcn(hObject, eventdata, handles)
+function fastZhomePos_CreateFcn(hObject, eventdata, handles)
 global STL;
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
@@ -504,10 +527,16 @@ function fastZlower_Callback(hObject, eventdata, handles)
 global STL;
 hSI = evalin('base', 'hSI');
 hSI.hFastZ.positionTarget = 450;
+FastZhold('reset');
 end
 
 
 function invert_z_Callback(hObject, eventdata, handles)
 global STL;
 STL.print.invert_z = get(hObject, 'Value');
+end
+
+function fastZhome_Callback(hObject, eventdata, handles)
+hSI = evalin('base', 'hSI');
+FastZhold('reset');
 end
