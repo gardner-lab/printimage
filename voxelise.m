@@ -8,14 +8,6 @@ if exist('handles', 'var');
     drawnow;
 end
 
-%if ~isfield(STL.print, 'resolution')
-%    enable_callback(true, 'focusDone_resolution_Callback', 'focusDone');
-%end
-
-% Reconfigure the printable mesh so that printing can proceed along Z:
-if STL.print.xaxis == STL.print.zaxis
-    error('X and Z can''t both be on axis %d.', STL.print.xaxis);
-end
 
 yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
 
@@ -23,13 +15,16 @@ dims = [STL.print.xaxis yaxis STL.print.zaxis];
 STL.print.mesh = STL.mesh(:, dims, :);
 STL.print.aspect_ratio = STL.aspect_ratio(dims);
 
-height = floor(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
+% Since I control X and Y sizes by zooming (for best resolution) (sadly
+% those two dimensions covary), we should rescale the printable object so
+% that the max(xsize, ysize) = 1, and then voxelise over that range.
+STL.print.mesh(:, 1:2, :) = STL.print.mesh(:, 1:2, :) / max(STL.print.aspect_ratio([1 2]));
 
 if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
 
     STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
-        height];
+        round(STL.print.size(3))];
 
     STL.print.valid = true;
     
@@ -43,14 +38,14 @@ if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
     warning('You computed the sinusoid compensation, but didn''t adjust the output power to match.');
 else
     STL.print.valid = false;
-    STL.print.resolution = [200 200 height];
+    STL.print.resolution = [200 200 round(STL.print.size(3))];
     STL.print.voxelpos.x = linspace(0, 1, STL.print.resolution(1));
     xc = linspace(0, 1, STL.print.resolution(1));
 end
 
 % y centres. These should be spaced equally along Y Galvo scanlines.
 STL.print.voxelpos.y = linspace(0, 1, STL.print.resolution(2));
-STL.print.voxelpos.z = height;
+STL.print.voxelpos.z = round(STL.print.size(3));
 % z centres are defined by stack height, so VOXELISE() behaves fine
 % already.
 STL.print.voxels = VOXELISE(STL.print.voxelpos.x, STL.print.voxelpos.y, STL.print.voxelpos.z, STL.print.mesh);

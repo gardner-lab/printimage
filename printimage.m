@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 13-Dec-2016 13:01:50
+    % Last Modified by GUIDE v2.5 13-Dec-2016 19:03:47
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -55,7 +55,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.xaxis = 1;
     STL.print.zaxis = 3;
     STL.print.power = 1;
-    STL.print.largestdim = 300;
+    STL.print.size = [300 300 300];
     STL.print.valid = false;
     STL.fastZ_reverse = false;
     STL.print.invert_z = false;
@@ -65,7 +65,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.fastZhomePos = 450;
     end
     
-    STL.printer.bounds = [270 270 450]; % Should take this from software!!!
+    STL.printer.bounds = [NaN NaN 450];
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
     
@@ -83,11 +83,46 @@ function update_gui(handles);
     set(handles.build_x_axis, 'Value', STL.print.xaxis);
     set(handles.build_z_axis, 'Value', STL.print.zaxis);
     set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
-    set(handles.largestdim, 'String', sprintf('%d', round(STL.print.largestdim)));
+    set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))), ...
+        'ForegroundColor', colour_limits(STL.print.size(1), 0, STL.printer.bounds(1)));
+    set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))), ...
+        'ForegroundColor', colour_limits(STL.print.size(2), 0, STL.printer.bounds(2)));
+    set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))), ...
+        'ForegroundColor', colour_limits(STL.print.size(3), 0, STL.printer.bounds(3)));
     set(handles.fastZhomePos, 'String', sprintf('%d', round(STL.print.fastZhomePos)));
     set(handles.powertest_start, 'String', sprintf('%g', 1));
     set(handles.powertest_end, 'String', sprintf('%g', 100));
     set(handles.invert_z, 'Value', STL.print.invert_z);
+    set(handles.PrinterBounds, 'String', sprintf('Maximum dimensions: [ %s]', ...
+        sprintf('%d ', round(STL.printer.bounds))));
+end
+
+function [colour] = colour_limits(thing, bound1, bound2)
+    colour = [1 1 1]*0;
+    if thing < bound1
+        colour = [1 0 0];
+    end
+    if nargin == 3 & thing > bound2
+        colour = [1 0 0];
+    end
+end
+
+function update_dimensions(handles, dim, val)
+    global STL;
+    % First: recompute all dimensions based on aspect ratio and build axes
+    
+    yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
+
+    dims = [STL.print.xaxis yaxis STL.print.zaxis];
+    STL.print.valid = false;
+    
+    aspect_ratio = STL.aspect_ratio(dims);
+    if nargin == 1
+        dim = 1;
+        val = STL.print.size(1);
+    end
+    STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
+    update_gui(handles);
 end
 
 
@@ -161,6 +196,7 @@ function updateSTLfile(handles, STLfile)
     
     STL.aspect_ratio = aspect_ratio;
     
+    update_dimensions(handles);
     voxelise(handles);
     
     zslider_Callback(handles.zslider, [], handles);
@@ -247,41 +283,39 @@ function print_Callback(hObject, eventdata, handles)
         return;
     else
         set(handles.messages, 'String', '');
+        update_dimensions(handles); % In case the boundaries are newly available
     end
     
     % Make sure we haven't changed the desired resolution or anything else that
     % ScanImage can change without telling us. This should be a separate
     % function eventually!
-    height = floor(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
     resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
-        height];
+        round(STL.print.size(3))];
     if any(resolution ~= STL.print.resolution)
         voxelise(handles);
     end
     
-    
-    
-    
-    hSI.hRoiManager.scanZoomFactor = 1;
-    fov = hSI.hRoiManager.imagingFovUm;
-    fov_ranges = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+
+    UpdateBounds_Callback([], [], handles);
+    fov_ranges = STL.printer.bounds;
     if fov_ranges(1) ~= fov_ranges(2)
         warning('FOV is not square. You could try rotating the object.');
     end
-    hSI.hRoiManager.scanZoomFactor = fov_ranges(1) / STL.print.largestdim;
+
+    
+    hSI.hRoiManager.scanZoomFactor = min(STL.printer.bounds([1 2]) ./ STL.print.size([1 2]));
     
     if ~STL.print.valid
-        warning('STL.print.valid is false.');
-        return;
+        warning('STL.print.valid is false. Re-voxelising.');
+        voxelise(handles);
     end
     
     % Number of slices at 1 micron per slice:
-    height = round(max(STL.print.mesh(:, 3, 3)) * STL.print.largestdim);
     hSI.hScan2D.bidirectional = false;
     
     hSI.hFastZ.enable = 1;
-    hSI.hStackManager.numSlices = height;
+    hSI.hStackManager.numSlices = round(STL.print.size(3));
     if STL.fastZ_reverse
         hSI.hStackManager.stackZStepSize = 1;
     else
@@ -339,22 +373,6 @@ function printpowerpercent_CreateFcn(hObject, eventdata, handles)
         set(hObject,'BackgroundColor','white');
     end
 end
-
-
-
-function largestdim_Callback(hObject, eventdata, handles)
-    global STL;
-    STL.print.largestdim = str2double(get(hObject,'String'));
-end
-
-
-
-function largestdim_CreateFcn(hObject, eventdata, handles)
-    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-        set(hObject,'BackgroundColor','white');
-    end
-end
-
 
 
 
@@ -463,8 +481,8 @@ function build_x_axis_Callback(hObject, eventdata, handles)
     STL.print.xaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
         STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
-        update_gui(handles);
     end
+    update_dimensions(handles);
     voxelise(handles);
 end
 
@@ -482,8 +500,8 @@ function build_z_axis_Callback(hObject, eventdata, handles)
     STL.print.zaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
         STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
-        update_gui(handles);
     end
+    update_dimensions(handles);
     voxelise(handles);
     zslider_Callback(handles.zslider, [], handles);
 end
@@ -540,3 +558,61 @@ function fastZhome_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
     FastZhold(handles, 'reset');
 end
+
+
+
+function size1_Callback(hObject, eventdata, handles)
+    update_dimensions(handles, 2, str2double(get(hObject, 'String')));
+end
+
+function size1_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+
+function size2_Callback(hObject, eventdata, handles)
+    update_dimensions(handles, 2, str2double(get(hObject, 'String')));
+end
+
+function size2_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+
+
+function size3_Callback(hObject, eventdata, handles)
+    update_dimensions(handles, 3, str2double(get(hObject, 'String')));
+end
+
+function size3_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% Set STL.printer.bounds, either from the callback or from anywhere else.
+function UpdateBounds_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+        set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
+        return;
+    else
+        set(handles.messages, 'String', '');
+        hSI.hRoiManager.scanZoomFactor = 1;
+        fov = hSI.hRoiManager.imagingFovUm;
+        STL.printer.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+
+        update_dimensions(handles);
+        update_gui(handles);
+    end
+end
+
