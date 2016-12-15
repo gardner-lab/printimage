@@ -75,7 +75,7 @@ xGalvoAngularRange = [];            % max range in optical degrees (pk-pk) for x
 yGalvoAngularRange = 20;            % max range in optical degrees (pk-pk) for y galvo
 
 galvoVoltsPerOpticalDegreeX = 1;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
-galvoVoltsPerOpticalDegreeY = 1;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
+galvoVoltsPerOpticalDegreeY = 0.7853;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
 galvoParkDegreesX = -8;             % Numeric [deg]: Optical degrees from center position for X galvo to park at when scanning is inactive
 galvoParkDegreesY = -8;             % Numeric [deg]: Optical degrees from center position for Y galvo to park at when scanning is inactive
 
@@ -84,7 +84,7 @@ resonantAngularRange = 26;          % max range in optical degrees (pk-pk) for r
 resonantZoomDeviceName = 'PXI1Slot2';        % String identifying the NI-DAQ board to host the resonant zoom analog output. Leave empty to use same board as specified in 'galvoDeviceName'
 resonantZoomAOChanID = 0;           % resonantZoomAOChanID: The numeric ID of the Analog Output channel to be used to control the Resonant Scanner Zoom level.
 
-rScanVoltsPerOpticalDegree = 0.1923;% resonant scanner conversion factor from optical degrees to volts
+rScanVoltsPerOpticalDegree = 0.1764;% resonant scanner conversion factor from optical degrees to volts
 resonantScannerSettleTime = 0.5;    % [seconds] time to wait for the resonant scanner to reach its desired frequency after an update of the zoomFactor
 
 %% Motors
