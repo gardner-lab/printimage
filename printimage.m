@@ -216,6 +216,17 @@ end
 % When the zSlider is moved, update things. If a build mesh is available, use that.
 function zslider_Callback(hObject, eventdata, handles, pos)
     global STL;
+    hSI = evalin('base', 'hSI');
+
+    if exist('hSI', 'var')
+        resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+            hSI.hRoiManager.linesPerFrame ...
+            round(STL.print.size(3) / STL.print.zstep)];
+        if any(resolution ~= STL.print.resolution)
+            STL.print.re_voxelise_needed_before_print = true;
+            STL.print.re_voxelise_needed_before_display = true;
+        end
+    end
         
     if STL.print.re_voxelise_needed_before_display
         voxelise(handles);
@@ -297,9 +308,10 @@ function print_Callback(hObject, eventdata, handles)
     % function eventually!
     resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
-        round(STL.print.size(3))];
+        round(STL.print.size(3) / STL.print.zstep)];
     if any(resolution ~= STL.print.resolution)
-        voxelise(handles);
+        STL.print.re_voxelise_needed_before_print = true;
+        STL.print.re_voxelise_needed_before_display = true;
     end
     
 
