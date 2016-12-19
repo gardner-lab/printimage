@@ -9,8 +9,12 @@ ao_volts_out = ao_volts_raw;
 hSI = evalin('base', 'hSI');
 hSI.hChannels.loggingEnable = false;
 
-if ~STL.print.valid
+if STL.print.re_voxelise_needed_before_print
     voxelise();
+end
+
+if STL.print.re_voxelise_needed_before_print
+    error('Tried re-voxelising, but was unsuccessful.');
 end
 
 if STL.print.invert_z
@@ -23,8 +27,11 @@ v = double(voxels(:)) * STL.print.power;
 
 STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
 
-% Decrease power as appropriate for current zoom level:
-%STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor^2;
+% Decrease power as appropriate for current zoom level. Empirically, this
+% seems to go sublinearly! Not sure why. Perhaps overscanning on Y doesn't
+% happen fast enough to count as more power? Perhaps SUBlinear because I
+% have not calibrated aspect ratio yet?
+STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
 
 ao_volts_out.B = STL.print.ao_volts_raw.B;
 

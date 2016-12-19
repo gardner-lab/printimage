@@ -24,9 +24,10 @@ if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
 
     STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
-        round(STL.print.size(3))];
+        round(STL.print.size(3) / STL.print.zstep)];
 
-    STL.print.valid = true;
+    STL.print.re_voxelise_needed_before_print = false;
+    STL.print.re_voxelise_needed_before_display = false;
     
     % x (resonant scanner) centres. Correct for sinusoidal velocity.  This computes the locations of
     % pixel centres.
@@ -35,17 +36,18 @@ if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
     xc = sin(xc);
     xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
     STL.print.voxelpos.x = (xc + 1) / 2;
-    warning('You computed the sinusoid compensation, but didn''t adjust the output power to match.');
 else
     STL.print.valid = false;
-    STL.print.resolution = [200 200 round(STL.print.size(3))];
+    STL.print.resolution = [200 200 round(STL.print.size(3) / STL.print.zstep)];
     STL.print.voxelpos.x = linspace(0, 1, STL.print.resolution(1));
     xc = linspace(0, 1, STL.print.resolution(1));
+    STL.print.re_voxelise_needed_before_print = true;
+    STL.print.re_voxelise_needed_before_display = false;
 end
 
 % y centres. These should be spaced equally along Y Galvo scanlines.
 STL.print.voxelpos.y = linspace(0, 1, STL.print.resolution(2));
-STL.print.voxelpos.z = round(STL.print.size(3));
+STL.print.voxelpos.z = round(STL.print.size(3) / STL.print.zstep);
 % z centres are defined by stack height, so VOXELISE() behaves fine
 % already.
 STL.print.voxels = VOXELISE(STL.print.voxelpos.x, STL.print.voxelpos.y, STL.print.voxelpos.z, STL.print.mesh);

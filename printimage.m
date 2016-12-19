@@ -52,11 +52,13 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     global STL;
     
+    STL.print.zstep = 0.5;     % microns per step
     STL.print.xaxis = 1;
     STL.print.zaxis = 3;
     STL.print.power = 1;
     STL.print.size = [300 300 300];
-    STL.print.valid = false;
+    STL.print.re_voxelise_needed_before_print = true;
+    STL.print.re_voxelise_needed_before_display = true;
     STL.fastZ_reverse = false;
     STL.print.invert_z = false;
     if STL.fastZ_reverse
@@ -71,7 +73,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     guidata(hObject, handles);
     
-    update_gui(handles);
+    UpdateBounds_Callback([], [], handles);
+
+    UpdateBounds_Callback([], [], handles);
     
     colormap(handles.axes2, 'gray');
 end
@@ -114,7 +118,6 @@ function update_dimensions(handles, dim, val)
     yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
 
     dims = [STL.print.xaxis yaxis STL.print.zaxis];
-    STL.print.valid = false;
     
     aspect_ratio = STL.aspect_ratio(dims);
     if nargin == 1
@@ -149,7 +152,6 @@ end
 function updateSTLfile(handles, STLfile)
     global STL;
     
-    STL.print.valid = false;
     STL.file = STLfile;
     STL.mesh = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
@@ -197,6 +199,10 @@ function updateSTLfile(handles, STLfile)
     STL.aspect_ratio = aspect_ratio;
     
     update_dimensions(handles);
+    
+    STL.print.re_voxelise_needed_before_display = true;
+    STL.print.re_voxelise_needed_before_print = true;
+
     voxelise(handles);
     
     zslider_Callback(handles.zslider, [], handles);
@@ -210,11 +216,11 @@ end
 % When the zSlider is moved, update things. If a build mesh is available, use that.
 function zslider_Callback(hObject, eventdata, handles, pos)
     global STL;
-    
-    if isempty(STL)
-        return;
+        
+    if STL.print.re_voxelise_needed_before_display
+        voxelise(handles);
     end
-    
+
     if get(handles.zslider, 'Max') ~= STL.print.resolution(3)
         set(handles.zslider, 'Max', STL.print.resolution(3));
     end
@@ -306,8 +312,7 @@ function print_Callback(hObject, eventdata, handles)
     
     hSI.hRoiManager.scanZoomFactor = min(STL.printer.bounds([1 2]) ./ STL.print.size([1 2]));
     
-    if ~STL.print.valid
-        warning('STL.print.valid is false. Re-voxelising.');
+    if STL.print.re_voxelise_needed_before_print
         voxelise(handles);
     end
     
@@ -315,13 +320,13 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     hSI.hFastZ.enable = 1;
-    hSI.hStackManager.numSlices = round(STL.print.size(3));
+    hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
     if STL.fastZ_reverse
-        hSI.hStackManager.stackZStepSize = 1;
+        hSI.hStackManager.stackZStepSize = STL.print.zstep;
     else
-        hSI.hStackManager.stackZStepSize = -1;
+        hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     end
-    hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    %hSI.hStackManager.stackReturnHome = false; % This seems useless.
     %hSI.hStackManager.stackZStartPos = 0;
     %hSI.hStackManager.stackZEndPos = NaN;
     FastZhold(handles, 'on');
@@ -430,11 +435,11 @@ function powertest_Callback(hObject, eventdata, handles)
     
     hSI.hFastZ.enable = 1;
     if STL.fastZ_reverse
-        hSI.hStackManager.stackZStepSize = 1;
+        hSI.hStackManager.stackZStepSize = STL.print.zstep;
     else
-        hSI.hStackManager.stackZStepSize = -1;
+        hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     end
-    hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    %hSI.hStackManager.stackReturnHome = false; % This seems useless.
     FastZhold(handles, 'on');
     hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
@@ -477,13 +482,14 @@ end
 function build_x_axis_Callback(hObject, eventdata, handles)
     global STL;
     
-    STL.print.valid = 0;
+    STL.print.re_voxelise_needed_before_display = true;
+    STL.print.re_voxelise_needed_before_print = true;
+    
     STL.print.xaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
         STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
     end
     update_dimensions(handles);
-    voxelise(handles);
 end
 
 function build_x_axis_CreateFcn(hObject, eventdata, handles)
@@ -496,14 +502,15 @@ end
 function build_z_axis_Callback(hObject, eventdata, handles)
     global STL;
     
+    STL.print.re_voxelise_needed_before_display = true;
+    STL.print.re_voxelise_needed_before_print = true;
+
     STL.print.valid = 0;
     STL.print.zaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
         STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
     end
     update_dimensions(handles);
-    voxelise(handles);
-    zslider_Callback(handles.zslider, [], handles);
 end
 
 
@@ -513,8 +520,6 @@ function build_z_axis_CreateFcn(hObject, eventdata, handles)
     end
     set(hObject, 'String', {'x', 'y', 'z'});
 end
-
-
 
 
 
