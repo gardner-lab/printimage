@@ -31,7 +31,7 @@ shutterOpenTime = 0.1;              % Time, in seconds, to delay following certa
 shutterNames = {'Shutter 1'};
 
 %% Beams
-beamDaqDevices = {'PXI1Slot4', 'PXI1Slot4'};                            % Cell array of strings listing beam DAQs in the system. Each scanner set can be assigned one beam DAQ ex: {'PXI1Slot4'}
+beamDaqDevices = {'PXI1Slot4' 'PXI1Slot4'};                            % Cell array of strings listing beam DAQs in the system. Each scanner set can be assigned one beam DAQ ex: {'PXI1Slot4'}
 
 % Define the parameters below for each beam DAQ specified above, in the format beamDaqs(N).param = ...
 beamDaqs(1).modifiedLineClockIn = '';           % one of {PFI0..15, ''} to which external beam trigger is connected. Leave empty for automatic routing via PXI/RTSI bus
@@ -59,13 +59,16 @@ beamDaqs(2).chanIDs = 1;                       % Array of integers specifying AO
 beamDaqs(2).displayNames = {'ConOpticsPockels'};  % Optional string cell array of identifiers for each beam
 beamDaqs(2).voltageRanges = 2;                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
-beamDaqs(2).calInputChanIDs = [];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
+beamDaqs(2).calInputChanIDs = NaN;               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
 % beamDaqs(2).calOffsets = 0.34;                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(2).calOffsets = 0; 
 beamDaqs(2).calUseRejectedLight = false;        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(2).calOpenShutterIDs = [];             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 
 %beamDaqs(2).referenceClockRate = 1e+06;
+
+beamDaqs(1).referenceClockRate = 1e+07;
+beamDaqs(2).referenceClockRate = 1e+07;
 
 %% ResScan (ResScanner)
 nominalResScanFreq = 7910;          % [Hz] nominal frequency of the resonant scanner
@@ -104,37 +107,12 @@ resonantZoomAOChanID = 0;           % resonantZoomAOChanID: The numeric ID of th
 rScanVoltsPerOpticalDegree = 0.1923;% resonant scanner conversion factor from optical degrees to volts
 resonantScannerSettleTime = 0.5;    % [seconds] time to wait for the resonant scanner to reach its desired frequency after an update of the zoomFactor
 
-%% Motors
-%Motor used for X/Y/Z motion, including stacks. 
-%motorDimensions & motorControllerType must be specified to enable this feature.
-motorControllerType = 'sutter.mpc200';           % If supplied, one of {'sutter.mp285', 'sutter.mpc200', 'thorlabs.mcm3000', 'thorlabs.mcm5000', 'scientifica', 'pi.e665', 'pi.e816', 'npoint.lc40x'}.
-motorDimensions = 'XYZ';               % If supplied, one of {'XYZ', 'XY', 'Z'}. Defaults to 'XYZ'.                
-motorStageType = '';                % Some controller require a valid stageType be specified
-motorCOMPort = [];                  % Integer identifying COM port for controller, if using serial communication
-motorBaudRate = [];                 % Value identifying baud rate of serial communication. If empty, default value for controller used.
-motorZDepthPositive = true;         % Logical indicating if larger Z values correspond to greater depth
-motorPositionDeviceUnits = [];      % 1x3 array specifying, in meters, raw units in which motor controller reports position. If unspecified, default positionDeviceUnits for stage/controller type presumed.
-motorVelocitySlow = [];             % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
-motorVelocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
-
-%Secondary motor for Z motion, allowing either XY-Z or XYZ-Z hybrid configuration
-motor2ControllerType = '';          % If supplied, one of {'sutter.mp285', 'sutter.mpc200', 'thorlabs.mcm3000', 'thorlabs.mcm5000', 'scientifica', 'pi.e665', 'pi.e816', 'npoint.lc40x'}.
-motor2StageType = '';               % Some controller require a valid stageType be specified
-motor2COMPort = [];                 % Integer identifying COM port for controller, if using serial communication
-motor2BaudRate = [];                % Value identifying baud rate of serial communication. If empty, default value for controller used.
-motor2ZDepthPositive = true;        % Logical indicating if larger Z values correspond to greater depth
-motor2PositionDeviceUnits = [];     % 1x3 array specifying, in meters, raw units in which motor controller reports position. If unspecified, default positionDeviceUnits for stage/controller type presumed.
-motor2VelocitySlow = [];            % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
-motor2VelocityFast = [];            % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
-
-%Global settings that affect primary and secondary motor
-moveCompleteDelay = 0;              % Numeric [s]: Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
 
 %% FastZ
 %FastZ hardware used for fast axial motion, supporting fast stacks and/or volume imaging
 %fastZControllerType must be specified to enable this feature. 
 %Specifying fastZControllerType='useMotor2' indicates that motor2 ControllerType/StageType/COMPort/etc will be used.
-fastZControllerType = 'analog';           % If supplied, one of {'useMotor2', 'pi.e709', 'pi.e753', 'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}. 
+fastZControllerType = 'thorlabs.pfm450';           % If supplied, one of {'useMotor2', 'pi.e709', 'pi.e753', 'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}. 
 fastZCOMPort = [];                  % Integer identifying COM port for controller, if using serial communication
 fastZBaudRate = [];                 % Value identifying baud rate of serial communication. If empty, default value for controller used.
 
@@ -163,4 +141,32 @@ analogCmdChanIDs = 0; % Scalar indicating AO channel number (e.g. 0) used for an
 analogSensorBoardID = 'PXI1Slot5'; % String specifying NI board identifier (e.g. 'Dev1') containing AI channel for LSC position sensor
 analogSensorChanIDs = 0; % Scalar indicating AI channel number (e.g. 0) used for analog LSC position sensor
 
+
+%% Motors
+%Motor used for X/Y/Z motion, including stacks. 
+%motorDimensions & motorControllerType must be specified to enable this feature.
+motorControllerType = 'sutter.mpc200';           % If supplied, one of {'sutter.mp285', 'sutter.mpc200', 'thorlabs.mcm3000', 'thorlabs.mcm5000', 'scientifica', 'pi.e665', 'pi.e816', 'npoint.lc40x'}.
+motorDimensions = 'XYZ';               % If supplied, one of {'XYZ', 'XY', 'Z'}. Defaults to 'XYZ'. To reassign physical axis, permute axis order (e.g. 'XZY')
+motorStageType = '';                % Some controller require a valid stageType be specified
+motorUSBName = '';                  % USB resource name if controller is connected via USB
+motorCOMPort = [];                  % Integer identifying COM port for controller, if using serial communication
+motorBaudRate = [];                 % Value identifying baud rate of serial communication. If empty, default value for controller used.
+motorZDepthPositive = true;         % Logical indicating if larger Z values correspond to greater depth
+motorPositionDeviceUnits = [];      % 1x3 array specifying, in meters, raw units in which motor controller reports position. If unspecified, default positionDeviceUnits for stage/controller type presumed.
+motorVelocitySlow = [];             % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
+motorVelocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
+
+%Secondary motor for Z motion, allowing either XY-Z or XYZ-Z hybrid configuration
+motor2ControllerType = '';          % If supplied, one of {'sutter.mp285', 'sutter.mpc200', 'thorlabs.mcm3000', 'thorlabs.mcm5000', 'scientifica', 'pi.e665', 'pi.e816', 'npoint.lc40x'}.
+motor2StageType = '';               % Some controller require a valid stageType be specified
+motor2USBName = '';                 % USB resource name if controller is connected via USB
+motor2COMPort = [];                 % Integer identifying COM port for controller, if using serial communication
+motor2BaudRate = [];                % Value identifying baud rate of serial communication. If empty, default value for controller used.
+motor2ZDepthPositive = true;        % Logical indicating if larger Z values correspond to greater depth
+motor2PositionDeviceUnits = [];     % 1x3 array specifying, in meters, raw units in which motor controller reports position. If unspecified, default positionDeviceUnits for stage/controller type presumed.
+motor2VelocitySlow = [];            % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
+motor2VelocityFast = [];            % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
+
+%Global settings that affect primary and secondary motor
+moveCompleteDelay = 0;              % Numeric [s]: Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
 
