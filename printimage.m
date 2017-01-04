@@ -52,7 +52,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     global STL;
     
-    STL.print.zstep = 0.5;     % microns per step
+    STL.print.zstep = 1;     % microns per step
     STL.print.xaxis = 1;
     STL.print.zaxis = 3;
     STL.print.power = 1;
@@ -61,6 +61,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.re_voxelise_needed_before_display = true;
     STL.fastZ_reverse = false;
     STL.print.invert_z = false;
+    STL.print.fastZ_needs_reset = true;
     if STL.fastZ_reverse
         STL.print.fastZhomePos = 0;
     else
@@ -218,7 +219,7 @@ function zslider_Callback(hObject, eventdata, handles, pos)
     global STL;
     hSI = evalin('base', 'hSI');
 
-    if exist('hSI', 'var')
+    if exist('hSI', 'var') & isfield(hSI.hWaveformManager.scannerAO, 'ao_samplesPerTrigger')
         resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
             hSI.hRoiManager.linesPerFrame ...
             round(STL.print.size(3) / STL.print.zstep)];
@@ -269,6 +270,13 @@ function print_Callback(hObject, eventdata, handles)
     
     if ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
+    
+    if STL.print.fastZ_needs_reset
+        set(handles.messages, 'String', 'Reset FastZ before printing!');
         return;
     else
         set(handles.messages, 'String', '');
@@ -338,7 +346,8 @@ function print_Callback(hObject, eventdata, handles)
     else
         hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     end
-    %hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
+    hSI.hStackManager.stackReturnHome = false; % This seems useless.
     %hSI.hStackManager.stackZStartPos = 0;
     %hSI.hStackManager.stackZEndPos = NaN;
     FastZhold(handles, 'on');
@@ -362,16 +371,20 @@ function FastZhold(handles, v);
     
     if strcmp(v, 'on')
         set(handles.fastZhome, 'BackgroundColor', [1 0 0]);
-        STL.print.FastZhold = true;
+        %%%%%% FIXME Disabled! STL.print.FastZhold = true;
+        warning('Disabled fastZ hold hack.');
+        STL.print.fastZ_needs_reset = true;
     end
     
     if strcmp(v, 'off')
         STL.print.FastZhold = false;
+        STL.print.fastZ_needs_reset = true;
     end
     
     if strcmp(v, 'reset')
         STL.print.FastZhold = false;
         hSI.hFastZ.goHome;
+        STL.print.fastZ_needs_reset = false;
         set(handles.fastZhome, 'BackgroundColor', 0.94 * [1 1 1]);
     end
 end
@@ -404,7 +417,13 @@ function powertest_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    
+    if STL.print.fastZ_needs_reset
+        set(handles.messages, 'String', 'Reset FastZ before printing!');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
+        
     gridx = 5;
     gridy = 9;
     gridn = gridx * gridy;
@@ -451,7 +470,8 @@ function powertest_Callback(hObject, eventdata, handles)
     else
         hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     end
-    %hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
+    hSI.hStackManager.stackReturnHome = false; % This seems useless.
     FastZhold(handles, 'on');
     hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
