@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 13-Dec-2016 19:03:47
+    % Last Modified by GUIDE v2.5 18-Jan-2017 15:27:39
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -51,11 +51,16 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     handles.output = hObject;
     
     global STL;
-    
+    hSI = evalin('base', 'hSI');
+
+    % Some parameters are only computed on grab. So do one.
+    evalin('base', 'hSI.startGrab()');
+
     STL.print.zstep = 1;     % microns per step
     STL.print.xaxis = 1;
     STL.print.zaxis = 3;
     STL.print.power = 1;
+    STL.print.whichBeam = 1;
     STL.print.size = [300 300 300];
     STL.print.re_voxelise_needed_before_print = true;
     STL.print.re_voxelise_needed_before_display = true;
@@ -70,6 +75,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     STL.printer.bounds = [NaN NaN 450];
     
+    for i = 1:length(hSI.hChannels.channelName)
+        foo{i} = sprintf('%d', i);
+    end
+    set(handles.whichBeam, 'String', foo);
+    
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
@@ -77,6 +87,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     UpdateBounds_Callback([], [], handles);
 
     UpdateBounds_Callback([], [], handles);
+    
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+    FastZhold(handles, 'reset');
     
     colormap(handles.axes2, 'gray');
 end
@@ -98,6 +111,7 @@ function update_gui(handles);
     set(handles.powertest_start, 'String', sprintf('%g', 1));
     set(handles.powertest_end, 'String', sprintf('%g', 100));
     set(handles.invert_z, 'Value', STL.print.invert_z);
+    set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.PrinterBounds, 'String', sprintf('Maximum dimensions: [ %s]', ...
         sprintf('%d ', round(STL.printer.bounds))));
 end
@@ -120,12 +134,14 @@ function update_dimensions(handles, dim, val)
 
     dims = [STL.print.xaxis yaxis STL.print.zaxis];
     
-    aspect_ratio = STL.aspect_ratio(dims);
-    if nargin == 1
-        dim = 1;
-        val = STL.print.size(1);
+    if isfield(STL, 'aspect_ratio')
+        aspect_ratio = STL.aspect_ratio(dims);
+        if nargin == 1
+            dim = 1;
+            val = STL.print.size(1);
+        end
+        STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
     end
-    STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
     update_gui(handles);
 end
 
@@ -259,9 +275,10 @@ end
 
 
 
-% Called when the user presses "PRINT". Various things need to happen, some of them before the scan
-% is initiated and some right before the print waveform goes out. This function handles the former,
-% and instructs WaveformManager to call printimage_modify_beam() to do the latter.
+% Called when the user presses "PRINT". Various things need to happen, some
+% of them before the scan is initiated and some right before the print
+% waveform goes out. This function handles the former, and instructs
+% WaveformManager to call printimage_modify_beam() to do the latter.
 function print_Callback(hObject, eventdata, handles)
     global STL;
     
@@ -329,7 +346,7 @@ function print_Callback(hObject, eventdata, handles)
         warning('FOV is not square. You could try rotating the object.');
     end
 
-    
+    userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     hSI.hRoiManager.scanZoomFactor = min(STL.printer.bounds([1 2]) ./ STL.print.size([1 2]));
     
     if STL.print.re_voxelise_needed_before_print
@@ -351,13 +368,15 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hStackManager.stackZStartPos = 0;
     %hSI.hStackManager.stackZEndPos = NaN;
     FastZhold(handles, 'on');
-    
+    tic
     STL.print.armed = true;
     evalin('base', 'hSI.startLoop()');
     STL.print.armed = false;
     
     FastZhold(handles, 'off');
-    
+    toc
+    hSI.hRoiManager.scanZoomFactor = userZoomFactor;
+
     zslider_Callback([], [], handles);
 end
 
@@ -559,7 +578,7 @@ function resetFastZ_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-    %FastZhold(handles, 'reset');
+    FastZhold(handles, 'reset');
 end
 
 
@@ -653,3 +672,15 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
     end
 end
 
+
+
+function whichBeam_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.print.whichBeam = get(hObject, 'Value');
+end
+
+function whichBeam_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+end
