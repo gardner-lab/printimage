@@ -25,7 +25,7 @@ end
 
 v = double(voxels(:)) * STL.print.power;
 
-STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
+STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1, v);
 
 % Decrease power as appropriate for current zoom level. Empirically, this
 % seems to go sublinearly! Not sure why. Perhaps overscanning on Y doesn't
@@ -33,7 +33,7 @@ STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1,v);
 % have not calibrated aspect ratio yet?
 STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
 
-ao_volts_out.B = STL.print.ao_volts_raw.B;
+ao_volts_out.B(:, STL.print.whichBeam) = STL.print.ao_volts_raw.B;
 
 % Z will decrease (moving the fastZ stage towards 0 (highest position) and
 % then reset. Delete the reset:
