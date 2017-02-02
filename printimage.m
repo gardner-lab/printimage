@@ -62,8 +62,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.power = 1;
     STL.print.whichBeam = 1;
     STL.print.size = [300 300 300];
-    STL.print.re_voxelise_needed_before_print = true;
-    STL.print.re_voxelise_needed_before_display = true;
+    STL.print.voxelise_needed = true;
+    STL.preview.voxelise_needed = true;
     STL.fastZ_reverse = false;
     STL.print.invert_z = false;
     STL.print.fastZ_needs_reset = true;
@@ -73,7 +73,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.fastZhomePos = 450;
     end
     
-    STL.print.bounds = [NaN NaN 450];
+    STL.bounds_1 = [NaN NaN 350];
+    STL.print.bounds_max = [NaN NaN 350];
+    STL.print.bounds = [NaN NaN 350];
     
     for i = 1:length(hSI.hChannels.channelName)
         foo{i} = sprintf('%d', i);
@@ -101,19 +103,16 @@ function update_gui(handles);
     set(handles.build_x_axis, 'Value', STL.print.xaxis);
     set(handles.build_z_axis, 'Value', STL.print.zaxis);
     set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
-    set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))), ...
-        'ForegroundColor', colour_limits(STL.print.size(1), 0, STL.print.bounds(1)));
-    set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))), ...
-        'ForegroundColor', colour_limits(STL.print.size(2), 0, STL.print.bounds(2)));
-    set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))), ...
-        'ForegroundColor', colour_limits(STL.print.size(3), 0, STL.print.bounds(3)));
+    set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))));
+    set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))));
+    set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))));
     set(handles.fastZhomePos, 'String', sprintf('%d', round(STL.print.fastZhomePos)));
     set(handles.powertest_start, 'String', sprintf('%g', 1));
     set(handles.powertest_end, 'String', sprintf('%g', 100));
     set(handles.invert_z, 'Value', STL.print.invert_z);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
-    set(handles.PrinterBounds, 'String', sprintf('Maximum dimensions: [ %s]', ...
-        sprintf('%d ', round(STL.print.bounds))));
+    set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] ?m', ...
+        sprintf('%d ', round(STL.print.bounds_max))));
 end
 
 
@@ -147,7 +146,7 @@ function update_dimensions(handles, dim, val)
         end
         STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
         if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize)
-            STL.print.re_voxelise_needed_before_print = true;
+            STL.print.voxelise_needed = true;
         end
         update_gui(handles);
     end
@@ -206,8 +205,8 @@ function updateSTLfile(handles, STLfile)
     
     redraw_object(handles);
     
-    STL.print.re_voxelise_needed_before_display = true;
-    STL.print.re_voxelise_needed_before_print = true;
+    STL.preview.voxelise_needed = true;
+    STL.print.voxelise_needed = true;
 
     % Draw the slices
     zslider_Callback(handles.zslider, [], handles);
@@ -217,18 +216,22 @@ end
 function [] = rescale_object();
     global STL;
     
-    % Relies on STL.print.size for true
-    % dimensions. Stores the result in STL.print.[patchobj|mesh]
+    % Relies on STL.print.size for desired dimensions.
+    % Stores the result in STL.
+    yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
+    
+    STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
+    STL.print.aspect_ratio = STL.aspect_ratio(dims);
     
     max_dim = max(STL.print.size);
     
-    STL.render.patchobj = STL.patchobj1;
-    STL.render.patchobj.vertices = STL.patchobj1.vertices * max_dim;
-    STL.print.mesh = STL.mesh1 * max_dim;
-    STL.print.re_scale_needed = false;
-    
-    STL.print.re_voxelise_needed_before_display = true;
-    STL.print.re_voxelise_needed_before_print = true;
+    STL.preview.patchobj = STL.patchobj1;
+    STL.preview.patchobj.vertices = STL.patchobj1.vertices * max_dim;
+    STL.print.mesh = STL.mesh1(:, STL.print.dims, :) * max_dim;
+
+    STL.print.re_scale_needed = false;    
+    STL.preview.voxelise_needed = true;
+    STL.print.voxelise_needed = true;
 end    
 
 
@@ -242,7 +245,7 @@ function [] = redraw_object(handles);
     
     axes(handles.axes1);
     cla;
-    patch(STL.render.patchobj, ...
+    patch(STL.preview.patchobj, ...
         'FaceColor',       [0.8 0.8 0.8], ...
         'EdgeColor',       'none',        ...
         'FaceLighting',    'gouraud',     ...
@@ -270,13 +273,13 @@ function zslider_Callback(hObject, eventdata, handles, pos)
             hSI.hRoiManager.linesPerFrame ...
             round(STL.print.size(3) / STL.print.zstep)];
         if any(resolution ~= STL.print.resolution)
-            STL.print.re_voxelise_needed_before_print = true;
-            STL.print.re_voxelise_needed_before_display = true;
+            STL.print.voxelise_needed = true;
+            STL.preview.voxelise_needed = true;
         end
     end
         
-    if STL.print.re_voxelise_needed_before_display
-        voxelise(handles);
+    if STL.preview.voxelise_needed
+        voxelise(handles, 'preview');
     end
 
     if get(handles.zslider, 'Max') ~= STL.print.resolution(3)
@@ -365,24 +368,26 @@ function print_Callback(hObject, eventdata, handles)
         hSI.hRoiManager.linesPerFrame ...
         round(STL.print.size(3) / STL.print.zstep)];
     if any(resolution ~= STL.print.resolution)
-        STL.print.re_voxelise_needed_before_print = true;
-        STL.print.re_voxelise_needed_before_display = true;
+        STL.print.voxelise_needed = true;
+        STL.preview.voxelise_needed = true;
     end
     
 
     UpdateBounds_Callback([], [], handles);
-    fov_ranges = STL.print.bounds;
+    fov_ranges = STL.print.bounds_max;
     if fov_ranges(1) ~= fov_ranges(2)
         warning('FOV is not square. You could try rotating the object.');
     end
 
     userZoomFactor = hSI.hRoiManager.scanZoomFactor;
-    hSI.hRoiManager.scanZoomFactor = min(STL.print.bounds([1 2]) ./ STL.print.size([1 2]));
     
-    if STL.print.re_voxelise_needed_before_print
-        voxelise(handles);
+    
+    if STL.print.voxelise_needed
+        voxelise(handles, 'print');
     end
     
+    hSI.hRoiManager.scanZoomFactor = STL.print.best_zoom; % FIXME min(STL.print.bounds([1 2]) ./ STL.print.size([1 2]));
+
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
     
@@ -394,13 +399,39 @@ function print_Callback(hObject, eventdata, handles)
         hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     end
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
-    hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    hSI.hStackManager.stackReturnHome = false;
     %hSI.hStackManager.stackZStartPos = 0;
     %hSI.hStackManager.stackZEndPos = NaN;
     FastZhold(handles, 'on');
     tic
     STL.print.armed = true;
-    evalin('base', 'hSI.startLoop()');
+    
+    % The main printing loop. How to manage the non-blocking call to
+    % startLoop()?
+    
+    for mvx = 1:STL.print.nmetavoxels(1)
+        for mvy = 1:STL.print.nmetavoxels(2)
+            for mvz = 1:STL.print.nmetavoxels(3)
+                
+                % 1. Servo the slow stage to the correct starting position
+                
+                
+                
+                % 2. Set up printimage_modify_beam with the appropriate
+                % voxels
+                
+                STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
+                
+                % 3. Do whatever is necessary to get a blocking
+                % startLoop()...
+                
+                % 4. Print this metavoxel
+                evalin('base', 'hSI.startLoop()');
+            end
+        end
+    end
+    
+    
     STL.print.armed = false;
     
     FastZhold(handles, 'off');
@@ -563,8 +594,8 @@ end
 function build_x_axis_Callback(hObject, eventdata, handles)
     global STL;
     
-    STL.print.re_voxelise_needed_before_display = true;
-    STL.print.re_voxelise_needed_before_print = true;
+    STL.preview.voxelise_needed = true;
+    STL.print.voxelise_needed = true;
     
     STL.print.xaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
@@ -583,8 +614,8 @@ end
 function build_z_axis_Callback(hObject, eventdata, handles)
     global STL;
     
-    STL.print.re_voxelise_needed_before_display = true;
-    STL.print.re_voxelise_needed_before_print = true;
+    STL.preview.voxelise_needed = true;
+    STL.print.voxelise_needed = true;
 
     STL.print.valid = 0;
     STL.print.zaxis = get(hObject, 'Value');
@@ -677,9 +708,9 @@ function size3_Callback(hObject, eventdata, handles)
 end
 
 function size3_CreateFcn(hObject, eventdata, handles)
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
 end
 
 
@@ -693,10 +724,17 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         return;
     else
         set(handles.messages, 'String', '');
-        hSI.hRoiManager.scanZoomFactor = STL.print.minPrintZoom;
+        
+        % Get bounds at zoom = 1
+        hSI.hRoiManager.scanZoomFactor = 1;
+        fov = hSI.hRoiManager.imagingFovUm;
+        STL.bounds_1([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+                
+        % Get bounds at min zoom
+        hSI.hRoiManager.scanZoomFactor = STL.print.min_zoom;
         fov = hSI.hRoiManager.imagingFovUm;
         warning('FIXME: Does this result in the correct FOV? scanZoomFactor = %g, FOV in bounds window', hSI.hRoiManager.scanZoomFactor);
-        STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+        STL.print.bounds_max([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 
         update_dimensions(handles);
         update_gui(handles);
@@ -719,7 +757,7 @@ end
 function minGoodZoom_Callback(hObject, eventdata, handles)
     global STL;
     contents = cellstr(get(hObject,'String')); 
-    STL.print.minPrintZoom = str2double(contents{get(hObject, 'Value')});
+    STL.print.min_zoom = str2double(contents{get(hObject, 'Value')});
     UpdateBounds_Callback(hObject, eventdata, handles);
 end
 
