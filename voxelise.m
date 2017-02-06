@@ -4,7 +4,7 @@ function [] = voxelise(handles, target)
     hSI = evalin('base', 'hSI');
     
     if exist('handles', 'var');
-        set(handles.messages, 'String', 'Re-voxelising...');
+        set(handles.messages, 'String', sprintf('Re-voxelising %s...', target));
         drawnow;
     end
     
@@ -25,22 +25,14 @@ function [] = voxelise(handles, target)
     % rather than normalising everything and zooming, because the latter
     % quantises.
     
-    if STL.print.re_scale_needed
-        warning('Rescaling...');
-        rescale_object();
-    end
-    
-    
     if strcmp(target, 'print')
         if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
-            
-            
             % When we create the scan, we must add 0 to the right edge of the
-            % scan pattern, so that the flyback is blanked.
+            % scan pattern, so that the flyback is blanked. Or is this
+            % automatic?
             
             % 1. Compute metavoxels
             nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
-            
             
             % 2. Set zoom to maximise fill of those metavoxels along one of X
             % or Y
@@ -48,10 +40,10 @@ function [] = voxelise(handles, target)
             % FIXME not doing anything with this yet
             
             % 3. Set appropriate zoom level automatically? Nah, let's leave this manual for now.
-            %STL.print.best_zoom = STL.print.min_zoom;
-            %hSI.hRoiManager.scanZoomFactor = STL.print.best_zoom;
+            %STL.print.zoom_best = STL.print.zoom_min;
+            %hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
             %fov = hSI.hRoiManager.imagingFovUm;
-            %STL.print.best_bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+            %STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
             
             
             % 4. Get voxel centres for metavoxel 0,0,0
@@ -67,7 +59,7 @@ function [] = voxelise(handles, target)
             xc = sin(xc);
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
             xc = (xc + 1) / 2;  % Now on [0 1].
-            xc = xc * STL.print.best_bounds(1);
+            xc = xc * STL.print.bounds(1);
             
             % Y (galvo) centres.
             yc = linspace(0, STL.print.best_bounds(2), hSI.hRoiManager.linesPerFrame);
@@ -109,7 +101,7 @@ function [] = voxelise(handles, target)
             end
         end
     elseif strcmp(target, 'preview')
-        STL.preview.resolution = [100 100 round(STL.print.size(3) / STL.print.zstep)];
+        STL.preview.resolution = [120 120 round(STL.print.size(3) / STL.print.zstep)];
         STL.preview.voxelpos.x = linspace(0, STL.print.size(1), STL.preview.resolution(1));
         STL.preview.voxelpos.y = linspace(0, STL.print.size(2), STL.preview.resolution(2));
         STL.preview.voxelpos.z = 0 : STL.print.zstep : STL.print.size(3);
@@ -119,17 +111,21 @@ function [] = voxelise(handles, target)
             STL.preview.voxelpos.z, ...
             STL.print.mesh);
         
-        STL.print.voxelise_needed = true;
         STL.preview.voxelise_needed = false;
-    end
         
-    % Discard empty slices. This will hopefully be only the final slice, or
-    % none. This might be nice for eliminating that last useless slice, but we
-    % can't do that from printimage_modify_beam since the print is already
-    % running.
-    %STL.print.voxels = STL.print.voxels(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
-    %STL.print.resolution(3) = size(STL.print.voxels, 3);
+        % Discard empty slices. This will hopefully be only the final slice, or
+        % none. This might be nice for eliminating that last useless slice, but we
+        % can't do that from printimage_modify_beam since the print is already
+        % running.
+        %STL.preview.voxels = STL.preview.voxels(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
+        %STL.preview.resolution(3) = size(STL.print.voxels, 3);
+    end
     
+    if exist('handles', 'var');
+        set(handles.messages, 'String', '');
+        drawnow;
+    end
+
 end
 
     

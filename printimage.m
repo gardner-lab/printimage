@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 06-Feb-2017 15:11:55
+    % Last Modified by GUIDE v2.5 06-Feb-2017 18:35:15
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -62,7 +62,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.power = 1;
     STL.print.whichBeam = 1;
     STL.print.size = [300 300 300];
-    STL.print.min_zoom = 1;
+    STL.print.zoom_min = 1;
     STL.print.zoom = 1;
     STL.preview.resolution = [120 120 120];
     STL.print.voxelise_needed = true;
@@ -114,8 +114,8 @@ function update_gui(handles);
     set(handles.powertest_end, 'String', sprintf('%g', 100));
     set(handles.invert_z, 'Value', STL.print.invert_z);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
-    set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] ?m', ...
-        sprintf('%d ', round(STL.print.bounds_max))));
+    set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
+        sprintf('%d ', round(STL.print.bounds))));
 end
 
 
@@ -150,12 +150,10 @@ function update_dimensions(handles, dim, val)
         STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
         if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize)
             STL.print.voxelise_needed = true;
+            STL.print.rescale_needed = true;
         end
         update_gui(handles);
     end
-    
-    STL.print.re_scale_needed = true;
-    warning('FIXME: Place a button near the dimensions boxes for re-displaying.');
 end
 
 
@@ -183,15 +181,15 @@ function updateSTLfile(handles, STLfile)
     global STL;
     
     STL.file = STLfile;
-    STL.mesh = READ_stl(STL.file);
+    STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
     STL.patchobj1 = stlread(STL.file);
     
     % Position the object at the origin+.
-    llim = min(STL.patchobj.vertices);
+    llim = min(STL.patchobj1.vertices);
     STL.patchobj1.vertices = bsxfun(@minus, STL.patchobj1.vertices, llim);
-    STL.mesh1 = bsxfun(@minus, STL.mesh, llim);
+    STL.mesh1 = bsxfun(@minus, STL.mesh1, llim);
     
     % Scale into the desired dimensions--in microns--from the origin to
     % positive-everything.
@@ -206,7 +204,7 @@ function updateSTLfile(handles, STLfile)
     
     update_dimensions(handles); % First pass at object dimensions according to aspect ratio
     
-    redraw_object(handles);
+    update_preview(handles);
     
     STL.preview.voxelise_needed = true;
     STL.print.voxelise_needed = true;
@@ -224,25 +222,26 @@ function [] = rescale_object();
     yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
     
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
-    STL.print.aspect_ratio = STL.aspect_ratio(dims);
+    STL.print.aspect_ratio = STL.aspect_ratio(STL.print.dims);
     
     max_dim = max(STL.print.size);
     
     STL.preview.patchobj = STL.patchobj1;
     STL.preview.patchobj.vertices = STL.patchobj1.vertices * max_dim;
+    
     STL.print.mesh = STL.mesh1(:, STL.print.dims, :) * max_dim;
     
-    STL.print.re_scale_needed = false;
+    STL.print.rescale_needed = false;
     STL.preview.voxelise_needed = true;
     STL.print.voxelise_needed = true;
 end
 
 
 
-function [] = redraw_object(handles);
+function [] = update_preview(handles);
     global STL;
     
-    if STL.print.re_scale_needed
+    if STL.print.rescale_needed
         rescale_object();
     end
     
@@ -263,6 +262,8 @@ function [] = redraw_object(handles);
     camlight_handle = camlight('right');
     rotate_handle = rotate3d;
     rotate_handle.enable = 'on';
+    
+    zslider_Callback([], [], handles);
 end
 
 
@@ -345,7 +346,10 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hBeams.zprvResetHome();
     %hSI.hFastZ.positionTarget = foo;
     
-    
+    if STL.print.rescale_needed
+        rescale_object(handles);
+    end
+        
     % Set the zoom factor for highest resolution:
     %if ~isfield(STL, 'print') | ~isfield(STL.print, 'ResScanResolution')
     % If no acquisition has been run yet, run one. THIS DOESN'T WORK.
@@ -356,7 +360,7 @@ function print_Callback(hObject, eventdata, handles)
     %STL.print.ResScanResolution = hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B;
     %end
     
-    STL.print.metavoxel_shift
+    STL.print.metavoxel_shift = STL.print.bounds;
     
     if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
@@ -372,7 +376,7 @@ function print_Callback(hObject, eventdata, handles)
     resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
         round(STL.print.size(3) / STL.print.zstep)];
-    if any(resolution ~= STL.print.resolution)
+    if ~isfield(STL.print, 'resolution') | any(resolution ~= STL.print.resolution)
         STL.print.voxelise_needed = true;
     end
     
@@ -450,7 +454,10 @@ function print_Callback(hObject, eventdata, handles)
     STL.print.armed = false;
     
     FastZhold(handles, 'off');
-    toc
+    while ~strcmpi(hSI.acqState,'idle')
+        pause(0.1);
+    end
+    toc;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
     
     zslider_Callback([], [], handles);
@@ -694,7 +701,11 @@ end
 
 
 function size1_Callback(hObject, eventdata, handles)
-    update_dimensions(handles, 2, str2double(get(hObject, 'String')));
+    global STL;
+    STL.print.rescale_needed = true;
+
+    % Should the dim here really be 1? Or 2?
+    update_dimensions(handles, 1, str2double(get(hObject, 'String')));
 end
 
 function size1_CreateFcn(hObject, eventdata, handles)
@@ -706,6 +717,9 @@ end
 
 
 function size2_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.print.rescale_needed = true;
+
     update_dimensions(handles, 2, str2double(get(hObject, 'String')));
 end
 
@@ -719,6 +733,9 @@ end
 
 
 function size3_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.print.rescale_needed = true;
+
     update_dimensions(handles, 3, str2double(get(hObject, 'String')));
 end
 
@@ -746,15 +763,13 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         STL.bounds_1([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
         
         % Get bounds at min zoom
-        hSI.hRoiManager.scanZoomFactor = STL.print.min_zoom;
+        hSI.hRoiManager.scanZoomFactor = STL.print.zoom_min;
         fov = hSI.hRoiManager.imagingFovUm;
-        warning('FIXME: Does this result in the correct FOV? scanZoomFactor = %g, FOV in bounds window', hSI.hRoiManager.scanZoomFactor);
         STL.print.bounds_max([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 
         % Now, how about the user-selected print zoom?
         hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
         fov = hSI.hRoiManager.imagingFovUm;
-        warning('FIXME: Does this result in the correct FOV? scanZoomFactor = %g, FOV in bounds window', hSI.hRoiManager.scanZoomFactor);
         STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 
         update_dimensions(handles);
@@ -778,21 +793,18 @@ end
 function minGoodZoom_Callback(hObject, eventdata, handles)
     global STL;
     contents = cellstr(get(hObject,'String'));
-    STL.print.min_zoom = str2double(contents{get(hObject, 'Value')});
+    STL.print.zoom_min = str2double(contents{get(hObject, 'Value')});
     
-    
-    if isfield(STL.print.zoom) & STL.print.zoom >= STL.print.min_zoom
-        z = STL.print.zoom;
-    else
-        z = STL.print.min_zoom;
+    if STL.print.zoom < STL.print.zoom_min
+        STL.print.zoom = STL.print.zoom_min;
     end
     
-    possibleZooms = STL.print.min_zoom:0.1:4;
+    possibleZooms = STL.print.zoom_min:0.1:4;
     for i = 1:length(possibleZooms)
-        foo{i} = sprintf('%f', possibleZooms(i));
+        foo{i} = sprintf('%g', possibleZooms(i));
         
         % Allows user choice of zoom to remain unchanged despite the indexing for this widget
-        if possibleZooms(i) == z
+        if abs(STL.print.zoom - possibleZooms(i)) < 1e-15
             zoomVal = i;
         end
     end
@@ -807,7 +819,7 @@ function minGoodZoom_CreateFcn(hObject, eventdata, handles)
     % candidates manually... Could do it more cleverly!
     possibleZooms = 1:0.1:2;
     for i = 1:length(possibleZooms)
-        foo{i} = sprintf('%f', possibleZooms(i));
+        foo{i} = sprintf('%g', possibleZooms(i));
     end
     set(hObject, 'String', foo, 'Value', 1);
 end
@@ -820,8 +832,8 @@ function printZoom_Callback(hObject, eventdata, handles)
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
     
     UpdateBounds_Callback(hObject, eventdata, handles); 
-    nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf(nMetavoxels)));
+    nMetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nMetavoxels)));
 
 end
 
@@ -831,9 +843,15 @@ function printZoom_CreateFcn(hObject, eventdata, handles)
     end
     
     global STL;
-    possibleZooms = STL.print.min_zoom:0.1:4;
+    possibleZooms = 1:0.1:4;
     for i = 1:length(possibleZooms)
-        foo{i} = sprintf('%f', possibleZooms(i));
+        foo{i} = sprintf('%g', possibleZooms(i));
     end
     set(hObject, 'String', foo, 'Value', 1);
+end
+
+
+function update_preview_button_Callback(hObject, eventdata, handles)
+    %update_dimensions(handles);
+    update_preview(handles);
 end
