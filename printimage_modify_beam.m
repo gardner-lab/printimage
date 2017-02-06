@@ -9,11 +9,11 @@ ao_volts_out = ao_volts_raw;
 hSI = evalin('base', 'hSI');
 hSI.hChannels.loggingEnable = false;
 
-if STL.print.re_voxelise_needed_before_print
-    voxelise();
+if STL.print.voxelise_needed
+    voxelise([], 'print');
 end
 
-if STL.print.re_voxelise_needed_before_print
+if STL.print.voxelise_needed
     error('Tried re-voxelising, but was unsuccessful.');
 end
 
