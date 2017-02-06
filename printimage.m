@@ -88,8 +88,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
 
     UpdateBounds_Callback([], [], handles);
     
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-    FastZhold(handles, 'reset');
+    %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+    %FastZhold(handles, 'reset');
     
     colormap(handles.axes2, 'gray');
 end
