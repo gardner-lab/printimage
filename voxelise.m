@@ -39,19 +39,19 @@ function [] = voxelise(handles, target)
             % scan pattern, so that the flyback is blanked.
             
             % 1. Compute metavoxels
-            nmetavoxels = ceil(STL.print.size ./ STL.print.bounds_max);
+            nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
             
             
             % 2. Set zoom to maximise fill of those metavoxels along one of X
             % or Y
-            foo = nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ STL.print.bounds_max(1:2));
+            foo = nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ STL.print.bounds(1:2));
             % FIXME not doing anything with this yet
             
-            % 3. Set appropriate zoom level
-            STL.print.best_zoom = STL.print.min_zoom;
-            hSI.hRoiManager.scanZoomFactor = STL.print.best_zoom;
-            fov = hSI.hRoiManager.imagingFovUm;
-            STL.print.best_bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+            % 3. Set appropriate zoom level automatically? Nah, let's leave this manual for now.
+            %STL.print.best_zoom = STL.print.min_zoom;
+            %hSI.hRoiManager.scanZoomFactor = STL.print.best_zoom;
+            %fov = hSI.hRoiManager.imagingFovUm;
+            %STL.print.best_bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
             
             
             % 4. Get voxel centres for metavoxel 0,0,0
