@@ -2,6 +2,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 global STL;
 global ao_volts_out; % Expose this for easier debugging
 
+size_B_orig = size(ao_volts_raw.B);
+disp(sprintf('Size of ao_volts_raw.B going in is [%s ]', sprintf(' %d', size_B_orig)));
+
 % For manual debugging, ao_volts_raw = hSI.hWaveformManager.scannerAO.ao_volts_raw
 
 ao_volts_out = ao_volts_raw;
@@ -25,13 +28,22 @@ end
 
 v = double(voxels(:)) * STL.print.power;
 
-STL.print.ao_volts_raw.B = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1, v);
+disp(sprintf('Size of new ao_volts_raw.B(:, %d) is [%s ] ([%s ]).', ...
+    STL.print.whichBeam, ...
+    sprintf(' %d', size(v)), ...
+    sprintf(' %d', size(voxels))));
+
+
+STL.print.ao_volts_raw = ao_volts_raw;
+STL.print.ao_volts_raw.B(:, STL.print.whichBeam) = hSI.hBeams.zprpBeamsPowerFractionToVoltage(1, v);
 
 % Decrease power as appropriate for current zoom level. Empirically, this
 % seems to go sublinearly! Not sure why. Perhaps overscanning on Y doesn't
 % happen fast enough to count as more power? Perhaps SUBlinear because I
 % have not calibrated aspect ratio yet?
 STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
+
+disp(sprintf('Size of new ao_volts_raw.B is [%s ]', sprintf(' %d', size(STL.print.ao_volts_raw.B))));
 
 ao_volts_out.B(:, STL.print.whichBeam) = STL.print.ao_volts_raw.B;
 

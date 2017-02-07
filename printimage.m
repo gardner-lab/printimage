@@ -423,12 +423,12 @@ function print_Callback(hObject, eventdata, handles)
     for mvx = 1:STL.print.nmetavoxels(1)
         for mvy = 1:STL.print.nmetavoxels(2)
             for mvz = 1:STL.print.nmetavoxels(3)
-                
+                disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
-                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift * ([mvx mvy mvz] - 1);
-                disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift * [mvx mvy mvz] - 1));
+                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1);
+                disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1)));
                 
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
@@ -832,8 +832,8 @@ function printZoom_Callback(hObject, eventdata, handles)
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
     
     UpdateBounds_Callback(hObject, eventdata, handles); 
-    nMetavoxels = ceil(STL.print.size ./ STL.print.bounds);
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nMetavoxels)));
+    nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
 
 end
 
@@ -853,5 +853,6 @@ end
 
 function update_preview_button_Callback(hObject, eventdata, handles)
     %update_dimensions(handles);
+    printZoom_Callback(handles.printZoom, [], handles);
     update_preview(handles);
 end

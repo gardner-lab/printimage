@@ -62,16 +62,17 @@ function [] = voxelise(handles, target)
             xc = xc * STL.print.bounds(1);
             
             % Y (galvo) centres.
-            yc = linspace(0, STL.print.best_bounds(2), hSI.hRoiManager.linesPerFrame);
+            yc = linspace(0, STL.print.bounds(2), hSI.hRoiManager.linesPerFrame);
             
             % Z centres aren't defined by zoom, but by zstep.
-            zc = 0 : STL.print.zstep : min(STL.print.best_bounds(3), STL.print.size(3));
+            zc = 0 : STL.print.zstep : min(STL.print.bounds(3), STL.print.size(3));
             
             
             % 5. Feed each metavoxel's centres to voxelise
             
             STL.print.nmetavoxels = nmetavoxels;
             
+            STL.print.metavoxels = {};
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
@@ -79,6 +80,10 @@ function [] = voxelise(handles, target)
                             yc + (mvy - 1) * STL.print.metavoxel_shift(2), ...
                             zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
                             STL.print.mesh);
+                        % Delete empty zstack slices (hopefully only at
+                        % beginning or end?)
+                        STL.print.metavoxels{mvx, mvy, mvz} ...
+                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
                     end
                 end
             end
@@ -117,8 +122,8 @@ function [] = voxelise(handles, target)
         % none. This might be nice for eliminating that last useless slice, but we
         % can't do that from printimage_modify_beam since the print is already
         % running.
-        %STL.preview.voxels = STL.preview.voxels(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
-        %STL.preview.resolution(3) = size(STL.print.voxels, 3);
+        STL.preview.voxels = STL.preview.voxels(:, :, find(sum(sum(STL.preview.voxels, 1), 2) ~= 0));
+        STL.preview.resolution(3) = size(STL.preview.voxels, 3);
     end
     
     if exist('handles', 'var');
