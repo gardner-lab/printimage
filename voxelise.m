@@ -1,5 +1,5 @@
 function [] = voxelise(handles, target)
-    
+        
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -31,19 +31,29 @@ function [] = voxelise(handles, target)
             % scan pattern, so that the flyback is blanked. Or is this
             % automatic?
             
-            % 1. Compute metavoxels
+            
+            
+            % 1. Compute metavoxels based on user-selected print zoom:
             nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
             
             % 2. Set zoom to maximise fill of those metavoxels along one of X
             % or Y
-            foo = nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ STL.print.bounds(1:2));
             % FIXME not doing anything with this yet
             
-            % 3. Set appropriate zoom level automatically? Nah, let's leave this manual for now.
-            %STL.print.zoom_best = STL.print.zoom_min;
-            %hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
-            %fov = hSI.hRoiManager.imagingFovUm;
-            %STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
+            % 3. Set appropriate zoom level: if object bounds < STL.print.zoom,
+            % then zoom in. Otherwise, just use STL.print.zoom.
+            zoom_best = floor(min(nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ (STL.bounds_1(1:2)))) * 10)/10;
+            if all(nmetavoxels(1:2) == 1) & zoom_best >= STL.print.zoom_min
+                disp(sprintf('Changing print zoom to %g.', zoom_best));
+                STL.print.zoom_best = zoom_best;
+            else
+                STL.print.zoom_best = STL.print.zoom;
+            end
+                
+            hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
+            fov = hSI.hRoiManager.imagingFovUm;
+            STL.print.bounds_best = STL.print.bounds;
+            STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
             
             
             % 4. Get voxel centres for metavoxel 0,0,0
@@ -59,13 +69,13 @@ function [] = voxelise(handles, target)
             xc = sin(xc);
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
             xc = (xc + 1) / 2;  % Now on [0 1].
-            xc = xc * STL.print.bounds(1);
+            xc = xc * STL.print.bounds_best(1);
             
             % Y (galvo) centres.
-            yc = linspace(0, STL.print.bounds(2), hSI.hRoiManager.linesPerFrame);
+            yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             
             % Z centres aren't defined by zoom, but by zstep.
-            zc = 0 : STL.print.zstep : min(STL.print.bounds(3), STL.print.size(3));
+            zc = 0 : STL.print.zstep : min(STL.print.bounds_best(3), STL.print.size(3));
             
             
             % 5. Feed each metavoxel's centres to voxelise
@@ -78,24 +88,28 @@ function [] = voxelise(handles, target)
                     for mvz = 1:nmetavoxels(3)
                         
                         % Voxels for each metavoxel:
-                        STL.print.metavoxels{mvx, mvy, mvz} = VOXELISE(xc + (mvx - 1) * STL.print.metavoxel_shift(1), ...
+                        STL.print.metavoxels{mvx, mvy, mvz} = VOXELISE(...
+                            xc + (mvx - 1) * STL.print.metavoxel_shift(1), ...
                             yc + (mvy - 1) * STL.print.metavoxel_shift(2), ...
                             zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
                             STL.print.mesh);
                         
                         % Delete empty zstack slices (hopefully only at beginning or end?):
+                        foo = length(find(sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2) == 0));
+                        if foo > 2
+                            warning('Deleting %d slices at metavoxel [ %d %d %d ]!', foo, mvx, mvy, mvz);
+                        end
                         STL.print.metavoxels{mvx, mvy, mvz} ...
-                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
+                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, find(sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2) ~= 0));
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.
-                        STL.print.resolution{mvx, mvy, mvz} = size(STL.print.metavoxels{mvx, mvy, mvz});
+                        STL.print.metavoxel_resolution{mvx, mvy, mvz} = size(STL.print.metavoxels{mvx, mvy, mvz});
                     end
                 end
             end
             
             STL.print.voxelise_needed = false;
-            STL.preview.voxelise_needed = false;
             STL.print.valid = true;
             
             if exist('handles', 'var')

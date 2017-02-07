@@ -45,7 +45,7 @@ STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFa
 
 disp(sprintf('Size of new ao_volts_raw.B is [%s ]', sprintf(' %d', size(STL.print.ao_volts_raw.B))));
 
-ao_volts_out.B(:, STL.print.whichBeam) = STL.print.ao_volts_raw.B;
+ao_volts_out.B = STL.print.ao_volts_raw.B;
 
 % Z will decrease (moving the fastZ stage towards 0 (highest position) and
 % then reset. Delete the reset:

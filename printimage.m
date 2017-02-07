@@ -54,6 +54,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     hSI = evalin('base', 'hSI');
     
     % Some parameters are only computed on grab. So do one.
+    hSI.hStackManager.numSlices = 1;
+    hSI.hFastZ.enable = false;
     evalin('base', 'hSI.startGrab()');
     
     STL.print.zstep = 1;     % microns per step
@@ -64,6 +66,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.size = [300 300 300];
     STL.print.zoom_min = 1;
     STL.print.zoom = 1;
+    STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
     STL.print.metavoxel_overlap = 5; % Microns of overlap in order to get good bonding
     STL.print.voxelise_needed = true;
@@ -72,9 +75,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.fastZ_needs_reset = true;
     STL.print.fastZhomePos = 450;
     
-    STL.bounds_1 = [NaN NaN 350];
-    STL.print.bounds_max = [NaN NaN 350];
-    STL.print.bounds = [NaN NaN 350];
+    STL.bounds_1 = [NaN NaN 370];
+    STL.print.bounds_max = [NaN NaN 370];
+    STL.print.bounds = [NaN NaN 370];
     
     for i = 1:length(hSI.hChannels.channelName)
         foo{i} = sprintf('%d', i);
@@ -141,7 +144,9 @@ function update_dimensions(handles, dim, val)
         if isfield(STL.print, 'size')
             oldsize = STL.print.size;
         end
-        STL.print.size = aspect_ratio/aspect_ratio(dim) * val;
+        
+        % Include a roundoff fudge factor (nearest nanometre)
+        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3;
         if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize)
             STL.print.voxelise_needed = true;
             STL.print.rescale_needed = true;
@@ -198,11 +203,11 @@ function updateSTLfile(handles, STLfile)
     
     update_dimensions(handles); % First pass at object dimensions according to aspect ratio
     
-    update_preview(handles);
-    
     STL.preview.voxelise_needed = true;
     STL.print.voxelise_needed = true;
     
+    update_preview(handles);
+
     % Draw the slices
     zslider_Callback(handles.zslider, [], handles);
 end
@@ -328,6 +333,8 @@ function print_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
+    userZoomFactor = hSI.hRoiManager.scanZoomFactor;
+    
     % Save home positions. They won't be restored so as not to crush the
     % printed object, but they should be reset later.
     
@@ -344,7 +351,6 @@ function print_Callback(hObject, eventdata, handles)
         
     UpdateBounds_Callback([], [], handles);
     
-    STL.print.metavoxel_shift = STL.print.bounds - STL.print.metavoxel_overlap;
     
     if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
@@ -368,22 +374,13 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     
-    fov_ranges = STL.print.bounds;
-    if fov_ranges(1) ~= fov_ranges(2)
-        warning('FOV is not square. You could try rotating the object.');
-    end
-    
-    
-    
     if STL.print.voxelise_needed
         voxelise(handles, 'print');   
     end
     
-    % Zoom factor
-    userZoomFactor = hSI.hRoiManager.scanZoomFactor;    
     
     % This relies on voxelise() being called, above
-    hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
+    hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
@@ -411,8 +408,8 @@ function print_Callback(hObject, eventdata, handles)
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
-                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1);
                 disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1)));
+                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1);
                 
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
@@ -420,7 +417,7 @@ function print_Callback(hObject, eventdata, handles)
                 STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
                 
                 % 3. Set resolution appropriately
-                hSI.hStackManager.numSlices = STL.print.resolution{mvx, mvy, mvz}(3);
+                hSI.hStackManager.numSlices = STL.print.metavoxel_resolution{mvx, mvy, mvz}(3);
                 
                 % 4. Do whatever is necessary to get a blocking
                 % startLoop(), like setting up a callback in acqModeDone?
@@ -439,6 +436,8 @@ function print_Callback(hObject, eventdata, handles)
     
     
     STL.print.armed = false;
+    hSI.hStackManager.numSlices = 1;
+    hSI.hFastZ.enable = false;
     
     FastZhold(handles, 'off');
     while ~strcmpi(hSI.acqState,'idle')
@@ -734,6 +733,8 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
+    warning('UpdateBounds_Callback...');
+    
     if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
@@ -757,6 +758,9 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
 
         update_dimensions(handles);
         update_gui(handles);
+        
+        nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+        set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
     end
 end
 
@@ -815,9 +819,6 @@ function printZoom_Callback(hObject, eventdata, handles)
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
     
     UpdateBounds_Callback(hObject, eventdata, handles); 
-    nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
-
 end
 
 function printZoom_CreateFcn(hObject, eventdata, handles)
