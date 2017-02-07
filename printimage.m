@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 06-Feb-2017 18:35:15
+    % Last Modified by GUIDE v2.5 07-Feb-2017 17:42:16
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -56,7 +56,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
+    
     evalin('base', 'hSI.startGrab()');
+    while ~strcmpi(hSI.acqState,'idle')
+        pause(0.1);
+    end
     
     STL.print.zstep = 1;     % microns per step
     STL.print.xaxis = 1;
@@ -113,18 +117,10 @@ function update_gui(handles);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
+    nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
 end
 
-
-function [colour] = colour_limits(thing, bound1, bound2)
-    colour = [1 1 1]*0;
-    if thing < bound1
-        colour = [1 0 0];
-    end
-    if nargin == 3 & thing > bound2
-        colour = [1 0 0];
-    end
-end
 
 
 function update_dimensions(handles, dim, val)
@@ -151,6 +147,8 @@ function update_dimensions(handles, dim, val)
             STL.print.voxelise_needed = true;
             STL.print.rescale_needed = true;
         end
+        
+        update_3d_preview(handles);
         update_gui(handles);
     end
 end
@@ -206,7 +204,7 @@ function updateSTLfile(handles, STLfile)
     STL.preview.voxelise_needed = true;
     STL.print.voxelise_needed = true;
     
-    update_preview(handles);
+    update_3d_preview(handles);
 
     % Draw the slices
     zslider_Callback(handles.zslider, [], handles);
@@ -225,10 +223,28 @@ function [] = rescale_object();
     
     max_dim = max(STL.print.size);
     
-    STL.preview.patchobj = STL.patchobj1;
-    STL.preview.patchobj.vertices = STL.patchobj1.vertices * max_dim;
+    meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
+        - min(STL.patchobj1.vertices(:,STL.print.dims(3))))/2;
     
-    STL.print.mesh = STL.mesh1(:, STL.print.dims, :) * max_dim;
+    % Preview maintains original dimensions to make it easier to see what's
+    % going on
+    STL.preview.patchobj = STL.patchobj1;
+    STL.preview.mesh = STL.mesh1;
+    if STL.print.invert_z
+        STL.preview.patchobj.vertices(:,STL.print.dims(3)) = ...
+            -(STL.preview.patchobj.vertices(:,STL.print.dims(3)) - meanz) + meanz;
+        STL.preview.mesh(:, STL.print.dims(3), :) = ...
+            -(STL.preview.mesh(:, STL.print.dims(3), :) - meanz) + meanz;
+    end
+    STL.preview.patchobj.vertices = STL.preview.patchobj.vertices * max_dim;
+    STL.preview.mesh = STL.preview.mesh * max_dim;
+    
+    % Print: reorder the dimensions
+    STL.print.mesh = STL.mesh1(:, STL.print.dims, :);
+    if STL.print.invert_z
+        STL.print.mesh(:, 3, :) = -(STL.print.mesh(:, 3, :) - meanz) + meanz;
+    end
+    STL.print.mesh = STL.print.mesh * max_dim;
     
     STL.print.rescale_needed = false;
     STL.preview.voxelise_needed = true;
@@ -237,7 +253,7 @@ end
 
 
 
-function [] = update_preview(handles);
+function [] = update_3d_preview(handles);
     global STL;
     
     if STL.print.rescale_needed
@@ -261,8 +277,6 @@ function [] = update_preview(handles);
     camlight_handle = camlight('right');
     rotate_handle = rotate3d;
     rotate_handle.enable = 'on';
-    
-    zslider_Callback([], [], handles);
 end
 
 
@@ -346,7 +360,7 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hFastZ.positionTarget = foo;
     
     if STL.print.rescale_needed
-        rescale_object(handles);
+        rescale_object();
     end
         
     UpdateBounds_Callback([], [], handles);
@@ -401,15 +415,15 @@ function print_Callback(hObject, eventdata, handles)
     
     startPos = hSI.hMotors.motorPosition;
     
-    for mvx = 1:STL.print.nmetavoxels(1)
+    for mvz = 1:STL.print.nmetavoxels(3)
         for mvy = 1:STL.print.nmetavoxels(2)
-            for mvz = 1:STL.print.nmetavoxels(3)
+            for mvx = 1:STL.print.nmetavoxels(1)
                 disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
-                disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1)));
-                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy mvz] - 1);
+                disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy -mvz] - 1)));
+                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy -mvz] - 1);
                 
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
@@ -672,7 +686,15 @@ end
 
 function invert_z_Callback(hObject, eventdata, handles)
     global STL;
+    
+    set(handles.messages, 'String', 'Inverting Z...');
+
     STL.print.invert_z = get(hObject, 'Value');
+
+    STL.print.rescale_needed = true;
+    STL.preview.rescale_needed = true;
+    update_3d_preview(handles);
+    set(handles.messages, 'String', '');
 end
 
 function fastZhome_Callback(hObject, eventdata, handles)
@@ -732,9 +754,7 @@ end
 function UpdateBounds_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
-    
-    warning('UpdateBounds_Callback...');
-    
+        
     if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
@@ -756,11 +776,7 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         fov = hSI.hRoiManager.imagingFovUm;
         STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
 
-        update_dimensions(handles);
         update_gui(handles);
-        
-        nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
-        set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
     end
 end
 
@@ -818,7 +834,7 @@ function printZoom_Callback(hObject, eventdata, handles)
     contents = cellstr(get(hObject,'String'));
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
     
-    UpdateBounds_Callback(hObject, eventdata, handles); 
+    UpdateBounds_Callback(hObject, eventdata, handles);
 end
 
 function printZoom_CreateFcn(hObject, eventdata, handles)
@@ -835,8 +851,8 @@ function printZoom_CreateFcn(hObject, eventdata, handles)
 end
 
 
-function update_preview_button_Callback(hObject, eventdata, handles)
+function update_slice_preview_button_Callback(hObject, eventdata, handles)
     %update_dimensions(handles);
-    printZoom_Callback(handles.printZoom, [], handles);
-    update_preview(handles);
+    zslider_Callback([], [], handles);
+    update_3d_preview(handles);
 end

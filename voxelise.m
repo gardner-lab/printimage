@@ -1,5 +1,5 @@
 function [] = voxelise(handles, target)
-        
+
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -55,7 +55,7 @@ function [] = voxelise(handles, target)
             STL.print.bounds_best = STL.print.bounds;
             STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
             
-            
+            STL.print.metavoxel_shift = STL.print.bounds_best - STL.print.metavoxel_overlap;
             % 4. Get voxel centres for metavoxel 0,0,0
             
             STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
