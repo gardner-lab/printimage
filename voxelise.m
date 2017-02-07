@@ -76,14 +76,20 @@ function [] = voxelise(handles, target)
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
+                        
+                        % Voxels for each metavoxel:
                         STL.print.metavoxels{mvx, mvy, mvz} = VOXELISE(xc + (mvx - 1) * STL.print.metavoxel_shift(1), ...
                             yc + (mvy - 1) * STL.print.metavoxel_shift(2), ...
                             zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
                             STL.print.mesh);
-                        % Delete empty zstack slices (hopefully only at
-                        % beginning or end?)
+                        
+                        % Delete empty zstack slices (hopefully only at beginning or end?):
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, find(sum(sum(STL.print.voxels, 1), 2) ~= 0));
+                        
+                        % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
+                        % produces a beam control vector of the right length.
+                        STL.print.resolution{mvx, mvy, mvz} = size(STL.print.metavoxels{mvx, mvy, mvz});
                     end
                 end
             end

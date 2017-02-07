@@ -65,16 +65,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zoom_min = 1;
     STL.print.zoom = 1;
     STL.preview.resolution = [120 120 120];
+    STL.print.metavoxel_overlap = 5; % Microns of overlap in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
-    STL.fastZ_reverse = false;
     STL.print.invert_z = false;
     STL.print.fastZ_needs_reset = true;
-    if STL.fastZ_reverse
-        STL.print.fastZhomePos = 0;
-    else
-        STL.print.fastZhomePos = 450;
-    end
+    STL.print.fastZhomePos = 450;
     
     STL.bounds_1 = [NaN NaN 350];
     STL.print.bounds_max = [NaN NaN 350];
@@ -88,9 +84,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
-    
-    UpdateBounds_Callback([], [], handles);
-    
+        
     UpdateBounds_Callback([], [], handles);
     
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
@@ -310,8 +304,6 @@ function zslider_CreateFcn(hObject, eventdata, handles)
 end
 
 
-
-
 % Called when the user presses "PRINT". Various things need to happen, some
 % of them before the scan is initiated and some right before the print
 % waveform goes out. This function handles the former, and instructs
@@ -350,17 +342,9 @@ function print_Callback(hObject, eventdata, handles)
         rescale_object(handles);
     end
         
-    % Set the zoom factor for highest resolution:
-    %if ~isfield(STL, 'print') | ~isfield(STL.print, 'ResScanResolution')
-    % If no acquisition has been run yet, run one. THIS DOESN'T WORK.
-    %if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
-    %    % Get ScanImage to compute the resonant scanner's resolution
-    %    evalin('base', 'hSI.startGrab()');
-    %end
-    %STL.print.ResScanResolution = hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B;
-    %end
+    UpdateBounds_Callback([], [], handles);
     
-    STL.print.metavoxel_shift = STL.print.bounds;
+    STL.print.metavoxel_shift = STL.print.bounds - STL.print.metavoxel_overlap;
     
     if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
@@ -370,9 +354,12 @@ function print_Callback(hObject, eventdata, handles)
         update_dimensions(handles); % In case the boundaries are newly available
     end
     
+    
     % Make sure we haven't changed the desired resolution or anything else that
     % ScanImage can change without telling us. This should be a separate
     % function eventually!
+    
+    
     resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
         hSI.hRoiManager.linesPerFrame ...
         round(STL.print.size(3) / STL.print.zstep)];
@@ -381,18 +368,19 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     
-    UpdateBounds_Callback([], [], handles);
-    fov_ranges = STL.print.bounds_max;
+    fov_ranges = STL.print.bounds;
     if fov_ranges(1) ~= fov_ranges(2)
         warning('FOV is not square. You could try rotating the object.');
     end
     
-    userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     
     
     if STL.print.voxelise_needed
         voxelise(handles, 'print');   
     end
+    
+    % Zoom factor
+    userZoomFactor = hSI.hRoiManager.scanZoomFactor;    
     
     % This relies on voxelise() being called, above
     hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
@@ -401,12 +389,8 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     hSI.hFastZ.enable = 1;
-    hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
-    if STL.fastZ_reverse
-        hSI.hStackManager.stackZStepSize = STL.print.zstep;
-    else
-        hSI.hStackManager.stackZStepSize = -STL.print.zstep;
-    end
+    %hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
+    hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false;
     %hSI.hStackManager.stackZStartPos = 0;
@@ -435,13 +419,16 @@ function print_Callback(hObject, eventdata, handles)
                 
                 STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
                 
-                % 3. Do whatever is necessary to get a blocking
+                % 3. Set resolution appropriately
+                hSI.hStackManager.numSlices = STL.print.resolution{mvx, mvy, mvz}(3);
+                
+                % 4. Do whatever is necessary to get a blocking
                 % startLoop(), like setting up a callback in acqModeDone?
                 
-                % 4. Print this metavoxel
+                % 5. Print this metavoxel
                 evalin('base', 'hSI.startLoop()');
                 
-                % 5. Await callback from the user function "acqModeDone" or "acqAbort"? Or
+                % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
                 % constantly poll... :(
                 while ~strcmpi(hSI.acqState,'idle')
                     pause(0.1);
@@ -567,11 +554,7 @@ function powertest_Callback(hObject, eventdata, handles)
     nframes = 200;
     
     hSI.hFastZ.enable = 1;
-    if STL.fastZ_reverse
-        hSI.hStackManager.stackZStepSize = STL.print.zstep;
-    else
-        hSI.hStackManager.stackZStepSize = -STL.print.zstep;
-    end
+    hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
     FastZhold(handles, 'on');
