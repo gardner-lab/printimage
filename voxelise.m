@@ -3,6 +3,13 @@ function [] = voxelise(handles, target)
     global STL;
     hSI = evalin('base', 'hSI');
     
+    warning('Voxelising again...');
+    
+    global wbar;
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        close(wbar);
+    end
+
     if exist('handles', 'var');
         set(handles.messages, 'String', sprintf('Re-voxelising %s...', target));
         drawnow;
@@ -75,13 +82,21 @@ function [] = voxelise(handles, target)
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             
             % Z centres aren't defined by zoom, but by zstep.
-            zc = 0 : STL.print.zstep : min(STL.print.bounds_best(3), STL.print.size(3));
+            zc = STL.print.zstep : STL.print.zstep : min(STL.print.bounds_best(3), STL.print.size(3));
             
             
             % 5. Feed each metavoxel's centres to voxelise
             
             STL.print.nmetavoxels = nmetavoxels;
             
+            if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                waitbar(0, wbar, 'Voxelising...');
+            else
+                wbar = waitbar(0, 'Voxelising...');
+            end
+            metavoxel_counter = 0;
+            metavoxel_total = prod(STL.print.nmetavoxels);
+
             STL.print.metavoxels = {};
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
@@ -94,17 +109,24 @@ function [] = voxelise(handles, target)
                             zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
                             STL.print.mesh);
                         
-                        % Delete empty zstack slices (hopefully only at beginning or end?):
-                        foo = length(find(sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2) == 0));
-                        if foo > 2
-                            warning('Deleting %d slices at metavoxel [ %d %d %d ]!', foo, mvx, mvy, mvz);
-                        end
+                        % Delete empty zstack slices if they are above
+                        % something that is printed:
+                        foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
+                        cow = find(foo, 1, 'last');
+                        warning('Keeping zstack positions from 1-%d.', cow);
                         STL.print.metavoxels{mvx, mvy, mvz} ...
-                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, find(sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2) ~= 0));
+                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.
                         STL.print.metavoxel_resolution{mvx, mvy, mvz} = size(STL.print.metavoxels{mvx, mvy, mvz});
+                        
+                        % Show progress
+                        metavoxel_counter = metavoxel_counter + 1;
+                        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                            waitbar(metavoxel_counter / metavoxel_total, wbar);
+                        end
+                        
                     end
                 end
             end
@@ -117,6 +139,11 @@ function [] = voxelise(handles, target)
                 draw_slice(handles, 1);
                 drawnow;
             end
+            
+            if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                close(wbar);
+            end
+
             
         else
             if exist('handles', 'var')

@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 07-Feb-2017 17:42:16
+    % Last Modified by GUIDE v2.5 08-Feb-2017 10:14:25
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -95,7 +95,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     UpdateBounds_Callback([], [], handles);
     
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-    %FastZhold(handles, 'reset');
+    %motorHold(handles, 'reset');
     
     colormap(handles.axes2, 'gray');
 end
@@ -148,8 +148,8 @@ function update_dimensions(handles, dim, val)
             STL.print.rescale_needed = true;
         end
         
-        update_3d_preview(handles);
         update_gui(handles);
+        update_3d_preview(handles);
     end
 end
 
@@ -211,8 +211,11 @@ function updateSTLfile(handles, STLfile)
 end
 
 
-function [] = rescale_object();
+function [] = rescale_object(handles);
     global STL;
+    
+    set(handles.messages, 'String', 'Rescaling...');
+    drawnow;
     
     % Relies on STL.print.size for desired dimensions.
     % Stores the result in STL.
@@ -249,6 +252,7 @@ function [] = rescale_object();
     STL.print.rescale_needed = false;
     STL.preview.voxelise_needed = true;
     STL.print.voxelise_needed = true;
+    set(handles.messages, 'String', '');
 end
 
 
@@ -257,7 +261,7 @@ function [] = update_3d_preview(handles);
     global STL;
     
     if STL.print.rescale_needed
-        rescale_object();
+        rescale_object(handles);
     end
     
     axes(handles.axes1);
@@ -330,7 +334,11 @@ end
 function print_Callback(hObject, eventdata, handles)
     global STL;
     
-    
+    global wbar;
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        close(wbar);
+    end
+
     hSI = evalin('base', 'hSI');
     
     if ~strcmpi(hSI.acqState,'idle')
@@ -341,7 +349,7 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     if STL.print.fastZ_needs_reset
-        set(handles.messages, 'String', 'Reset FastZ before printing!');
+        set(handles.messages, 'String', 'CRUSH THE THING!!! Reset lens position before printing!');
         return;
     else
         set(handles.messages, 'String', '');
@@ -360,7 +368,7 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hFastZ.positionTarget = foo;
     
     if STL.print.rescale_needed
-        rescale_object();
+        rescale_object(handles);
     end
         
     UpdateBounds_Callback([], [], handles);
@@ -406,15 +414,23 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hStackManager.stackReturnHome = false;
     %hSI.hStackManager.stackZStartPos = 0;
     %hSI.hStackManager.stackZEndPos = NaN;
-    FastZhold(handles, 'on');
+    motorHold(handles, 'on');
     tic
     STL.print.armed = true;
     
     % The main printing loop. How to manage the non-blocking call to
     % startLoop()?
     
-    startPos = hSI.hMotors.motorPosition;
+    motorHold(handles, 'on');
     
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        waitbar(0, wbar, 'Printing...');
+    else
+        wbar = waitbar(0, 'Printing...');
+    end
+    
+    metavoxel_counter = 0;
+    metavoxel_total = prod(STL.print.nmetavoxels);
     for mvz = 1:STL.print.nmetavoxels(3)
         for mvy = 1:STL.print.nmetavoxels(2)
             for mvx = 1:STL.print.nmetavoxels(1)
@@ -422,8 +438,14 @@ function print_Callback(hObject, eventdata, handles)
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
-                disp(sprintf('Servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy -mvz] - 1)));
-                hSI.hMotors.motorPosition(1:3) = startPos(1:3) + STL.print.metavoxel_shift .* ([mvx mvy -mvz] - 1);
+                
+                if STL.print.metavoxel_resolution{mvx, mvy, mvz}(3) == 0
+                    disp(sprintf(' ...which is empty. Moving on...'));
+                    continue;
+                end
+                
+                disp(sprintf(' ...servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1])));
+                hSI.hMotors.motorPosition(1:3) = STL.print.motorOrigin(1:3) + STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
                 
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
@@ -444,50 +466,64 @@ function print_Callback(hObject, eventdata, handles)
                 while ~strcmpi(hSI.acqState,'idle')
                     pause(0.1);
                 end
+                
+                % Show progress
+                metavoxel_counter = metavoxel_counter + 1;
+                if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                    waitbar(metavoxel_counter / metavoxel_total, wbar);
+                end
+                
             end
         end
     end
     
-    
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        close(wbar);
+    end
+
     STL.print.armed = false;
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
     
-    FastZhold(handles, 'off');
+    motorHold(handles, 'off');
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
     end
     toc;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-    
-    zslider_Callback([], [], handles);
 end
 
 
 
 
-function FastZhold(handles, v);
+function motorHold(handles, v);
     % Control FastZ position-hold-before-reset: 'on', 'off', 'reset'
     global STL;
     hSI = evalin('base', 'hSI');
     
     if strcmp(v, 'on')
-        set(handles.fastZhome, 'BackgroundColor', [1 0 0]);
-        %%%%%% FIXME Disabled! STL.print.FastZhold = true;
+        set(handles.crushThing, 'BackgroundColor', [1 0 0]);
+        %%%%%% FIXME Disabled! STL.print.motorHold = true;
         warning('Disabled fastZ hold hack.');
         STL.print.fastZ_needs_reset = true;
+        STL.print.motorOrigin = hSI.hMotors.motorPosition;
     end
     
     if strcmp(v, 'off')
-        STL.print.FastZhold = false;
+        STL.print.motorHold = false;
         STL.print.fastZ_needs_reset = true;
     end
     
     if strcmp(v, 'reset')
-        STL.print.FastZhold = false;
+        STL.print.motorHold = false;
         hSI.hFastZ.goHome;
         STL.print.fastZ_needs_reset = false;
-        set(handles.fastZhome, 'BackgroundColor', 0.94 * [1 1 1]);
+        
+        if isfield(STL.print, 'motorOrigin')
+            disp(sprintf('Servoing to [ %s]', sprintf('%g ', STL.print.motorOrigin)));
+            hSI.hMotors.motorPosition = STL.print.motorOrigin;
+        end
+        set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
     end
 end
 
@@ -520,7 +556,7 @@ function powertest_Callback(hObject, eventdata, handles)
     end
     
     if STL.print.fastZ_needs_reset
-        set(handles.messages, 'String', 'Reset FastZ before printing!');
+        set(handles.messages, 'String', 'CRUSH THE THING!!! Reset lens position before printing!');
         return;
     else
         set(handles.messages, 'String', '');
@@ -570,7 +606,7 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
-    FastZhold(handles, 'on');
+    motorHold(handles, 'on');
     hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
     hSI.hBeams.powerLimits = 100;
@@ -578,7 +614,7 @@ function powertest_Callback(hObject, eventdata, handles)
     
     hSI.startLoop();
     hSI.hBeams.enablePowerBox = false;
-    FastZhold(handles, 'off');
+    motorHold(handles, 'off');
 end
 
 
@@ -653,11 +689,11 @@ end
 
 
 
-function resetFastZ_Callback(hObject, eventdata, handles)
+function setFastZ_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-    FastZhold(handles, 'reset');
+    motorHold(handles, 'reset');
 end
 
 
@@ -680,7 +716,7 @@ function fastZlower_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     hSI.hFastZ.positionTarget = 450;
-    FastZhold(handles, 'reset');
+    motorHold(handles, 'reset');
 end
 
 
@@ -697,9 +733,9 @@ function invert_z_Callback(hObject, eventdata, handles)
     set(handles.messages, 'String', '');
 end
 
-function fastZhome_Callback(hObject, eventdata, handles)
+function crushThing_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
-    FastZhold(handles, 'reset');
+    motorHold(handles, 'reset');
 end
 
 
@@ -812,6 +848,7 @@ function minGoodZoom_Callback(hObject, eventdata, handles)
         end
     end
     
+    STL.print.voxelise_needed = true;
     set(handles.printZoom, 'String', foo, 'Value', zoomVal);
     
     UpdateBounds_Callback(hObject, eventdata, handles);
@@ -833,7 +870,9 @@ function printZoom_Callback(hObject, eventdata, handles)
     
     contents = cellstr(get(hObject,'String'));
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
-    
+
+    STL.print.voxelise_needed = true;
+
     UpdateBounds_Callback(hObject, eventdata, handles);
 end
 
