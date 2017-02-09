@@ -41,7 +41,7 @@ function [] = voxelise(handles, target)
             
             
             % 1. Compute metavoxels based on user-selected print zoom:
-            nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+            nmetavoxels = ceil(STL.print.size(STL.print.dims) ./ STL.print.bounds);
             
             % 2. Set zoom to maximise fill of those metavoxels along one of X
             % or Y
@@ -108,6 +108,9 @@ function [] = voxelise(handles, target)
                             yc + (mvy - 1) * STL.print.metavoxel_shift(2), ...
                             zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
                             STL.print.mesh);
+                        STL.print.metavoxel_xc{mvx, mvy, mvz} = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
+                        STL.print.metavoxel_yc{mvx, mvy, mvz} = yc + (mvy - 1) * STL.print.metavoxel_shift(2);
+                        STL.print.metavoxel_zc{mvx, mvy, mvz} = zc + (mvz - 1) * STL.print.metavoxel_shift(3);
                         
                         % Delete empty zstack slices if they are above
                         % something that is printed:

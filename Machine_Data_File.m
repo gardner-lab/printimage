@@ -40,7 +40,7 @@ beamDaqs(1).referenceClockIn = '';              % one of {PFI0..15, ''} to which
 
 beamDaqs(1).chanIDs = [0 1];                       % Array of integers specifying AO channel IDs, one for each beam modulation channel. Length of array determines number of 'beams'.
 beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};  % Optional string cell array of identifiers for each beam
-beamDaqs(1).voltageRanges = [2.2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
+beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
 beamDaqs(1).calOffsets = [0 0];                    % Array of beam calibration offset voltages for each beam calibration channel
