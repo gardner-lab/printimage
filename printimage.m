@@ -50,10 +50,12 @@ end
 function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     handles.output = hObject;
     
+    clear global -regexp STL;
     global STL;
+    
     try
         hSI = evalin('base', 'hSI');
-        STL.simulated = hSI.simulated;
+        STL.simulated = false;
     catch ME
         STL.simulated = true;
         hSI.simulated = true;
@@ -83,7 +85,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
-    STL.print.motor_reset_needed = true;
+    STL.print.motor_reset_needed = false;
+    STL.print.motorOrigin = [16000 16000 0];
     STL.print.fastZhomePos = 450;
     
     STL.logistics.abort = false;
@@ -103,13 +106,16 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         for i = 1:length(hSI.hChannels.channelName)
             foo{i} = sprintf('%d', i);
         end
+        
+        disp(sprintf('Servoing to [ %s]', sprintf('%g ', STL.print.motorOrigin)));
+        hSI.hMotors.motorPosition = STL.print.motorOrigin;
+        hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     end
     set(handles.whichBeam, 'String', foo);
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
-    set(handles.crushThing, 'BackgroundColor', [1 0 0]);
     
     UpdateBounds_Callback([], [], handles);
     
@@ -119,6 +125,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     if ~STL.simulated
         hSI.hFastZ.setHome(0);
     end
+    warning('Setting pixelsPerLine to 64 for faster testing.');
+    hSI.hRoiManager.pixelsPerLine = 64;
     hSI.hScan2D.bidirectional = false;
     
     colormap(handles.axes2, 'gray');
@@ -196,10 +204,8 @@ function [] = rescale_object(handles);
     yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
     
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
-    set(handles.messages, 'String', sprintf('X New dims are [ %s]', sprintf('%d ', STL.print.dims)));
-    
-    STL.print.aspect_ratio = STL.aspect_ratio(STL.print.dims);
-    
+    set(handles.messages, 'String', sprintf('New dims (2) are [ %s]', sprintf('%d ', STL.print.dims)));
+        
     max_dim = max(STL.print.size);
     
     meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
@@ -217,10 +223,10 @@ function [] = rescale_object(handles);
     end
     STL.preview.patchobj.vertices = STL.preview.patchobj.vertices * max_dim;
     
-    % But this one will be rotated.
+    % But this one will both scaled and rotated.
     STL.preview.mesh = STL.preview.mesh(:, STL.print.dims, :) * max_dim;
     
-    % Print: reorder the dimensions
+    % Print: reorder the dimensions (rotate) and scale.
     STL.print.mesh = STL.mesh1(:, STL.print.dims, :);
     if STL.print.invert_z
         STL.print.mesh(:, 3, :) = -(STL.print.mesh(:, 3, :) - meanz) + meanz;
@@ -497,10 +503,15 @@ function print_Callback(hObject, eventdata, handles)
                     continue;
                 end
                 
-                disp(sprintf(' ...servoing to [%g %g %g]...', STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1])));
-                hSI.hMotors.motorPosition(1:3) = STL.print.motorOrigin(1:3) - [10 10 10] + STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
+                newpos = [-1 1 1] .* STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
+                newpos = newpos([2 1 3]);
+                newpos = newpos + STL.print.motorOrigin(1:3);
+                disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
+                % Go to position-10 on all dimensions in order to always
+                % complete the move in the same direction.
+                hSI.hMotors.motorPosition(1:3) = newpos - [10 10 10];
                 pause(0.1);
-                hSI.hMotors.motorPosition(1:3) = STL.print.motorOrigin(1:3) + STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
+                hSI.hMotors.motorPosition(1:3) = newpos;
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
                 
                 % 2. Set up printimage_modify_beam with the appropriate

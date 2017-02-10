@@ -16,5 +16,5 @@ function draw_slice(handles, zind);
         imagesc(STL.preview.voxelpos.x, STL.preview.voxelpos.y, squeeze(STL.preview.voxels(:, :, zind))', 'Parent', handles.axes2);
     end
     
-    axis(handles.axes2, 'image', 'ij');
+    axis(handles.axes2, 'image', 'xy');
 end

@@ -41,7 +41,7 @@ function [] = voxelise(handles, target)
             
             
             % 1. Compute metavoxels based on user-selected print zoom:
-            nmetavoxels = ceil(STL.print.size(STL.print.dims) ./ STL.print.bounds);
+            nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
             
             % 2. Set zoom to maximise fill of those metavoxels along one of X
             % or Y
