@@ -51,7 +51,19 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     handles.output = hObject;
     
     global STL;
-    hSI = evalin('base', 'hSI');
+    try
+        hSI = evalin('base', 'hSI');
+        STL.simulated = hSI.simulated;
+    catch ME
+        STL.simulated = true;
+        hSI.simulated = true;
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
+        hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hRoiManager.imagingFovUm = [-200 -200; 0 0; 200 200];
+        hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
+        hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
+        assignin('base', 'hSI', hSI);
+    end
     
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
@@ -76,17 +88,21 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     STL.logistics.abort = false;
     
-    STL.bounds_1 = [NaN NaN 370];
+    STL.bounds_1 = [NaN NaN 300];
     STL.print.bounds_max = [NaN NaN 300];
     STL.print.bounds = [NaN NaN 300];
     
-    evalin('base', 'hSI.startGrab()');
-    while ~strcmpi(hSI.acqState, 'idle')
-        pause(0.1);
-    end
-        
-    for i = 1:length(hSI.hChannels.channelName)
-        foo{i} = sprintf('%d', i);
+    if STL.simulated
+        foo = -1;
+    else
+        evalin('base', 'hSI.startGrab()');
+        while ~strcmpi(hSI.acqState, 'idle')
+            pause(0.1);
+        end    
+
+        for i = 1:length(hSI.hChannels.channelName)
+            foo{i} = sprintf('%d', i);
+        end
     end
     set(handles.whichBeam, 'String', foo);
     
@@ -100,7 +116,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     %motorHold(handles, 'reset');
     
-    hSI.hFastZ.setHome(0);
+    if ~STL.simulated
+        hSI.hFastZ.setHome(0);
+    end
     hSI.hScan2D.bidirectional = false;
     
     colormap(handles.axes2, 'gray');
@@ -135,7 +153,11 @@ function update_dimensions(handles, dim, val)
     
     yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
     
-    olddims = STL.print.dims;
+    if isfield(STL.print, 'dims')
+        olddims = STL.print.dims;
+    else
+        olddims = [NaN NaN NaN];
+    end
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
     
     if isfield(STL, 'aspect_ratio')
@@ -356,7 +378,7 @@ function print_Callback(hObject, eventdata, handles)
 
     hSI = evalin('base', 'hSI');
     
-    if ~strcmpi(hSI.acqState,'idle')
+    if ~STL.simulated & ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
         return;
     else
@@ -370,8 +392,11 @@ function print_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    userZoomFactor = hSI.hRoiManager.scanZoomFactor;
-    
+    if STL.simulated
+        userZoomFactor = 1;
+    else
+        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
+    end
     % Save home positions. They won't be restored so as not to crush the
     % printed object, but they should be reset later.
     
@@ -389,7 +414,7 @@ function print_Callback(hObject, eventdata, handles)
     UpdateBounds_Callback([], [], handles);
     
     
-    if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+    if ~STL.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
     else
@@ -483,12 +508,14 @@ function print_Callback(hObject, eventdata, handles)
                 % startLoop(), like setting up a callback in acqModeDone?
                 
                 % 5. Print this metavoxel
-                evalin('base', 'hSI.startLoop()');
+                if ~STL.simulated
+                    evalin('base', 'hSI.startLoop()');
 
-                % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
-                % constantly poll... :(
-                while ~strcmpi(hSI.acqState,'idle')
-                    pause(0.1);
+                    % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
+                    % constantly poll... :(
+                    while ~strcmpi(hSI.acqState,'idle')
+                        pause(0.1);
+                    end
                 end
                 
                 % Show progress
@@ -510,8 +537,10 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hFastZ.enable = false;
     
     motorHold(handles, 'off');
-    while ~strcmpi(hSI.acqState,'idle')
-        pause(0.1);
+    if ~STL.simulated
+        while ~strcmpi(hSI.acqState,'idle')
+            pause(0.1);
+        end
     end
     toc;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
@@ -818,8 +847,13 @@ end
 function UpdateBounds_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
-        
-    if isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+    
+    if STL.simulated
+        STL.bounds_1(1:2) = [500 500];
+        STL.print.bounds_max(1:2) = STL.bounds_1(1:2) / STL.print.zoom_min;
+        STL.print.bounds(1:2) = STL.bounds_1(1:2) / STL.print.zoom;
+        update_gui(handles);
+    elseif isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
     else
