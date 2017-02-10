@@ -3,7 +3,7 @@ function [] = voxelise(handles, target)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    warning('Voxelising again...');
+    %warning('Voxelising again...');
     
     global wbar;
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
@@ -103,20 +103,21 @@ function [] = voxelise(handles, target)
                     for mvz = 1:nmetavoxels(3)
                         
                         % Voxels for each metavoxel:
+                        STL.print.voxelpos{mvx, mvy, mvz}.x = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
+                        STL.print.voxelpos{mvx, mvy, mvz}.y = yc + (mvy - 1) * STL.print.metavoxel_shift(2);
+                        STL.print.voxelpos{mvx, mvy, mvz}.z = zc + (mvz - 1) * STL.print.metavoxel_shift(3);
+
                         STL.print.metavoxels{mvx, mvy, mvz} = VOXELISE(...
-                            xc + (mvx - 1) * STL.print.metavoxel_shift(1), ...
-                            yc + (mvy - 1) * STL.print.metavoxel_shift(2), ...
-                            zc + (mvz - 1) * STL.print.metavoxel_shift(3), ...
+                            STL.print.voxelpos{mvx, mvy, mvz}.x, ...
+                            STL.print.voxelpos{mvx, mvy, mvz}.y, ...
+                            STL.print.voxelpos{mvx, mvy, mvz}.z, ...
                             STL.print.mesh);
-                        STL.print.metavoxel_xc{mvx, mvy, mvz} = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
-                        STL.print.metavoxel_yc{mvx, mvy, mvz} = yc + (mvy - 1) * STL.print.metavoxel_shift(2);
-                        STL.print.metavoxel_zc{mvx, mvy, mvz} = zc + (mvz - 1) * STL.print.metavoxel_shift(3);
                         
                         % Delete empty zstack slices if they are above
                         % something that is printed:
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
                         cow = find(foo, 1, 'last');
-                        warning('Keeping zstack positions from 1-%d.', cow);
+                        %warning('Keeping zstack positions from 1-%d.', cow);
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
                         

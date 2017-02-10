@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 08-Feb-2017 19:45:54
+    % Last Modified by GUIDE v2.5 10-Feb-2017 13:27:51
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -98,8 +98,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         evalin('base', 'hSI.startGrab()');
         while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
-        end    
-
+        end
+        
         for i = 1:length(hSI.hChannels.channelName)
             foo{i} = sprintf('%d', i);
         end
@@ -110,7 +110,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     guidata(hObject, handles);
     set(handles.crushThing, 'BackgroundColor', [1 0 0]);
-
+    
     UpdateBounds_Callback([], [], handles);
     
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
@@ -197,7 +197,7 @@ function [] = rescale_object(handles);
     
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
     set(handles.messages, 'String', sprintf('X New dims are [ %s]', sprintf('%d ', STL.print.dims)));
-
+    
     STL.print.aspect_ratio = STL.aspect_ratio(STL.print.dims);
     
     max_dim = max(STL.print.size);
@@ -286,7 +286,7 @@ function updateSTLfile(handles, STLfile)
     STL.print.voxelise_needed = true;
     
     update_3d_preview(handles);
-
+    
     % Draw the slices
     zslider_Callback(handles.zslider, [], handles);
 end
@@ -326,32 +326,39 @@ function zslider_Callback(hObject, eventdata, handles, pos)
     global STL;
     %hSI = evalin('base', 'hSI');
     
-    %if exist('hSI', 'var') & isfield(hSI.hWaveformManager.scannerAO, 'ao_samplesPerTrigger')
-    %    resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
-    %        hSI.hRoiManager.linesPerFrame ...
-    %        round(STL.print.size(3) / STL.print.zstep)];
-    %    if any(resolution ~= STL.print.resolution)
-    %        STL.print.voxelise_needed = true;
-    %        STL.preview.voxelise_needed = true;
-    %    end
-    %end
-    
-    if STL.preview.voxelise_needed
-        voxelise(handles, 'preview');
+    if isfield(STL.preview, 'show_metavoxel_slice') ...
+            & all(~isnan(STL.preview.show_metavoxel_slice))
+        % Trying to show an individual metavoxel in the slice window requires print voxelisation.
+        if STL.print.voxelise_needed
+            voxelise(handles, 'print');
+        end
+        w = STL.preview.show_metavoxel_slice;
+        z = STL.print.metavoxel_resolution{w(1), w(2), w(3)}(3);
+
+        if all(w <= STL.print.nmetavoxels) ...
+                & all(w > 0)
+            set(handles.zslider, 'Max', z);
+        end
+        
+    else
+        if STL.preview.voxelise_needed
+            voxelise(handles, 'preview');
+        end
+
+        z = STL.preview.resolution(3);
     end
     
-    if get(handles.zslider, 'Max') ~= STL.preview.resolution(3)
-        set(handles.zslider, 'Max', STL.preview.resolution(3));
+    v = round(get(handles.zslider, 'Value'));
+    set(handles.zslider, 'Value', max(min(v, z), 1), 'Max', z);
+    
+    if exist('pos', 'var') & false
+        disp(sprintf('Setting slider pos to %d of %d', pos*z, z));
+
+        set(handles.zslider, 'Value', pos * z);
     end
     
-    if exist('pos', 'var')
-        set(handles.zslider, 'Value', pos*STL.preview.resolution(3));
-    end
-    
-    zind = round(get(handles.zslider, 'Value'));
-    zind = max(min(zind, STL.preview.resolution(3)), 1);
-    
-    draw_slice(handles, zind);
+    v = round(get(handles.zslider, 'Value'));
+    draw_slice(handles, v);
 end
 
 
@@ -375,7 +382,7 @@ function print_Callback(hObject, eventdata, handles)
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         close(wbar);
     end
-
+    
     hSI = evalin('base', 'hSI');
     
     if ~STL.simulated & ~strcmpi(hSI.acqState,'idle')
@@ -410,7 +417,7 @@ function print_Callback(hObject, eventdata, handles)
     if STL.print.rescale_needed
         rescale_object(handles);
     end
-        
+    
     UpdateBounds_Callback([], [], handles);
     
     
@@ -438,7 +445,7 @@ function print_Callback(hObject, eventdata, handles)
     
     
     if STL.print.voxelise_needed
-        voxelise(handles, 'print');   
+        voxelise(handles, 'print');
     end
     
     
@@ -495,7 +502,7 @@ function print_Callback(hObject, eventdata, handles)
                 pause(0.1);
                 hSI.hMotors.motorPosition(1:3) = STL.print.motorOrigin(1:3) + STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-
+                
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
                 
@@ -510,7 +517,7 @@ function print_Callback(hObject, eventdata, handles)
                 % 5. Print this metavoxel
                 if ~STL.simulated
                     evalin('base', 'hSI.startLoop()');
-
+                    
                     % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
                     % constantly poll... :(
                     while ~strcmpi(hSI.acqState,'idle')
@@ -531,7 +538,7 @@ function print_Callback(hObject, eventdata, handles)
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         close(wbar);
     end
-
+    
     STL.print.armed = false;
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
@@ -781,9 +788,9 @@ function invert_z_Callback(hObject, eventdata, handles)
     global STL;
     
     set(handles.messages, 'String', 'Inverting Z...');
-
+    
     STL.print.invert_z = get(hObject, 'Value');
-
+    
     STL.print.rescale_needed = true;
     STL.preview.rescale_needed = true;
     update_3d_preview(handles);
@@ -800,7 +807,7 @@ end
 function size1_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
-
+    
     % Should the dim here really be 1? Or 2?
     update_dimensions(handles, 1, str2double(get(hObject, 'String')));
 end
@@ -816,7 +823,7 @@ end
 function size2_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
-
+    
     update_dimensions(handles, 2, str2double(get(hObject, 'String')));
 end
 
@@ -832,7 +839,7 @@ end
 function size3_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
-
+    
     update_dimensions(handles, 3, str2double(get(hObject, 'String')));
 end
 
@@ -868,12 +875,12 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         hSI.hRoiManager.scanZoomFactor = STL.print.zoom_min;
         fov = hSI.hRoiManager.imagingFovUm;
         STL.print.bounds_max([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-
+        
         % Now, how about the user-selected print zoom?
         hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
         fov = hSI.hRoiManager.imagingFovUm;
         STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-
+        
         update_gui(handles);
     end
 end
@@ -932,9 +939,9 @@ function printZoom_Callback(hObject, eventdata, handles)
     
     contents = cellstr(get(hObject,'String'));
     STL.print.zoom = str2double(contents{get(hObject, 'Value')});
-
+    
     STL.print.voxelise_needed = true;
-
+    
     UpdateBounds_Callback(hObject, eventdata, handles);
 end
 
@@ -963,7 +970,7 @@ end
 function crushReset_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
-
+    
     STL.print.motorOrigin = hSI.hMotors.motorPosition;
 end
 
@@ -972,4 +979,19 @@ end
 function abort_Callback(hObject, eventdata, handles)
     global STL;
     STL.logistics.abort = true;
+end
+
+
+
+function show_metavoxel_slice_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    STL.preview.show_metavoxel_slice = str2num(get(hObject,'String'));
+    zslider_Callback([], [], handles);
+end
+
+function show_metavoxel_slice_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
 end
