@@ -22,7 +22,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % seems to go sublinearly! Not sure why. Perhaps overscanning on Y doesn't
     % happen fast enough to count as more power? Perhaps SUBlinear because I
     % have not calibrated aspect ratio yet? FIXME
-    STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
+    %STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
     
     ao_volts_out = STL.print.ao_volts_raw;
     

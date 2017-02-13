@@ -81,12 +81,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zoom = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = 10; % Microns of overlap in order to get good bonding
+    STL.print.metavoxel_overlap = 0; % Microns of overlap in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
-    STL.print.motorOrigin = [16000 16000 0];
+    STL.print.motorOrigin = [10000 10000 0];
     STL.print.fastZhomePos = 450;
     
     STL.logistics.abort = false;
@@ -126,8 +126,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.hFastZ.setHome(0);
     end
     warning('Setting pixelsPerLine to 64 for faster testing.');
-    hSI.hRoiManager.pixelsPerLine = 64;
-    hSI.hScan2D.bidirectional = true;
+    %hSI.hRoiManager.pixelsPerLine = 64;
+    hSI.hScan2D.bidirectional = false;
     
     colormap(handles.axes2, 'gray');
 end
@@ -190,7 +190,7 @@ function update_dimensions(handles, dim, val)
         update_3d_preview(handles);
     end
     
-    set(handles.messages, 'String', sprintf('New dims are [ %s]', sprintf('%d ', STL.print.dims)));
+    %set(handles.messages, 'String', sprintf('New dims are [ %s]', sprintf('%d ', STL.print.dims)));
 end
 
 function [] = rescale_object(handles);
@@ -288,13 +288,13 @@ function updateSTLfile(handles, STLfile)
     
     update_dimensions(handles); % First pass at object dimensions according to aspect ratio
     
-    STL.preview.voxelise_needed = true;
-    STL.print.voxelise_needed = true;
+    %STL.preview.voxelise_needed = true;
+    %STL.print.voxelise_needed = true;
     
-    update_3d_preview(handles);
+    %update_3d_preview(handles);
     
     % Draw the slices
-    zslider_Callback(handles.zslider, [], handles);
+    %zslider_Callback(handles.zslider, [], handles);
 end
 
 
@@ -459,7 +459,7 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
     
     % Number of slices at 1 micron per slice:
-    hSI.hScan2D.bidirectional = true;
+    hSI.hScan2D.bidirectional = false;
     
     hSI.hFastZ.enable = 1;
     %hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
@@ -509,7 +509,7 @@ function print_Callback(hObject, eventdata, handles)
                 disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
                 % Go to position-10 on all dimensions in order to always
                 % complete the move in the same direction.
-                hSI.hMotors.motorPosition(1:3) = newpos - [10 10 10];
+                hSI.hMotors.motorPosition(1:3) = newpos - [20 20 20];
                 pause(0.1);
                 hSI.hMotors.motorPosition(1:3) = newpos;
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
@@ -638,8 +638,26 @@ function powertest_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
+    if STL.simulated
+        userZoomFactor = 1;
+    else
+        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
+    end
+    
+    %if isfield(STL, 'file') & ~isempty(STL.file) & STL.print.voxelise_needed
+    %    voxelise(handles, 'print');
+    %else
+    %    STL.print.zoom_best = STL.print.zoom;
+    %end
+    
+    hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
+    
+    % Number of slices at 1 micron per slice:
+    hSI.hScan2D.bidirectional = false;
+
+
     gridx = 5;
-    gridy = 9;
+    gridy = 6;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -683,13 +701,20 @@ function powertest_Callback(hObject, eventdata, handles)
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
     motorHold(handles, 'on');
-    hSI.hScan2D.bidirectional = true;
+    hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
     hSI.hBeams.powerLimits = 100;
     hSI.hBeams.enablePowerBox = true;
     
     hSI.startLoop();
-    hSI.hBeams.enablePowerBox = false;
+    
+    % Clean up
+    while ~strcmpi(hSI.acqState,'idle')
+        pause(0.1);
+    end
+
+    hSI.hBeams.enablePowerBox = false;  
+    hSI.hRoiManager.scanZoomFactor = userZoomFactor;
     motorHold(handles, 'off');
 end
 
