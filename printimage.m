@@ -127,7 +127,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     end
     warning('Setting pixelsPerLine to 64 for faster testing.');
     hSI.hRoiManager.pixelsPerLine = 64;
-    hSI.hScan2D.bidirectional = false;
+    hSI.hScan2D.bidirectional = true;
     
     colormap(handles.axes2, 'gray');
 end
@@ -459,7 +459,7 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
     
     % Number of slices at 1 micron per slice:
-    hSI.hScan2D.bidirectional = false;
+    hSI.hScan2D.bidirectional = true;
     
     hSI.hFastZ.enable = 1;
     %hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
@@ -683,7 +683,7 @@ function powertest_Callback(hObject, eventdata, handles)
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
     motorHold(handles, 'on');
-    hSI.hScan2D.bidirectional = false;
+    hSI.hScan2D.bidirectional = true;
     hSI.hStackManager.numSlices = nframes;
     hSI.hBeams.powerLimits = 100;
     hSI.hBeams.enablePowerBox = true;
