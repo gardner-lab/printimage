@@ -71,11 +71,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
     
-    STL.print.zstep = 1;     % microns per step
-    STL.print.xaxis = 1;
-    STL.print.zaxis = 3;
+    STL.print.zstep = 1;     % microns per step in z (vertical)
+    STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
+    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc) 
     STL.print.power = 1;
-    STL.print.whichBeam = 1;
+    STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [300 300 300];
     STL.print.zoom_min = 1;
     STL.print.zoom = 1;
@@ -86,14 +86,16 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
-    STL.print.motorOrigin = [10000 10000 0];
+    STL.print.motorOrigin = [10000 11000 0];
     STL.print.fastZhomePos = 450;
     
     STL.logistics.abort = false;
     
-    STL.bounds_1 = [NaN NaN 300];
-    STL.print.bounds_max = [NaN NaN 300];
-    STL.print.bounds = [NaN NaN 300];
+    % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
+    % 380um.
+    STL.bounds_1 = [NaN NaN 360];
+    STL.print.bounds_max = [NaN NaN 360];
+    STL.print.bounds = [NaN NaN 360];
     
     if STL.simulated
         foo = -1;
@@ -694,7 +696,7 @@ function powertest_Callback(hObject, eventdata, handles)
         end
     end
     
-    nframes = 200;
+    nframes = 300;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
