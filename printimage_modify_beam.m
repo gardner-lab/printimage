@@ -12,7 +12,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     if STL.print.voxelise_needed
         error('Tried re-voxelising, but was unsuccessful.');
     end
-        
+    
+    % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
+    % to be, by one voxel.
+    STL.print.voxels(end, :, :) = zeros(STL.print.resolution(2:3));
+    
     v = double(STL.print.voxels(:)) * STL.print.power;
     
     STL.print.ao_volts_raw = ao_volts_raw;
