@@ -482,6 +482,9 @@ function print_Callback(hObject, eventdata, handles)
         wbar = waitbar(0, 'Printing...');
     end
     
+    axis_signs = [ -1 1 -1 ];
+    axis_order = [ 2 1 3 ];
+    
     metavoxel_counter = 0;
     metavoxel_total = prod(STL.print.nmetavoxels);
     for mvz = 1:STL.print.nmetavoxels(3)
@@ -503,13 +506,27 @@ function print_Callback(hObject, eventdata, handles)
                     continue;
                 end
                 
-                newpos = [-1 1 1] .* STL.print.metavoxel_shift .* ([mvx mvy -mvz] + [-1 -1 1]);
-                newpos = newpos([2 1 3]);
+                % How many mvs are we away from the origin? Always positive.
+                this_metavoxel_relative_origin = [ mvx mvy mvz] - 1;
+                
+                % Convert newpos from metavoxels to microns
+                newpos = STL.print.metavoxel_shift .* this_metavoxel_relative_origin;
+                
+                % Some of the axes may want the opposite sign. This should be done in Machine_Data_File but I don't see how; see
+                % below.
+                newpos = newpos .* axis_signs;
+                
+                % My axes and the motor's may be at odds, so reshuffle the order. This should be done in Machine_Data_File but I
+                % don't see how; the docs are a little obsolete (or ahead of the free version?).
+                newpos = newpos(axis_order);
+                
+                % Add the motor origin from the start of this function
                 newpos = newpos + STL.print.motorOrigin(1:3);
+                
                 disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
-                % Go to position-10 on all dimensions in order to always
+                % Go to position-x on all dimensions in order to always
                 % complete the move in the same direction.
-                hSI.hMotors.motorPosition(1:3) = newpos - [20 20 20];
+                hSI.hMotors.motorPosition(1:3) = newpos - [1 1 1] * 20;
                 pause(0.1);
                 hSI.hMotors.motorPosition(1:3) = newpos;
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
