@@ -12,8 +12,12 @@ function draw_slice(handles, zind);
         end
         
         w = STL.preview.show_metavoxel_slice;
-        imagesc(STL.print.voxelpos{w(1), w(2), w(3)}.x, STL.print.voxelpos{w(1), w(2), w(3)}.y, ...
-            squeeze(STL.print.metavoxels{w(1), w(2), w(3)}(:, :, min(zind, size(STL.print.metavoxels{w(1), w(2), w(3)}, 3))))', 'Parent', handles.axes2);
+        try
+            imagesc(STL.print.voxelpos{w(1), w(2), w(3)}.x, STL.print.voxelpos{w(1), w(2), w(3)}.y, ...
+                squeeze(STL.print.metavoxels{w(1), w(2), w(3)}(:, :, min(zind, size(STL.print.metavoxels{w(1), w(2), w(3)}, 3))))', 'Parent', handles.axes2);
+        catch ME
+            disp(sprintf('Cannot imagesc the metavoxel at [ %d %d %d ]', w(1), w(2), w(3)));
+        end
     else
         
         if STL.preview.voxelise_needed
@@ -24,5 +28,5 @@ function draw_slice(handles, zind);
         imagesc(STL.preview.voxelpos.x, STL.preview.voxelpos.y, squeeze(STL.preview.voxels(:, :, zind))', 'Parent', handles.axes2);
     end
     
-    axis(handles.axes2, 'image', 'xy');
+    axis(handles.axes2, 'image', 'ij');
 end

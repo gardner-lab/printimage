@@ -43,9 +43,9 @@ beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};  % Optional string cell array
 beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = [0 0];                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = [-0.00202937 0.00395099];                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = [false false];        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
-beamDaqs(1).calOpenShutterIDs = [];             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
+beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 beamDaqs(1).referenceClockRate = 1e+07;
 
 %% ResScan (ResScanner)

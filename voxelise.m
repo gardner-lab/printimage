@@ -37,9 +37,7 @@ function [] = voxelise(handles, target)
             % When we create the scan, we must add 0 to the right edge of the
             % scan pattern, so that the flyback is blanked. Or is this
             % automatic?
-            
-            
-            
+                        
             % 1. Compute metavoxels based on user-selected print zoom:
             nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
             
@@ -101,6 +99,12 @@ function [] = voxelise(handles, target)
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
+                        
+                        if STL.logistics.abort
+                            disp('Aborting due to user.');
+                            STL.logistics.abort = false;
+                            break;
+                        end
                         
                         % Voxels for each metavoxel:
                         STL.print.voxelpos{mvx, mvy, mvz}.x = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
