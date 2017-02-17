@@ -68,25 +68,30 @@ function varargout = tiffview_OutputFcn(hObject, eventdata, handles)
     varargout{1} = handles.output;
     
     
-function file_Callback(hObject, eventdata, handles)
-    global file;
-    
-    set(handles.delete, 'Enable', 'off');
-    drawnow;
-
+function file_Callback(hObject, eventdata, handles)    
     file = handles.sorted_index(get(hObject,'Value'));
     do_file(hObject, handles, file);
     
     
 function do_file(hObject, handles, file)    
-    global tiff;    
+    global tiff;
+    global lastfile;
     
+    if lastfile == file
+        return;
+    end
+        
     if file > length(handles.files)
         disp(sprintf('inspect.m: Requested file %d, but only %d files', ...
             file, length(handles.files)));
         return;
     end
     
+    
+    set(handles.delete, 'Enable', 'off');
+    drawnow;
+
+
     tiff = [];
     i = 0;
     title(handles.axes1, 'Loading image...');
@@ -100,6 +105,8 @@ function do_file(hObject, handles, file)
     catch ME
     end
     
+    lastfile = file;
+
     zslider_Callback(handles.zslider, [], handles);
     set(handles.delete, 'Enable', 'on');
 
@@ -127,6 +134,8 @@ function zslider_CreateFcn(hObject, eventdata, handles)
 
 
 function delete_Callback(hObject, eventdata, handles)
+    global lastfile;
+    
     file = handles.sorted_index(get(handles.file, 'Value'));
     delete(handles.files{file});
     
@@ -139,4 +148,5 @@ function delete_Callback(hObject, eventdata, handles)
     guidata(hObject, handles);
 
     set(handles.delete, 'Enable', 'off');
+    lastfile = [];
     
