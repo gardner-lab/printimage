@@ -22,7 +22,7 @@ function varargout = tiffview(varargin)
     
     % Edit the above text to modify the response to help tiffview
     
-    % Last Modified by GUIDE v2.5 17-Feb-2017 12:22:40
+    % Last Modified by GUIDE v2.5 17-Feb-2017 14:30:41
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -57,6 +57,7 @@ function tiffview_OpeningFcn(hObject, eventdata, handles, varargin)
     set(handles.file,'String',handles.files,'Value',1);
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
+    set(handles.delete, 'Enable', 'off');
 
     % Update handles structure
     guidata(hObject, handles);
@@ -70,18 +71,15 @@ function varargout = tiffview_OutputFcn(hObject, eventdata, handles)
 function file_Callback(hObject, eventdata, handles)
     global file;
     
+    set(handles.delete, 'Enable', 'off');
+    drawnow;
+
     file = handles.sorted_index(get(hObject,'Value'));
     do_file(hObject, handles, file);
     
     
 function do_file(hObject, handles, file)    
-    global tiff;
-    if isempty(file) & ~isempty(last_file)
-        file = last_file;
-    else
-        last_file = file;
-    end
-    
+    global tiff;    
     
     if file > length(handles.files)
         disp(sprintf('inspect.m: Requested file %d, but only %d files', ...
@@ -103,6 +101,8 @@ function do_file(hObject, handles, file)
     end
     
     zslider_Callback(handles.zslider, [], handles);
+    set(handles.delete, 'Enable', 'on');
+
     
 function file_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -124,3 +124,19 @@ function zslider_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
+
+
+function delete_Callback(hObject, eventdata, handles)
+    file = handles.sorted_index(get(handles.file, 'Value'));
+    delete(handles.files{file});
+    
+    % Reload
+    files = dir('*.tif*');
+    [sorted_names, sorted_index] = sortrows({files.name}');
+    handles.files = sorted_names;
+    handles.sorted_index = sorted_index;
+    set(handles.file,'String',handles.files,'Value',min(file, length(handles.sorted_index)));
+    guidata(hObject, handles);
+
+    set(handles.delete, 'Enable', 'off');
+    
