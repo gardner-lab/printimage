@@ -56,6 +56,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     try
         hSI = evalin('base', 'hSI');
         STL.simulated = false;
+        hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
         STL.simulated = true;
         hSI.simulated = true;
@@ -81,12 +82,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zoom = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = 0; % Microns of overlap in order to get good bonding
+    STL.print.metavoxel_overlap = [0 0 0]; % Microns of overlap in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
-    STL.print.motorOrigin = [10000 11000 0];
+    STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 450]; %[10000 9000 0];
     STL.print.fastZhomePos = 450;
     
     STL.logistics.abort = false;
@@ -130,6 +131,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     warning('Setting pixelsPerLine to 64 for faster testing.');
     %hSI.hRoiManager.pixelsPerLine = 64;
     hSI.hScan2D.bidirectional = false;
+    hSI.hScan2D.linePhase = -4.9e-6;
     
     colormap(handles.axes2, 'gray');
 end
@@ -151,7 +153,7 @@ function update_gui(handles);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
-    nmetavoxels = ceil(STL.print.size ./ STL.print.bounds);
+    nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
     set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
 end
 
@@ -499,6 +501,11 @@ function print_Callback(hObject, eventdata, handles)
                 end
                 
                 disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
+                
+                % 0. Update the slice preview, because why the hell not?
+                set(handles.show_metavoxel_slice, 'String', sprintf('%d %d %d', mvx, mvy, mvz));
+                show_metavoxel_slice_Callback(hObject, eventdata, handles)
+
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
@@ -528,10 +535,11 @@ function print_Callback(hObject, eventdata, handles)
                 disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
                 % Go to position-x on all dimensions in order to always
                 % complete the move in the same direction.
-                hSI.hMotors.motorPosition(1:3) = newpos - [1 1 1] * 20;
-                pause(0.1);
+                %hSI.hMotors.motorPosition(1:3) = newpos - [1 1 1] * 20;
+                %pause(0.1);
                 hSI.hMotors.motorPosition(1:3) = newpos;
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+                pause(0.1);
                 
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels
@@ -713,7 +721,7 @@ function powertest_Callback(hObject, eventdata, handles)
         end
     end
     
-    nframes = 300;
+    nframes = 100;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -920,6 +928,7 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         return;
     else
         set(handles.messages, 'String', '');
+        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
         
         % Get bounds at zoom = 1
         hSI.hRoiManager.scanZoomFactor = 1;
@@ -936,6 +945,8 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
         fov = hSI.hRoiManager.imagingFovUm;
         STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
         
+        
+        hSI.hRoiManager.scanZoomFactor = userZoomFactor;
         update_gui(handles);
     end
 end
@@ -962,7 +973,7 @@ function minGoodZoom_Callback(hObject, eventdata, handles)
         STL.print.zoom = STL.print.zoom_min;
     end
     
-    possibleZooms = STL.print.zoom_min:0.1:4;
+    possibleZooms = STL.print.zoom_min:0.1:5;
     for i = 1:length(possibleZooms)
         foo{i} = sprintf('%g', possibleZooms(i));
         
@@ -1021,7 +1032,6 @@ function update_slice_preview_button_Callback(hObject, eventdata, handles)
 end
 
 
-% --- Executes on button press in crushReset.
 function crushReset_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
@@ -1030,7 +1040,6 @@ function crushReset_Callback(hObject, eventdata, handles)
 end
 
 
-% --- Executes on button press in abort.
 function abort_Callback(hObject, eventdata, handles)
     global STL;
     STL.logistics.abort = true;
@@ -1040,8 +1049,8 @@ end
 
 function show_metavoxel_slice_Callback(hObject, eventdata, handles)
     global STL;
-    
-    STL.preview.show_metavoxel_slice = str2num(get(hObject,'String'));
+        
+    STL.preview.show_metavoxel_slice = str2num(get(handles.show_metavoxel_slice, 'String'));
     zslider_Callback([], [], handles);
 end
 
