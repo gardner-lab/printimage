@@ -15,7 +15,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
-    STL.print.voxels(end, :, :) = zeros(STL.print.resolution(2:3));
+    foo = size(STL.print.voxels);
+    STL.print.voxels(end, :, :) = zeros(foo(2:3));
     
     v = double(STL.print.voxels(:)) * STL.print.power;
     
