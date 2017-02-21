@@ -82,7 +82,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zoom = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [0 0 0]; % Microns of overlap in order to get good bonding
+    STL.print.metavoxel_overlap = [10 0 0]; % Microns of overlap (positive is more overlap) in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
@@ -535,8 +535,8 @@ function print_Callback(hObject, eventdata, handles)
                 disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
                 % Go to position-x on all dimensions in order to always
                 % complete the move in the same direction.
-                %hSI.hMotors.motorPosition(1:3) = newpos - [1 1 1] * 20;
-                %pause(0.1);
+                hSI.hMotors.motorPosition(1:3) = newpos + [1 1 1] * 3;
+                pause(0.1);
                 hSI.hMotors.motorPosition(1:3) = newpos;
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
                 pause(0.1);

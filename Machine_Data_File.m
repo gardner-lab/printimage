@@ -15,7 +15,7 @@ components = {};                    % Cell array of optional components to load.
 %Data file location
 dataDir = '[MDF]\ConfigData';       % Directory to store persistent configuration and calibration data. '[MDF]' will be replaced by the MDF directory
 
-objectiveResolution = 30;
+objectiveResolution = 37;
 
 startUpScript = '';
 
@@ -43,7 +43,7 @@ beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};  % Optional string cell array
 beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = [-0.00202937 0.00395099];                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = [-0.00206386 0.015088];                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = [false false];        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 beamDaqs(1).referenceClockRate = 1e+07;
@@ -82,7 +82,7 @@ resonantAngularRange = 26;          % max range in optical degrees (pk-pk) for r
 resonantZoomDeviceName = 'PXI1Slot2';        % String identifying the NI-DAQ board to host the resonant zoom analog output. Leave empty to use same board as specified in 'galvoDeviceName'
 resonantZoomAOChanID = 0;           % resonantZoomAOChanID: The numeric ID of the Analog Output channel to be used to control the Resonant Scanner Zoom level.
 
-rScanVoltsPerOpticalDegree = 0.1923;% resonant scanner conversion factor from optical degrees to volts
+rScanVoltsPerOpticalDegree = 0.2155;% resonant scanner conversion factor from optical degrees to volts
 resonantScannerSettleTime = 0.5;    % [seconds] time to wait for the resonant scanner to reach its desired frequency after an update of the zoomFactor
 
 

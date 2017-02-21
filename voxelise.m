@@ -102,7 +102,6 @@ function [] = voxelise(handles, target)
                         
                         if STL.logistics.abort
                             disp('Aborting due to user.');
-                            STL.logistics.abort = false;
                             break;
                         end
                         
@@ -139,8 +138,12 @@ function [] = voxelise(handles, target)
                 end
             end
             
-            STL.print.voxelise_needed = false;
-            STL.print.valid = true;
+            if STL.logistics.abort
+                STL.logistics.abort = false;
+            else
+                STL.print.voxelise_needed = false;
+                STL.print.valid = true;
+            end
             
             if exist('handles', 'var')
                 set(handles.messages, 'String', '');
