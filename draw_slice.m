@@ -1,4 +1,5 @@
 function draw_slice(handles, zind);
+    % zind is the fractional distance into the slice
     
     global STL;
     
@@ -13,8 +14,9 @@ function draw_slice(handles, zind);
         
         w = STL.preview.show_metavoxel_slice;
         try
+            which_slice = max(1, round(zind * size(STL.print.metavoxels{w(1), w(2), w(3)}, 3)));
             imagesc(STL.print.voxelpos{w(1), w(2), w(3)}.x, STL.print.voxelpos{w(1), w(2), w(3)}.y, ...
-                squeeze(STL.print.metavoxels{w(1), w(2), w(3)}(:, :, min(zind, size(STL.print.metavoxels{w(1), w(2), w(3)}, 3))))', 'Parent', handles.axes2);
+                squeeze(STL.print.metavoxels{w(1), w(2), w(3)}(:, :, which_slice))', 'Parent', handles.axes2);
         catch ME
             disp(sprintf('Cannot imagesc the metavoxel at [ %d %d %d ]', w(1), w(2), w(3)));
         end
@@ -25,7 +27,8 @@ function draw_slice(handles, zind);
         end
         
         set(handles.show_metavoxel_slice, 'String', 'NaN');
-        imagesc(STL.preview.voxelpos.x, STL.preview.voxelpos.y, squeeze(STL.preview.voxels(:, :, zind))', 'Parent', handles.axes2);
+        which_slice = max(1, round(zind * size(STL.preview.voxels, 3)));
+        imagesc(STL.preview.voxelpos.x, STL.preview.voxelpos.y, squeeze(STL.preview.voxels(:, :, which_slice))', 'Parent', handles.axes2);
     end
     
     axis(handles.axes2, 'image', 'ij');
