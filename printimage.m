@@ -336,39 +336,33 @@ function zslider_Callback(hObject, eventdata, handles, pos)
     global STL;
     %hSI = evalin('base', 'hSI');
     
-    if isfield(STL.preview, 'show_metavoxel_slice') ...
-            & all(~isnan(STL.preview.show_metavoxel_slice))
-        % Trying to show an individual metavoxel in the slice window requires print voxelisation.
-        if STL.print.voxelise_needed
-            voxelise(handles, 'print');
+    sliderpos = get(handles.zslider, 'Value');
+    draw_slice(handles, sliderpos);
+    
+    if false
+        if isfield(STL.preview, 'show_metavoxel_slice') ...
+                & all(~isnan(STL.preview.show_metavoxel_slice))
+            % Trying to show an individual metavoxel in the slice window requires print voxelisation.
+            if STL.print.voxelise_needed
+                voxelise(handles, 'print');
+            end
+            w = STL.preview.show_metavoxel_slice;
+            z = STL.print.metavoxel_resolution{w(1), w(2), w(3)}(3);
+            
+            if all(w <= STL.print.nmetavoxels) ...
+                    & all(w > 0)
+                set(handles.zslider, 'Max', z);
+            end
+            
+        else
+            if STL.preview.voxelise_needed
+                voxelise(handles, 'preview');
+            end
+            
+            z = STL.preview.resolution(3);
         end
-        w = STL.preview.show_metavoxel_slice;
-        z = STL.print.metavoxel_resolution{w(1), w(2), w(3)}(3);
-
-        if all(w <= STL.print.nmetavoxels) ...
-                & all(w > 0)
-            set(handles.zslider, 'Max', z);
-        end
-        
-    else
-        if STL.preview.voxelise_needed
-            voxelise(handles, 'preview');
-        end
-
-        z = STL.preview.resolution(3);
     end
     
-    v = round(get(handles.zslider, 'Value'));
-    set(handles.zslider, 'Value', max(min(v, z), 1), 'Max', z);
-    
-    if exist('pos', 'var') & false
-        disp(sprintf('Setting slider pos to %d of %d', pos*z, z));
-
-        set(handles.zslider, 'Value', pos * z);
-    end
-    
-    v = round(get(handles.zslider, 'Value'));
-    draw_slice(handles, v);
 end
 
 
