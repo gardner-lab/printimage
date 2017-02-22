@@ -34,6 +34,10 @@ function [] = voxelise(handles, target)
     
     if strcmp(target, 'print')
         if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+            if ~STL.print.voxelise_needed
+                set(handles.messages, 'String', '');
+                return;
+            end
             % When we create the scan, we must add 0 to the right edge of the
             % scan pattern, so that the flyback is blanked. Or is this
             % automatic?
@@ -94,8 +98,10 @@ function [] = voxelise(handles, target)
             end
             metavoxel_counter = 0;
             metavoxel_total = prod(STL.print.nmetavoxels);
-
+            STL.print.voxelpos = {};
+            STL.print.metavoxel_resolution = {};
             STL.print.metavoxels = {};
+            
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
@@ -164,6 +170,11 @@ function [] = voxelise(handles, target)
             end
         end
     elseif strcmp(target, 'preview')
+        if ~STL.preview.voxelise_needed
+            set(handles.messages, 'String', '');
+            return;
+        end
+
         STL.preview.resolution = [120 120 round(STL.print.size(3) / STL.print.zstep)];
         STL.preview.voxelpos.x = linspace(0, STL.print.size(1), STL.preview.resolution(1));
         STL.preview.voxelpos.y = linspace(0, STL.print.size(2), STL.preview.resolution(2));

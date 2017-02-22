@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 10-Feb-2017 13:27:51
+    % Last Modified by GUIDE v2.5 22-Feb-2017 16:47:07
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -82,7 +82,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zoom = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [10 0 0]; % Microns of overlap (positive is more overlap) in order to get good bonding
+    STL.print.metavoxel_overlap = [10 0 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
@@ -128,10 +128,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     if ~STL.simulated
         hSI.hFastZ.setHome(0);
     end
-    warning('Setting pixelsPerLine to 64 for faster testing.');
+    %warning('Setting pixelsPerLine to 64 for faster testing.');
     %hSI.hRoiManager.pixelsPerLine = 64;
     hSI.hScan2D.bidirectional = false;
-    hSI.hScan2D.linePhase = -4.9e-6;
+    hSI.hScan2D.linePhase = -6e-6;
     
     colormap(handles.axes2, 'gray');
 end
@@ -333,36 +333,7 @@ end
 
 % When the zSlider is moved, update things. If a build mesh is available, use that.
 function zslider_Callback(hObject, eventdata, handles, pos)
-    global STL;
-    %hSI = evalin('base', 'hSI');
-    
-    sliderpos = get(handles.zslider, 'Value');
-    draw_slice(handles, sliderpos);
-    
-    if false
-        if isfield(STL.preview, 'show_metavoxel_slice') ...
-                & all(~isnan(STL.preview.show_metavoxel_slice))
-            % Trying to show an individual metavoxel in the slice window requires print voxelisation.
-            if STL.print.voxelise_needed
-                voxelise(handles, 'print');
-            end
-            w = STL.preview.show_metavoxel_slice;
-            z = STL.print.metavoxel_resolution{w(1), w(2), w(3)}(3);
-            
-            if all(w <= STL.print.nmetavoxels) ...
-                    & all(w > 0)
-                set(handles.zslider, 'Max', z);
-            end
-            
-        else
-            if STL.preview.voxelise_needed
-                voxelise(handles, 'preview');
-            end
-            
-            z = STL.preview.resolution(3);
-        end
-    end
-    
+    draw_slice(handles, get(handles.zslider, 'Value'));
 end
 
 
@@ -677,8 +648,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
 
 
-    gridx = 5;
-    gridy = 6;
+    gridx = 2;
+    gridy = 2;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -1019,7 +990,7 @@ function printZoom_CreateFcn(hObject, eventdata, handles)
 end
 
 
-function update_slice_preview_button_Callback(hObject, eventdata, handles)
+function voxelise_preview_button_Callback(hObject, eventdata, handles)
     %update_dimensions(handles);
     zslider_Callback([], [], handles);
     update_3d_preview(handles);
@@ -1031,6 +1002,7 @@ function crushReset_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
     
     STL.print.motorOrigin = hSI.hMotors.motorPosition;
+    %STL.print.motor_reset_needed = false;
 end
 
 
@@ -1052,4 +1024,106 @@ function show_metavoxel_slice_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+function voxelise_print_button_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    voxelise(handles, 'print');
+    set(handles.show_metavoxel_slice, 'String', '1 1 1');
+    STL.preview.show_metavoxel_slice = [1 1 1];
+    zslider_Callback([], [], handles);
+end
+
+
+function test_button_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    if ~strcmpi(hSI.acqState,'idle')
+        set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents your test.');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
+    
+    if STL.print.motor_reset_needed
+        set(handles.messages, 'String', 'CRUSH THE THING!!! Reset lens position before printing!');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
+    
+    STL.print.motorOrigin = hSI.hMotors.motorPosition;
+
+    if STL.simulated
+        userZoomFactor = 1;
+    else
+        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
+    end
+        
+    hSI.hRoiManager.scanZoomFactor = 1;
+    
+    % Number of slices at 1 micron per slice:
+    hSI.hScan2D.bidirectional = false;
+        
+    % A bunch of stuff needs to be set up for this. Should undo it all later!
+    oldBeams = hSI.hBeams;
+    hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
+    
+    ind = 1;
+    pb.rect = [0.45 0.45 0.1 0.1];
+    pb.powers = STL.print.power * 100;
+    pb.name = 'hi';
+    pb.oddLines = 1;
+    pb.evenLines = 1;
+    
+    hSI.hBeams.powerBoxes(ind) = pb;
+    
+    nframes = 100;
+    
+    hSI.hFastZ.enable = 1;
+    hSI.hStackManager.stackZStepSize = -STL.print.zstep;
+    %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
+    hSI.hStackManager.stackReturnHome = false; % This seems useless.
+    motorHold(handles, 'on');
+    hSI.hScan2D.bidirectional = false;
+    hSI.hStackManager.numSlices = nframes;
+    hSI.hBeams.powerLimits = 100;
+    hSI.hBeams.enablePowerBox = true;
+    drawnow;
+    
+    
+    for x = 0:100:500
+        for y = 0:100:500
+            if STL.logistics.abort
+                STL.logistics.abort = false;
+                hSI.hBeams.enablePowerBox = false;
+                hSI.hRoiManager.scanZoomFactor = 1;
+                motorHold(handles, 'off');
+            end
+                        
+            newpos = [x y] + STL.print.motorOrigin(1:2);
+            disp(sprintf(' ...servoing to [%g %g]...', x, y));
+            % Go to position-x on all dimensions in order to always
+            % complete the move in the same direction.
+            hSI.hMotors.motorPosition(1:2) = newpos + [1 1] * 3;
+            pause(0.1);
+            hSI.hMotors.motorPosition(1:2) = newpos;
+            hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+            pause(0.1);
+            
+            hSI.startLoop();
+            while ~strcmpi(hSI.acqState,'idle')
+                pause(0.1);
+            end
+        end
+    end
+    
+    % Clean up
+    hSI.hBeams.enablePowerBox = false;  
+    hSI.hRoiManager.scanZoomFactor = 1;
+    motorHold(handles, 'off');
+    
 end

@@ -1,6 +1,5 @@
 function draw_slice(handles, zind);
     % zind is the fractional distance into the slice
-    
     global STL;
     
     if isfield(STL.preview, 'show_metavoxel_slice') ...
@@ -21,7 +20,6 @@ function draw_slice(handles, zind);
             disp(sprintf('Cannot imagesc the metavoxel at [ %d %d %d ]', w(1), w(2), w(3)));
         end
     else
-        
         if STL.preview.voxelise_needed
             voxelise(handles, 'preview');
         end
