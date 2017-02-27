@@ -1094,30 +1094,31 @@ function test_button_Callback(hObject, eventdata, handles)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
+    [X Y] = meshgrid(0:100:500, 0:100:500);
+    posns = [X(1:end) ; Y(1:end)];
+    posns = posns(:, randperm(prod(size(X))))';
     
-    for x = 0:100:500
-        for y = 0:100:500
-            if STL.logistics.abort
-                STL.logistics.abort = false;
-                hSI.hBeams.enablePowerBox = false;
-                hSI.hRoiManager.scanZoomFactor = 1;
-                motorHold(handles, 'off');
-            end
-                        
-            newpos = [x y] + STL.print.motorOrigin(1:2);
-            disp(sprintf(' ...servoing to [%g %g]...', x, y));
-            % Go to position-x on all dimensions in order to always
-            % complete the move in the same direction.
-            hSI.hMotors.motorPosition(1:2) = newpos + [1 1] * 3;
+    for xy = 1:size(posns, 1)
+        if STL.logistics.abort
+            STL.logistics.abort = false;
+            hSI.hBeams.enablePowerBox = false;
+            hSI.hRoiManager.scanZoomFactor = 1;
+            motorHold(handles, 'off');
+        end
+        
+        newpos = posns(xy, :) + STL.print.motorOrigin(1:2);
+        disp(sprintf(' ...servoing to [%g %g]...', posns(xy, 1), posns(xy, 2)));
+        % Go to position-x on all dimensions in order to always
+        % complete the move in the same direction.
+        hSI.hMotors.motorPosition(1:2) = newpos + [1 1] * 3;
+        pause(0.1);
+        hSI.hMotors.motorPosition(1:2) = newpos;
+        hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+        pause(0.1);
+        
+        hSI.startLoop();
+        while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
-            hSI.hMotors.motorPosition(1:2) = newpos;
-            hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-            pause(0.1);
-            
-            hSI.startLoop();
-            while ~strcmpi(hSI.acqState,'idle')
-                pause(0.1);
-            end
         end
     end
     
