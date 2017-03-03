@@ -120,6 +120,7 @@ function file_CreateFcn(hObject, eventdata, handles)
 function zslider_Callback(hObject, eventdata, handles)
     global tiff;
     ulim = size(tiff, 1);
+    colormap bone;
     v = get(handles.zslider, 'Value');
     
     imagesc(handles.axes1, squeeze(tiff(max(1, round(v*ulim)),:,:)));

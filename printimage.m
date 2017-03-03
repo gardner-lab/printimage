@@ -354,9 +354,6 @@ function print_Callback(hObject, eventdata, handles)
     global STL;
     
     global wbar;
-    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        close(wbar);
-    end
     
     hSI = evalin('base', 'hSI');
     
@@ -454,6 +451,9 @@ function print_Callback(hObject, eventdata, handles)
     axis_signs = [ -1 1 -1 ];
     axis_order = [ 2 1 3 ];
     
+    start_time = datetime('now');
+    eta = 'next weekend';
+    
     metavoxel_counter = 0;
     metavoxel_total = prod(STL.print.nmetavoxels);
     for mvz = 1:STL.print.nmetavoxels(3)
@@ -531,9 +531,16 @@ function print_Callback(hObject, eventdata, handles)
                 % Show progress
                 metavoxel_counter = metavoxel_counter + 1;
                 if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                    waitbar(metavoxel_counter / metavoxel_total, wbar);
+                    current_time = datetime('now');
+                    eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
+                    if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
+                        eta = datetime(eta_date, 'Format', 'eeee H:mm');
+                    else
+                        eta = datetime(eta_date, 'Format', 'H:mm');
+                    end
+                    
+                    waitbar(metavoxel_counter / metavoxel_total, wbar, eta);
                 end
-                
             end
         end
     end
