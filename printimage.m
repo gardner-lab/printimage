@@ -539,7 +539,7 @@ function print_Callback(hObject, eventdata, handles)
                         eta = datetime(eta_date, 'Format', 'H:mm');
                     end
                     
-                    waitbar(metavoxel_counter / metavoxel_total, wbar, eta);
+                    waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Printing. Done around %s.', eta));
                 end
             end
         end

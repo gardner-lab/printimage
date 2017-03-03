@@ -1,8 +1,7 @@
 function [] = voxelise(handles, target)
 
     global STL;
-    hSI = evalin('base', 'hSI');
-    
+    hSI = evalin('base', 'hSI');    
     %warning('Voxelising again...');
     
     global wbar;
@@ -91,6 +90,9 @@ function [] = voxelise(handles, target)
             
             STL.print.nmetavoxels = nmetavoxels;
             
+            start_time = datetime('now');
+            eta = 'next weekend';
+
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
                 waitbar(0, wbar, 'Voxelising...');
             else
@@ -137,9 +139,16 @@ function [] = voxelise(handles, target)
                         % Show progress
                         metavoxel_counter = metavoxel_counter + 1;
                         if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                            waitbar(metavoxel_counter / metavoxel_total, wbar);
-                        end
-                        
+                            current_time = datetime('now');
+                            eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
+                            if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
+                                eta = datetime(eta_date, 'Format', 'eeee H:mm');
+                            else
+                                eta = datetime(eta_date, 'Format', 'H:mm');
+                            end
+                            
+                            waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Voxelising. Done around %s.', eta));
+                        end                        
                     end
                 end
             end
