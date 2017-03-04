@@ -141,10 +141,10 @@ function [] = voxelise(handles, target)
                         if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
                             current_time = datetime('now');
                             eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
-                            if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
-                                eta = datetime(eta_date, 'Format', 'eeee H:mm');
+                            if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
+                                eta = datestr(eta_date, 'HH:MM:SS');
                             else
-                                eta = datetime(eta_date, 'Format', 'H:mm');
+                                eta = datestr(eta_date, 'dddd HH:MM');
                             end
                             
                             waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Voxelising. Done around %s.', eta));
