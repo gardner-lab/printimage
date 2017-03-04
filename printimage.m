@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 22-Feb-2017 16:47:07
+    % Last Modified by GUIDE v2.5 03-Mar-2017 18:00:20
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -173,7 +173,30 @@ function update_dimensions(handles, dim, val)
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
     
     if isfield(STL, 'aspect_ratio')
-        aspect_ratio = STL.aspect_ratio(STL.print.dims);
+        if get(handles.lockAspectRatio, 'Value') == 0
+            % This is a total kludge for squashing the object for test
+            % purposes. Thus, it's ugly.
+            old_aspect_ratio = STL.aspect_ratio;
+            dims_operator = eye(3);
+            dims_operator = dims_operator(:, STL.print.dims);
+            STL.print.size = [str2double(get(handles.size1, 'String')) ...
+                str2double(get(handles.size2, 'String')) ...
+                str2double(get(handles.size3, 'String'))];
+            STL.print.size
+            STL.aspect_ratio = (STL.print.size * inv(dims_operator)) / max(STL.print.size)
+            
+            dim_scale = diag(STL.aspect_ratio ./ old_aspect_ratio)
+            STL.patchobj1.vertices = STL.patchobj1.vertices * dim_scale;
+            STL.aspect_ratio = max(STL.patchobj1.vertices, [], 1);
+            STL.aspect_ratio = STL.aspect_ratio / max(STL.aspect_ratio);
+            STL.patchobj1.vertices = STL.patchobj1.vertices / max(STL.aspect_ratio);
+            for i = 1:3
+                STL.mesh1(:, i, :) = STL.mesh1(:, i, :) * dim_scale(i, i);
+            end
+            STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
+        end
+        aspect_ratio = STL.aspect_ratio(STL.print.dims)
+            
         if nargin == 1
             dim = 1;
             val = STL.print.size(1);
@@ -183,7 +206,7 @@ function update_dimensions(handles, dim, val)
         end
         
         % Include a roundoff fudge factor (nearest nanometre)
-        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3;
+        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3
         if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize) | any(STL.print.dims ~= olddims)
             STL.print.rescale_needed = true;
             STL.preview.voxelise_needed = true;
@@ -291,14 +314,6 @@ function updateSTLfile(handles, STLfile)
     STL.aspect_ratio = STL.aspect_ratio / max(STL.aspect_ratio);
     
     update_dimensions(handles); % First pass at object dimensions according to aspect ratio
-    
-    %STL.preview.voxelise_needed = true;
-    %STL.print.voxelise_needed = true;
-    
-    %update_3d_preview(handles);
-    
-    % Draw the slices
-    %zslider_Callback(handles.zslider, [], handles);
 end
 
 
@@ -533,10 +548,10 @@ function print_Callback(hObject, eventdata, handles)
                 if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
                     current_time = datetime('now');
                     eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
-                    if strcmp(datetime(eta_date, 'Format', 'yyyyMMdd'), datetime(current_time, 'Format', 'yyyyMMdd'))
-                        eta = datetime(eta_date, 'Format', 'eeee H:mm');
+                    if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
+                        eta = datestr(eta_date, 'HH:MM:SS');
                     else
-                        eta = datetime(eta_date, 'Format', 'H:mm');
+                        eta = datestr(eta_date, 'dddd HH:MM');
                     end
                     
                     waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Printing. Done around %s.', eta));
@@ -1134,4 +1149,8 @@ function test_button_Callback(hObject, eventdata, handles)
     hSI.hRoiManager.scanZoomFactor = 1;
     motorHold(handles, 'off');
     
+end
+
+
+function lockAspectRatio_Callback(hObject, eventdata, handles)
 end
