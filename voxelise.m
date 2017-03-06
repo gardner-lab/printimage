@@ -2,12 +2,9 @@ function [] = voxelise(handles, target)
 
     global STL;
     hSI = evalin('base', 'hSI');    
-    %warning('Voxelising again...');
+    warning('Voxelising again...');
     
     global wbar;
-    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        close(wbar);
-    end
 
     if exist('handles', 'var');
         set(handles.messages, 'String', sprintf('Re-voxelising %s...', target));
@@ -94,23 +91,34 @@ function [] = voxelise(handles, target)
             eta = 'next weekend';
 
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                waitbar(0, wbar, 'Voxelising...');
+                waitbar(0, wbar, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
             else
-                wbar = waitbar(0, 'Voxelising...');
+                wbar = waitbar(0, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
             end
             metavoxel_counter = 0;
             metavoxel_total = prod(STL.print.nmetavoxels);
             STL.print.voxelpos = {};
             STL.print.metavoxel_resolution = {};
             STL.print.metavoxels = {};
-            
+            STL.logistics.abort = false;
+
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
                         
                         if STL.logistics.abort
+                            % The caller has to unset STL.logistics.abort
+                            % (and presumably return).
                             disp('Aborting due to user.');
-                            break;
+                            if ishandle(wbar) & isvalid(wbar)
+                                delete(wbar);
+                            end
+                            if exist('handles', 'var');
+                                set(handles.messages, 'String', '');
+                                drawnow;
+                            end
+
+                            return;
                         end
                         
                         % Voxels for each metavoxel:
@@ -167,7 +175,7 @@ function [] = voxelise(handles, target)
             end
             
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                close(wbar);
+                delete(wbar);
             end
 
             

@@ -433,6 +433,10 @@ function print_Callback(hObject, eventdata, handles)
     
     if STL.print.voxelise_needed
         voxelise(handles, 'print');
+        if STL.logistics.abort
+            STL.logistics.abort = false;
+            return;
+        end
     end
     
     
@@ -458,9 +462,9 @@ function print_Callback(hObject, eventdata, handles)
     motorHold(handles, 'on');
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        waitbar(0, wbar, 'Printing...');
+        waitbar(0, wbar, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
     else
-        wbar = waitbar(0, 'Printing...');
+        wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
     end
     
     axis_signs = [ -1 1 -1 ];
@@ -474,12 +478,34 @@ function print_Callback(hObject, eventdata, handles)
     for mvz = 1:STL.print.nmetavoxels(3)
         for mvy = 1:STL.print.nmetavoxels(2)
             for mvx = 1:STL.print.nmetavoxels(1)
-                if STL.logistics.abort
-                    disp('Aborting due to user.');
-                    STL.logistics.abort = false;
-                    break;
-                end
                 
+                if STL.logistics.abort
+                    % The caller has to unset STL.logistics.abort
+                    % (and presumably return).
+                    disp('Aborting due to user.');
+                    if ishandle(wbar) & isvalid(wbar)
+                        delete(wbar);
+                    end
+                    if exist('handles', 'var');
+                        set(handles.messages, 'String', 'Canceled.');
+                        drawnow;
+                    end
+                    
+                    STL.print.armed = false;
+                    hSI.hStackManager.numSlices = 1;
+                    hSI.hFastZ.enable = false;
+                    
+                    motorHold(handles, 'off');
+                    if ~STL.simulated
+                        while ~strcmpi(hSI.acqState,'idle')
+                            pause(0.1);
+                        end
+                    end
+                    hSI.hRoiManager.scanZoomFactor = userZoomFactor;
+                    
+                    return;
+                end
+
                 disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
                 
                 % 0. Update the slice preview, because why the hell not?
@@ -561,7 +587,7 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        close(wbar);
+        delete(wbar);
     end
     
     STL.print.armed = false;
@@ -1051,8 +1077,16 @@ end
 
 function voxelise_print_button_Callback(hObject, eventdata, handles)
     global STL;
+    global wbar;
     
     voxelise(handles, 'print');
+    if STL.logistics.abort
+        STL.logistics.abort = false;
+        set(handles.messages, 'Canceled.');
+        set(handles.show_metavoxel_slice, 'String', 'NaN');
+
+        return;
+    end
     set(handles.show_metavoxel_slice, 'String', '1 1 1');
     STL.preview.show_metavoxel_slice = [1 1 1];
     zslider_Callback([], [], handles);
