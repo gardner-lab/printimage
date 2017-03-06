@@ -114,7 +114,7 @@ function [] = voxelise(handles, target)
                                 delete(wbar);
                             end
                             if exist('handles', 'var');
-                                set(handles.messages, 'String', '');
+                                set(handles.messages, 'String', 'Canceled.');
                                 drawnow;
                             end
 

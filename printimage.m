@@ -89,14 +89,23 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.motor_reset_needed = false;
     STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 450]; %[10000 9000 0];
     STL.print.fastZhomePos = 450;
-    
     STL.logistics.abort = false;
-    
+        
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
-    STL.bounds_1 = [NaN NaN 360];
-    STL.print.bounds_max = [NaN NaN 360];
-    STL.print.bounds = [NaN NaN 360];
+    STL.bounds_1 = [NaN NaN 363];
+    STL.print.bounds_max = [NaN NaN 363];
+    STL.print.bounds = [NaN NaN 363];
+    
+    % ScanImage freaks out if we pass an illegal command to its motor stage
+    % controller. I move up 450 micros so I can guarantee to move the FastZ
+    % stage down to 450 microns, but that fails if the stage is too high on
+    % startup. Error out:
+    if any(STL.print.motorOrigin <= 0)
+        error('Cannot initialise PrintImage: lower the slow Z stage just a little and restart PrintImage');
+        return;
+    end
+    
     
     if STL.simulated
         foo = -1;
@@ -490,6 +499,7 @@ function print_Callback(hObject, eventdata, handles)
                         set(handles.messages, 'String', 'Canceled.');
                         drawnow;
                     end
+                    STL.logistics.abort = false;
                     
                     STL.print.armed = false;
                     hSI.hStackManager.numSlices = 1;
@@ -633,8 +643,8 @@ function motorHold(handles, v);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
         if isfield(STL.print, 'motorOrigin')
-            disp(sprintf('Servoing to [ %s]', sprintf('%g ', STL.print.motorOrigin)));
-            hSI.hMotors.motorPosition = STL.print.motorOrigin;
+            disp(sprintf('Servoing to z = [ %s ]',STL.print.motorOrigin(3)));
+            hSI.hMotors.motorPosition(3) = STL.print.motorOrigin(3);
         end
         
         STL.print.motorHold = false;
@@ -1082,7 +1092,7 @@ function voxelise_print_button_Callback(hObject, eventdata, handles)
     voxelise(handles, 'print');
     if STL.logistics.abort
         STL.logistics.abort = false;
-        set(handles.messages, 'Canceled.');
+        set(handles.messages, 'String', 'Canceled.');
         set(handles.show_metavoxel_slice, 'String', 'NaN');
 
         return;
