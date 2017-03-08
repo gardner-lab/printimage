@@ -87,8 +87,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
-    STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 450]; %[10000 9000 0];
     STL.print.fastZhomePos = 450;
+    % I'm going to drop the fastZ stage to 450. To make that safe, first
+    % I'll move the slow stage up in order to create sufficient clearance
+    % (with appropriate error checks).
+    STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
     STL.logistics.abort = false;
         
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
@@ -98,10 +101,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.bounds = [NaN NaN 363];
     
     % ScanImage freaks out if we pass an illegal command to its motor stage
-    % controller. I move up 450 micros so I can guarantee to move the FastZ
-    % stage down to 450 microns, but that fails if the stage is too high on
-    % startup. Error out:
-    if any(STL.print.motorOrigin <= 0)
+    % controller--and also if I can't move up the required amount, I
+    % probably shouldn't drop the fastZ stage. Error out:
+    if any(STL.print.motorOrigin < 0)
         error('Cannot initialise PrintImage: lower the slow Z stage just a little and restart PrintImage');
         return;
     end
