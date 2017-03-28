@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 03-Mar-2017 18:00:20
+    % Last Modified by GUIDE v2.5 27-Mar-2017 18:05:15
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -708,8 +708,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
 
 
-    gridx = 2;
-    gridy = 2;
+    gridx = 5;
+    gridy = 6;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -1164,7 +1164,12 @@ function test_button_Callback(hObject, eventdata, handles)
     
     [X Y] = meshgrid(0:100:500, 0:100:500);
     posns = [X(1:end) ; Y(1:end)];
+    %rng(1234);
+    
+    
     posns = posns(:, randperm(prod(size(X))))';
+    
+    origin_pos = STL.print.motorOrigin(1:2) - [200 200];
     
     for xy = 1:size(posns, 1)
         if STL.logistics.abort
@@ -1178,11 +1183,9 @@ function test_button_Callback(hObject, eventdata, handles)
         disp(sprintf(' ...servoing to [%g %g]...', posns(xy, 1), posns(xy, 2)));
         % Go to position-x on all dimensions in order to always
         % complete the move in the same direction.
-        hSI.hMotors.motorPosition(1:2) = newpos + [1 1] * 3;
-        pause(0.1);
+        hSI.hMotors.motorPosition(1:2) = origin_pos;
         hSI.hMotors.motorPosition(1:2) = newpos;
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-        pause(0.1);
         
         hSI.startLoop();
         while ~strcmpi(hSI.acqState, 'idle')
@@ -1199,4 +1202,9 @@ end
 
 
 function lockAspectRatio_Callback(hObject, eventdata, handles)
+end
+
+
+function preview_Callback(hObject, eventdata, handles)
+    add_preview(handles);
 end
