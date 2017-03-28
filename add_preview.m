@@ -54,11 +54,7 @@ function add_preview(handles)
         z = z(2) - 0.0001; % Don't ask
         
         psz = fig_bounds ./ STL.print.resolution(1:2) / 2;
-        % try
-        
-        %axes(hSICtl.hManagedGUIs(i).CurrentAxes);
-        %hold on;
-        % Maybe try patches:
+
         [pixx pixy] = find(STL.print.metavoxels{1,1,1}(:,:,which_slice));
         
         scatterme = zeros(3, length(pixx));
@@ -66,27 +62,8 @@ function add_preview(handles)
             pos = [posx(pixx(j)) posy(pixy(j))] * fov_transform;
             scatterme(:,j) = [pos(1); pos(2); z];
         end
-        %hold(hSICtl.hManagedGUIs(i).CurrentAxes, 'on');
         scatter3(hSICtl.hManagedGUIs(i).CurrentAxes, ...
             scatterme(1,:), scatterme(2,:), scatterme(3,:), 1, [1 0 0], ...
             'Marker', '.', 'MarkerFaceAlpha', 0.5, 'MarkerEdgeAlpha', 0.5);
-        %hold(hSICtl.hManagedGUIs(i).CurrentAxes, 'off');
-        %rectangle('Position', [rectx, recty, rectw, recth], ...
-        %    'Parent', hSICtl.hManagedGUIs(i).CurrentAxes);
-        %text(pos(1), pos(2), z, 'o', 'HorizontalAlignment', 'center', ...
-        % 'VerticalAlignment', 'middle', ...
-        % 'Parent', hSICtl.hManagedGUIs(i).CurrentAxes, 'Color', [0 1 1]);
-        
-        % Or maybe mask it out:
-        %masked = bsxfun(@times, src, cast(mask,class(src)))
-        
-        % Or scatter?
-        %scatter([], [], STL.print.metavoxels{1,1,1}(:,:,which_slice));
-        %imagesc(STL.print.voxelpos{w(1), w(2), w(3)}.x, STL.print.voxelpos{w(1), w(2), w(3)}.y, ...
-        %    squeeze(STL.print.metavoxels{w(1), w(2), w(3)}(:, :, which_slice))', 'Parent', handles.axes2);
-        hold off;
-        %catch ME
-        %    disp(sprintf('Cannot imagesc the metavoxel at [ %d %d %d ]', w(1), w(2), w(3)));
-        %end
     end
 end
