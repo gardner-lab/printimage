@@ -139,6 +139,7 @@ function [] = voxelise(handles, target)
                         %warning('Keeping zstack positions from 1-%d.', cow);
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
+                        STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:cow);
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.

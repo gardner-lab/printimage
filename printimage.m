@@ -91,7 +91,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % I'm going to drop the fastZ stage to 450. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
-    STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+    if STL.simulated
+        STL.print.motorOrigin = [10000 10000 6000];
+    else
+        STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+    end
     STL.logistics.abort = false;
         
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
