@@ -47,10 +47,14 @@ function [] = voxelise(handles, target)
             
             % 3. Set appropriate zoom level: if object bounds < STL.print.zoom,
             % then zoom in. Otherwise, just use STL.print.zoom.
+            if STL.logistics.simulated
+                zoom_best = 2.2;
+            end
+
             zoom_best = floor(min(nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ (STL.bounds_1(1:2)))) * 10)/10;
             if all(nmetavoxels(1:2) == 1) & zoom_best >= STL.print.zoom_min
-                set(handles.autozoom, 'String', sprintf('Auto: %g', zoom_best));
                 STL.print.zoom_best = zoom_best;
+                set(handles.autozoom, 'String', sprintf('Auto: %g', zoom_best));
             else
                 STL.print.zoom_best = STL.print.zoom;
             end
