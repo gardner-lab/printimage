@@ -49,7 +49,7 @@ function [] = voxelise(handles, target)
             % then zoom in. Otherwise, just use STL.print.zoom.
             zoom_best = floor(min(nmetavoxels(1:2) ./ (STL.print.size(1:2) ./ (STL.bounds_1(1:2)))) * 10)/10;
             if all(nmetavoxels(1:2) == 1) & zoom_best >= STL.print.zoom_min
-                disp(sprintf('Changing print zoom to %g.', zoom_best));
+                set(handles.autozoom, 'String', sprintf('Auto: %g', zoom_best));
                 STL.print.zoom_best = zoom_best;
             else
                 STL.print.zoom_best = STL.print.zoom;
