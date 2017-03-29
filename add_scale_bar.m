@@ -19,8 +19,8 @@ function add_scale_bar()
         fig_bounds = diff([get(hSICtl.hManagedGUIs(i).CurrentAxes, 'XLim')' get(hSICtl.hManagedGUIs(i).CurrentAxes, 'YLim')']);
         fov_transform = diag([1 1] .* fig_bounds ./ bounds);
         
-        scale_bar_length = 10^floor(log10(bounds(1)*0.8));
-        scalelen = sprintf('%d{\\mu}m', scale_bar_length);
+        scale_bar_length = 10^floor(log10(bounds(1)*0.5));
+        scalelen = sprintf('%d {\\mu}m', scale_bar_length);
         scale_bar_ypos = fov(end,end) - 0.1 * bounds(2);
         
         z = get(hSICtl.hManagedGUIs(i).CurrentAxes, 'ZLim');

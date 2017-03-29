@@ -55,14 +55,14 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     try
         hSI = evalin('base', 'hSI');
-        STL.simulated = false;
+        STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
-        STL.simulated = true;
+        STL.logistics.simulated = true;
         hSI.simulated = true;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
         hSI.hRoiManager.linesPerFrame = 256;
-        hSI.hRoiManager.imagingFovUm = [-200 -200; 0 0; 200 200];
+        hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
         assignin('base', 'hSI', hSI);
@@ -91,7 +91,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % I'm going to drop the fastZ stage to 450. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
-    STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+    if STL.logistics.simulated
+        STL.print.motorOrigin = [10000 10000 6000];
+    else
+        STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+    end
     STL.logistics.abort = false;
         
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
@@ -109,7 +113,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     end
     
     
-    if STL.simulated
+    if STL.logistics.simulated
         foo = -1;
     else
         evalin('base', 'hSI.startGrab()');
@@ -136,7 +140,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     %motorHold(handles, 'reset');
     
-    if ~STL.simulated
+    if ~STL.logistics.simulated
         hSI.hFastZ.setHome(0);
     end
     %warning('Setting pixelsPerLine to 64 for faster testing.');
@@ -165,7 +169,13 @@ function update_gui(handles);
     set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
     nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
+    if STL.print.voxelise_needed
+        set(handles.autozoom, 'String', '');
+    else
+        set(handles.autozoom, 'String', sprintf('Auto: %g', STL.print.zoom_best));
+    end
     set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
+
 end
 
 
@@ -383,7 +393,7 @@ function print_Callback(hObject, eventdata, handles)
     
     hSI = evalin('base', 'hSI');
     
-    if ~STL.simulated & ~strcmpi(hSI.acqState,'idle')
+    if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
         return;
     else
@@ -397,7 +407,7 @@ function print_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    if STL.simulated
+    if STL.logistics.simulated
         userZoomFactor = 1;
     else
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
@@ -419,7 +429,7 @@ function print_Callback(hObject, eventdata, handles)
     UpdateBounds_Callback([], [], handles);
     
     
-    if ~STL.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
+    if ~STL.logistics.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
     else
@@ -508,7 +518,7 @@ function print_Callback(hObject, eventdata, handles)
                     hSI.hFastZ.enable = false;
                     
                     motorHold(handles, 'off');
-                    if ~STL.simulated
+                    if ~STL.logistics.simulated
                         while ~strcmpi(hSI.acqState,'idle')
                             pause(0.1);
                         end
@@ -571,7 +581,7 @@ function print_Callback(hObject, eventdata, handles)
                 % startLoop(), like setting up a callback in acqModeDone?
                 
                 % 5. Print this metavoxel
-                if ~STL.simulated
+                if ~STL.logistics.simulated
                     evalin('base', 'hSI.startLoop()');
                     
                     % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
@@ -607,7 +617,7 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hFastZ.enable = false;
     
     motorHold(handles, 'off');
-    if ~STL.simulated
+    if ~STL.logistics.simulated
         while ~strcmpi(hSI.acqState,'idle')
             pause(0.1);
         end
@@ -690,7 +700,7 @@ function powertest_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    if STL.simulated
+    if STL.logistics.simulated
         userZoomFactor = 1;
     else
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
@@ -943,8 +953,8 @@ function UpdateBounds_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    if STL.simulated
-        STL.bounds_1(1:2) = [500 500];
+    if STL.logistics.simulated
+        STL.bounds_1(1:2) = [666 666];
         STL.print.bounds_max(1:2) = STL.bounds_1(1:2) / STL.print.zoom_min;
         STL.print.bounds(1:2) = STL.bounds_1(1:2) / STL.print.zoom;
         update_gui(handles);
@@ -1125,7 +1135,7 @@ function test_button_Callback(hObject, eventdata, handles)
     
     STL.print.motorOrigin = hSI.hMotors.motorPosition;
 
-    if STL.simulated
+    if STL.logistics.simulated
         userZoomFactor = 1;
     else
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
