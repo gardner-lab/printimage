@@ -77,12 +77,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc) 
     STL.print.power = 1;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
-    STL.print.size = [300 300 300];
+    STL.print.size = [360 360 360];
     STL.print.zoom_min = 1;
     STL.print.zoom = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [10 0 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
+    STL.print.metavoxel_overlap = [10 10 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
@@ -97,12 +97,25 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
     end
     STL.logistics.abort = false;
-        
+    
+    % Compensate for ThorLabs error: it's giving 30% less motion
+    % than requested at z=450, and about correct at z=0. And I've
+    % inverted those coordinates, so... When you ask the FastZ to move from
+    % 450 to 440, it actually goes to 443 or so. I'm going to try (first)
+    % assuming that this motion is linear. *cross fingers*
+    bottom_of_thorlabs_fuckup_correctness = 0.65;
+    top_of_thorlabs_fuckup_correctness = 1;
+    STL.params.zc = cumsum(linspace(bottom_of_thorlabs_fuckup_correctness, ...
+        top_of_thorlabs_fuckup_correctness, ...
+        STL.print.fastZhomePos));
+
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
-    STL.bounds_1 = [NaN NaN 363];
-    STL.print.bounds_max = [NaN NaN 363];
-    STL.print.bounds = [NaN NaN 363];
+    lens_working_distance = 370;
+    zbound = min(lens_working_distance, STL.params.zc(end));
+    STL.bounds_1 = [NaN NaN  zbound ];
+    STL.print.bounds_max = [NaN NaN  zbound ];
+    STL.print.bounds = [NaN NaN  zbound ];
     
     % ScanImage freaks out if we pass an illegal command to its motor stage
     % controller--and also if I can't move up the required amount, I
@@ -168,7 +181,8 @@ function update_gui(handles);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
-    nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
+    %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
+    nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
     if STL.print.voxelise_needed
         set(handles.autozoom, 'String', '');
     else
@@ -203,10 +217,9 @@ function update_dimensions(handles, dim, val)
             STL.print.size = [str2double(get(handles.size1, 'String')) ...
                 str2double(get(handles.size2, 'String')) ...
                 str2double(get(handles.size3, 'String'))];
-            STL.print.size
-            STL.aspect_ratio = (STL.print.size * inv(dims_operator)) / max(STL.print.size)
+            STL.aspect_ratio = (STL.print.size * inv(dims_operator)) / max(STL.print.size);
             
-            dim_scale = diag(STL.aspect_ratio ./ old_aspect_ratio)
+            dim_scale = diag(STL.aspect_ratio ./ old_aspect_ratio);
             STL.patchobj1.vertices = STL.patchobj1.vertices * dim_scale;
             STL.aspect_ratio = max(STL.patchobj1.vertices, [], 1);
             STL.aspect_ratio = STL.aspect_ratio / max(STL.aspect_ratio);
@@ -216,18 +229,20 @@ function update_dimensions(handles, dim, val)
             end
             STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
         end
-        aspect_ratio = STL.aspect_ratio(STL.print.dims)
+        aspect_ratio = STL.aspect_ratio(STL.print.dims);
             
         if nargin == 1
-            dim = 1;
-            val = STL.print.size(1);
+            % If we're not looking to change a particular dimension,
+            % default to holding Z constant and adjusting X and Y.
+            dim = 3;
+            val = STL.print.size(3);
         end
         if isfield(STL.print, 'size')
             oldsize = STL.print.size;
         end
         
         % Include a roundoff fudge factor (nearest nanometre)
-        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3
+        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3;
         if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize) | any(STL.print.dims ~= olddims)
             STL.print.rescale_needed = true;
             STL.preview.voxelise_needed = true;
@@ -259,8 +274,8 @@ function [] = rescale_object(handles);
     meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
         - min(STL.patchobj1.vertices(:,STL.print.dims(3))))/2;
     
-    % Preview maintains original dimensions to make it easier to see what's
-    % going on
+    % Preview maintains original dimension ordering to make it easier to see what's
+    % going on (no transform-order--dependent weirdness)
     STL.preview.patchobj = STL.patchobj1;
     STL.preview.mesh = STL.mesh1;
     if STL.print.invert_z
@@ -486,6 +501,11 @@ function print_Callback(hObject, eventdata, handles)
         waitbar(0, wbar, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
     else
         wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
+        set(wbar, 'Units', 'Normalized');
+        wp = get(wbar, 'Position');
+        wp(1:2) = [.05 .85];
+        set(wbar, 'Position', wp);
+        drawnow;
     end
     
     axis_signs = [ -1 1 -1 ];

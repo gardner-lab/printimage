@@ -83,9 +83,14 @@ function [] = voxelise(handles, target)
             % Y (galvo) centres.
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             
-            % Z centres aren't defined by zoom, but by zstep.
-            zc = STL.print.zstep : STL.print.zstep : min(STL.print.bounds_best(3), STL.print.size(3));
+            % Z centres aren't defined by zoom, but by zstep. THIS IS WHAT
+            % IT SHOULD BE IF THORLABS FastZ STAGE WORKED PROPERLY:
+            zc = STL.print.zstep : STL.print.zstep : STL.print.fastZhomePos;
             
+            % Compensate for ThorLabs error: it's giving 30% less motion
+            % than requested at z=450, and about correct at z=0. And I've
+            % inverted those coordinates, so...
+            zc = STL.params.zc;
             
             % 5. Feed each metavoxel's centres to voxelise
             
@@ -95,9 +100,15 @@ function [] = voxelise(handles, target)
             eta = 'next weekend';
 
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                warning('Not moving waitbar');
                 waitbar(0, wbar, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
             else
                 wbar = waitbar(0, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
+                set(wbar, 'Units', 'Normalized');
+                wp = get(wbar, 'Position');
+                wp(1:2) = [.05 .85];
+                set(wbar, 'Position', wp);
+                drawnow;
             end
             metavoxel_counter = 0;
             metavoxel_total = prod(STL.print.nmetavoxels);

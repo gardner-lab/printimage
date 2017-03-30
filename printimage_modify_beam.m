@@ -3,7 +3,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global ao_volts_out; % Expose this for easier debugging
     
     hSI = evalin('base', 'hSI');
-    hSI.hChannels.loggingEnable = false;
+    %hSI.hChannels.loggingEnable = false;
     
     if STL.print.voxelise_needed
         voxelise([], 'print');
