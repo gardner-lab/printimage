@@ -53,6 +53,13 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     clear global -regexp STL;
     global STL;
     
+    % Add a menubar
+    %hObject.MenuBar = 'none';
+    menu_file = uimenu(hObject, 'Label', 'File');
+    menu__file_OpenSTL = uimenu(menu_file, 'Label', 'Open STL', 'Callback', @chooseSTL_Callback);
+    menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
+    menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
+    
     try
         hSI = evalin('base', 'hSI');
         STL.logistics.simulated = false;
@@ -162,12 +169,19 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     hSI.hScan2D.linePhase = -6e-6;
     
     colormap(handles.axes2, 'gray');
+    
+    guidata(hObject, handles);
 end
 
 
 function update_gui(handles);
     global STL;
     
+    if isfield(STL, 'file')
+        set(gcf, 'Name', STL.file);
+    else
+        set(gcf, 'Name', 'PrintImage');
+    end
     set(handles.build_x_axis, 'Value', STL.print.xaxis);
     set(handles.build_z_axis, 'Value', STL.print.zaxis);
     set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
@@ -317,8 +331,9 @@ function chooseSTL_Callback(hObject, eventdata, handles)
         return;
     end
     
+    handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
-    set(hObject, 'String', STLfile);
+    set(gcf, 'Name', STLfile);
     updateSTLfile(handles, STLfile);
 end
 
@@ -332,6 +347,10 @@ function updateSTLfile(handles, STLfile)
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
     STL.patchobj1 = stlread(STL.file);
+    
+    % Reset one or two things...
+    STL.print.invert_z = 0;
+    set(handles.invert_z, 'Value', 0);
     
     % Position the object at the origin+.
     llim = min(STL.patchobj1.vertices);
@@ -1237,4 +1256,26 @@ end
 
 function preview_Callback(hObject, eventdata, handles)
     add_preview(handles);
+end
+
+function LoadState_Callback(varargin)
+    global STL;
+    
+    [FileName,PathName] = uigetfile('*.mat');
+    
+    if isequal(FileName, 0)
+        return;
+    end
+    
+    load(strcat(PathName, FileName));
+    
+    handles = guidata(gcbo);
+    STLfile = strcat(PathName, FileName);
+    update_gui(handles);
+    update_3d_preview(handles);
+end
+
+function SaveState_Callback(varargin)
+    global STL;
+    uisave('STL', 'CurrentSTL');
 end
