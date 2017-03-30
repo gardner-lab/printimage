@@ -123,7 +123,7 @@ function zslider_Callback(hObject, eventdata, handles)
     colormap bone;
     v = get(handles.zslider, 'Value');
     
-    imagesc(handles.axes1, squeeze(tiff(max(1, round(v*ulim)),:,:)));
+    imagesc(squeeze(tiff(max(1, round(v*ulim)),:,:)), 'Parent', handles.axes1);
     title(handles.axes1, sprintf('Slice %d of %d', max(1, round(v*ulim)), ulim));
     drawnow;
     
