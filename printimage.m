@@ -94,6 +94,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
+    STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 450;
     % I'm going to drop the fastZ stage to 450. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
@@ -193,6 +194,7 @@ function update_gui(handles);
     set(handles.powertest_end, 'String', sprintf('%g', 100));
     set(handles.invert_z, 'Value', STL.print.invert_z);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
+    set(handles.show_metavoxel_slice, 'String', sprintf(['%d '], STL.preview.show_metavoxel_slice));
     set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
     %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
@@ -1273,6 +1275,7 @@ function LoadState_Callback(varargin)
     STLfile = strcat(PathName, FileName);
     update_gui(handles);
     update_3d_preview(handles);
+    draw_slice(handles, get(handles.zslider, 'Value'));
 end
 
 function SaveState_Callback(varargin)

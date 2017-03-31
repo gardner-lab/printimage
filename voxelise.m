@@ -2,7 +2,7 @@ function [] = voxelise(handles, target)
 
     global STL;
     hSI = evalin('base', 'hSI');    
-    warning('Voxelising again...');
+    %warning('Voxelising again (for %s)', target);
     
     global wbar;
 
@@ -28,7 +28,7 @@ function [] = voxelise(handles, target)
     % rather than normalising everything and zooming, because the latter
     % quantises.
     
-    if strcmp(target, 'print')
+    if strcmp(target, 'print') & STL.print.voxelise_needed
         if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
             if ~STL.print.voxelise_needed
                 set(handles.messages, 'String', '');
@@ -58,9 +58,11 @@ function [] = voxelise(handles, target)
             else
                 STL.print.zoom_best = STL.print.zoom;
             end
-                
+            
+            user_zoom = hSI.hRoiManager.scanZoomFactor;
             hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
             fov = hSI.hRoiManager.imagingFovUm;
+            hSI.hRoiManager.scanZoomFactor = user_zoom;
             STL.print.bounds_best = STL.print.bounds;
             STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
             
@@ -100,7 +102,6 @@ function [] = voxelise(handles, target)
             eta = 'next weekend';
 
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                warning('Not moving waitbar');
                 waitbar(0, wbar, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
             else
                 wbar = waitbar(0, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
@@ -202,7 +203,7 @@ function [] = voxelise(handles, target)
                 warning('Could not voxelise for printing: run an acquire first.');
             end
         end
-    elseif strcmp(target, 'preview')
+    elseif strcmp(target, 'preview') & STL.preview.voxelise_needed
         if ~STL.preview.voxelise_needed
             set(handles.messages, 'String', '');
             return;
