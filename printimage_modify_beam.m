@@ -15,11 +15,15 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
-    foo = size(STL.print.voxels);
-    STL.print.voxels(end, :, :) = zeros(foo(2:3));
-    
-    v = double(STL.print.voxels(:)) * STL.print.power;
-    
+     foo = size(STL.print.voxels);
+%     STL.print.voxels(end, :, :) = zeros(foo(2:3));
+%     v = double(STL.print.voxels(:)) * STL.print.power;
+    STL.print.voxelpower(end,:,:) = zeros(foo(2:3));
+    v = STL.print.voxelpower(:) * STL.print.power;
+    % boost low-power voxels, but not the zero-power voxels
+    vnot = (STL.print.voxelpower(:) > 0.1);
+    v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot)); 
+
     STL.print.ao_volts_raw = ao_volts_raw;
     STL.print.ao_volts_raw.B(:, STL.print.whichBeam) = hSI.hBeams.zprpBeamsPowerFractionToVoltage(STL.print.whichBeam, v);
     

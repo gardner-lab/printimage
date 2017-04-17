@@ -614,6 +614,7 @@ function print_Callback(hObject, eventdata, handles)
                 % voxels
                 
                 STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
+                STL.print.voxelpower = STL.print.metapower{mvx, mvy, mvz};
                 
                 % 3. Set resolution appropriately
                 hSI.hStackManager.numSlices = STL.print.metavoxel_resolution{mvx, mvy, mvz}(3);
