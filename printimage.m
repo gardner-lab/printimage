@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 27-Mar-2017 18:05:15
+    % Last Modified by GUIDE v2.5 17-Apr-2017 15:14:09
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -504,7 +504,7 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     hSI.hFastZ.enable = 1;
-    %hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
+    hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     hSI.hFastZ.flybackTime = 0.025; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false;
@@ -1282,4 +1282,33 @@ end
 function SaveState_Callback(varargin)
     global STL;
     uisave('STL', 'CurrentSTL');
+end
+
+
+
+function z_step_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    temp = str2double(get(hObject, 'String'));
+    temp = floor(10*temp)/10
+    if (temp<0.1)
+        temp = 0.1;
+    elseif (temp > 10)
+        temp = 10;
+    end
+    
+    STL.print.zstep = temp;
+    STL.print.voxelise_needed = true;
+    set(hObject, 'String', num2str(temp,2));
+        
+end
+
+function z_step_CreateFcn(hObject, eventdata, handles)
+    global STL;
+
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    set(hObject, 'String', num2str(STL.print.zstep,2));
+    
 end
