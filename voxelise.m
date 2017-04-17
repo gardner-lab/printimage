@@ -78,6 +78,7 @@ function [] = voxelise(handles, target)
             xc = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
             xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
             xc = sin(xc);
+            temp_speed = xc;
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
             xc = (xc + 1) / 2;  % Now on [0 1].
             xc = xc * STL.print.bounds_best(1);
@@ -94,7 +95,12 @@ function [] = voxelise(handles, target)
             % inverted those coordinates, so...
             zc = STL.params.zc;
             
-            % 5. Feed each metavoxel's centres to voxelise
+            % 5. Calculate power compensation for sinusoidal speed
+            speed = cos(asin(temp_speed));
+            %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
+            metapower = repmat(speed',[1,size(yc,2),size(zc,2)]);
+            
+            % 6. Feed each metavoxel's centres to voxelise
             
             STL.print.nmetavoxels = nmetavoxels;
             
@@ -118,6 +124,7 @@ function [] = voxelise(handles, target)
             STL.print.metavoxels = {};
             STL.logistics.abort = false;
 
+            
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
@@ -148,6 +155,8 @@ function [] = voxelise(handles, target)
                             STL.print.voxelpos{mvx, mvy, mvz}.z, ...
                             STL.print.mesh);
                         
+                        STL.print.metapower{mvx,mvy,mvz} = metapower;
+                        
                         % Delete empty zstack slices if they are above
                         % something that is printed:
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
@@ -156,6 +165,7 @@ function [] = voxelise(handles, target)
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
                         STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:cow);
+                        STL.print.metapower{mvx, mvy, mvz} = STL.print.metapower{mvx, mvy, mvz}(:,:,1:cow);
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.
@@ -177,6 +187,7 @@ function [] = voxelise(handles, target)
                     end
                 end
             end
+
             
             if STL.logistics.abort
                 STL.logistics.abort = false;
