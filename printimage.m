@@ -611,7 +611,7 @@ function print_Callback(hObject, eventdata, handles)
                 pause(0.1);
                 
                 % 2. Set up printimage_modify_beam with the appropriate
-                % voxels
+                % voxels and their power
                 
                 STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
                 STL.print.voxelpower = STL.print.metapower{mvx, mvy, mvz};
@@ -798,7 +798,8 @@ function powertest_Callback(hObject, eventdata, handles)
         end
     end
     
-    nframes = 100;
+    % 100 microns high
+    nframes = 100 / STL.print.zstep;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
