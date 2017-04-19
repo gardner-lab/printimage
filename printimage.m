@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 17-Apr-2017 15:14:09
+    % Last Modified by GUIDE v2.5 19-Apr-2017 14:45:39
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -1312,4 +1312,153 @@ function z_step_CreateFcn(hObject, eventdata, handles)
     end
     set(hObject, 'String', num2str(STL.print.zstep,2));
     
+end
+
+
+
+function search_Callback(hObject, eventdata, handles)
+    global STL;
+    global wbar;
+    hSI = evalin('base', 'hSI');
+
+    % Save user zoom factor. But at the end, should we restore it? Perhaps
+    % not...
+    if STL.logistics.simulated
+        userZoomFactor = 1;
+    else
+        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
+    end
+    hSI.hRoiManager.scanZoomFactor = 1;
+    
+    
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        waitbar(0, wbar, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
+    else
+        wbar = waitbar(0, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
+        set(wbar, 'Units', 'Normalized');
+        wp = get(wbar, 'Position');
+        wp(1:2) = [.05 .85];
+        set(wbar, 'Position', wp);
+        drawnow;
+    end
+    
+    positions = [];
+        
+    search_start_pos = hSI.hMotors.motorPosition;
+    disp(sprintf('Search starting at [%d %d]', search_start_pos(1), search_start_pos(2)));
+    
+    motorFastMotionThreshold = Inf;
+    stepsize_x = [500 0 0];
+    stepsize_y = [0 500 0];
+    direction = 1;
+    nsteps_needed = 1;
+    radius = 0;
+    max_radius = 3000; % microns. Approximate due to laziness!
+    
+    while radius <= max_radius
+        
+        for nsteps_so_far_this_leg = 1:nsteps_needed
+            if STL.logistics.abort
+                if ishandle(wbar) & isvalid(wbar)
+                    delete(wbar);
+                end
+                if exist('handles', 'var');
+                    set(handles.messages, 'String', 'Stopped.');
+                    drawnow;
+                end
+                STL.logistics.abort = false;
+                return;
+            end
+            
+            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_x;
+            radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
+            if radius >= max_radius
+                break;
+            end
+            pause(0.1);
+        end
+        
+        for nsteps_so_far_this_leg = 1:nsteps_needed
+            if STL.logistics.abort
+                if ishandle(wbar) & isvalid(wbar)
+                    delete(wbar);
+                end
+                if exist('handles', 'var');
+                    set(handles.messages, 'String', 'Stopped.');
+                    drawnow;
+                end
+                STL.logistics.abort = false;
+                return;
+            end
+
+            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_y;
+            radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
+            if radius >= max_radius
+                break;
+            end
+            pause(0.1);
+        end
+        
+        %scatter(positions(1,:), positions(2,:), 'Parent', handles.axes2);
+        %set(handles.axes2, 'XLim', search_start_pos(1)+[-max_radius max_radius]*1.4, 'YLim', search_start_pos(2)+[-max_radius max_radius]*1.4);
+        %drawnow;
+        
+        pos = hSI.hMotors.motorPosition;
+
+        nsteps_needed = nsteps_needed + 1;
+        direction = -direction;
+    end
+    
+    if exist('handles', 'var');
+        set(handles.messages, 'String', sprintf('Search radius limit %d um exceeded: r = %s um.', max_radius, sigfig(radius)));
+        drawnow;
+    end
+    
+    if ishandle(wbar) & isvalid(wbar)
+        delete(wbar);
+    end
+
+end
+
+
+function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    STL.logistics.stage_centre = hSI.hMotors.motorPosition;
+    set(handles.messages, 'String', '');
+end
+
+
+% If the underlying object is rotated, we can servo to its new location (if
+% we know the centre of rotation (see set_stage_rotation_centre_Callback).
+function track_rotation_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+
+    if ~isfield(STL.logistics, 'stage_centre')
+        set(handles.messages, 'String', 'No stage rotation centre set. Do that first.');
+        return;
+    end
+    
+    pos = hSI.hMotors.motorPosition;
+    pos_relative = pos - STL.logistics.stage_centre;
+    
+    r = pi*str2double(get(hObject, 'String'))/180;
+    rm = zeros(3);
+    rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
+    pos_relative = pos_relative * rm;
+    try
+        set(handles.messages, 'String', '');
+        hSI.hMotors.motorPosition = pos_relative + STL.logistics.stage_centre;
+    catch ME
+        ME
+        set(handles.messages, 'String', 'The stage is not ready. Slow down!');
+    end
+end
+
+function track_rotation_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
 end
