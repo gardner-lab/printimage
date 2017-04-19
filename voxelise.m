@@ -93,7 +93,7 @@ function [] = voxelise(handles, target)
             % Compensate for ThorLabs error: it's giving 30% less motion
             % than requested at z=450, and about correct at z=0. And I've
             % inverted those coordinates, so...
-            zc = STL.params.zc;
+            %zc = STL.params.zc;
             
             % 5. Calculate power compensation for sinusoidal speed
             speed = cos(asin(temp_speed));
@@ -155,7 +155,7 @@ function [] = voxelise(handles, target)
                             STL.print.voxelpos{mvx, mvy, mvz}.z, ...
                             STL.print.mesh);
                         
-                        STL.print.metapower{mvx,mvy,mvz} = metapower;
+                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}).*metapower;
                         
                         % Delete empty zstack slices if they are above
                         % something that is printed:
