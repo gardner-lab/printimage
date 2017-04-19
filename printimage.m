@@ -105,7 +105,16 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
     end
     STL.logistics.abort = false;
-    
+    STL.logistics.stage_centre = [17000 9600]; % Maybe approximately, until Yarden moves the thing?
+    foo = questdlg(sprintf('Stage rotation centre set to [%d, %d]. Ok?', ...
+        STL.logistics.stage_centre(1), STL.logistics.stage_centre(2)), ...
+        'Stage setup', 'Yes', 'No', 'No');
+    switch foo
+        case 'Yes'
+            ;
+        case 'No'
+            STL.logistics.stage_centre = [];
+    end
     % Compensate for ThorLabs error: it's giving 30% less motion
     % than requested at z=450, and about correct at z=0. And I've
     % inverted those coordinates, so... When you ask the FastZ to move from
@@ -133,7 +142,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         return;
     end
     
-    
+    foo = {};
     if STL.logistics.simulated
         foo = -1;
     else
@@ -1425,7 +1434,7 @@ function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.logistics.stage_centre = hSI.hMotors.motorPosition;
+    STL.logistics.stage_centre = hSI.hMotors.motorPosition(1:2);
     set(handles.messages, 'String', '');
 end
 
@@ -1436,21 +1445,20 @@ function track_rotation_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
 
-    if ~isfield(STL.logistics, 'stage_centre')
+    if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.logistics.stage_centre)
         set(handles.messages, 'String', 'No stage rotation centre set. Do that first.');
         return;
     end
     
-    pos = hSI.hMotors.motorPosition;
+    pos = hSI.hMotors.motorPosition(1:2);
     pos_relative = pos - STL.logistics.stage_centre;
     
     r = pi*str2double(get(hObject, 'String'))/180;
-    rm = zeros(3);
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
     pos_relative = pos_relative * rm;
     try
         set(handles.messages, 'String', '');
-        hSI.hMotors.motorPosition = pos_relative + STL.logistics.stage_centre;
+        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
