@@ -39,14 +39,14 @@
   - For a test substrate, we use a microscope slide cover slip suspended by its ends. This ensures that if the lens is lowered too far, the cover slip will break before anything expensive.
 
 
-## Finding the substrate
+## Interacting with the substrate
 
 The working distance of the lens is important, as you do not want the lens to touch anything solid! Our lens has a 380-um working distance, which has the following implications:
 - If we are focused on the surface of the substrate we can move down another 380 microns before something breaks.
   - If we have just printed something 200 um high, we can scroll down 180 um before the lens hits the thing we just printed.
 - If we are imaging at substrate+10 um and moving the XY stage, anything over 390 um (previously printed, or slide holders, etc) can potentially hit the lens.
 
-### Finding 0
+### Finding 0 (where the substrate meets the IP-Dip)
 
 - Lower the lens until it touches the IP-Dip.
 - Set ScanImage's zoom level to 1.
