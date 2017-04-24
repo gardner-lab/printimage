@@ -18,6 +18,7 @@
 - Install ScanImage in the MATLAB path
 - Run ScanImage and set up your hardware
 - Calibrate hardware
+  - Lens safe working depth
   - Lens FOV
   - Resonant scanner degrees per volt
   - Galvo degrees per volt
@@ -35,7 +36,7 @@
 - Undeveloped IP-Dip is _extremely_ toxic. Use gloves, and treat all spills, wipes, etc., as biohazard waste.
 - Place a drop of IP-Dip on the substrate.
   - We use a syringe or a stirring rod to place the IP-Dip.
-  - For a test substrate, we use a microscope slide cover slip suspended by its ends. This ensures that if the lens is lowered too far, the cover slip will break.
+  - For a test substrate, we use a microscope slide cover slip suspended by its ends. This ensures that if the lens is lowered too far, the cover slip will break before anything expensive.
 
 
 ## Finding the substrate
@@ -66,9 +67,24 @@ The working distance of the lens is important, as you do not want the lens to to
 
 ## Power calibration
 
+PrintImage's "Power Test" button will print a bunch of rectangular prisms at various power settings, which can be seen in ScanImage's "Power Control" FIXME window.
+- Unfortunately there is a nonlinear relationship between zoom level, Z step size, and polymerisation power required. If those parameters change, you should re-run the power test at that level.
+- Set the "Print Power" level to something that polymerises but doesn't bubble.
+
 ## Controlling print dimensions
 
+- Your system probably has the worst resolution along the resonant scanner's axis, which we call X. If the object to be printed has finer features along one dimension than another, use PrintImage's dimension buttons to choose to place the coarser features along X
+- Objects are printed in slices from Z=0 to higher Z. Slices that print later must attach to slices that print earlier. The Z axis should have no overhangs.
+  - Because PrintImage is so fast, we have noticed that some overhangs are okay: the overhanging part may not have time to drift away. But this is untested: do not rely on it! Rather, choose Z so that there are no overhangs.
+
 ## Controlling print size
+
+Because STL files are dimensionless, you have to choose the size of the object.
+
+### Stitching
+
+If the object to be printed exceeds any of the dimensions allowed by your hardware, PrintImage will break it into parts and print them in sequence using your XYZ stage.
+- Z and safe-working-depth warning!
 
 ## After printing
 
