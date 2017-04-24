@@ -28,9 +28,21 @@
 - Install PrintImage and the above packages in the MATLAB path
 - Modify the appropriate PrintImage default parameters (this will be in a configuration file eventually)
 
-# Use
+# Use:
 
-## Find substrate
+## Preparing the sample
+
+- Place a drop of IP-Dip on the substrate
+  - We use a microscope slide cover slip suspended by its ends. This ensures that if the lens is lowered too far, the cover slip will break.
+
+## Finding the substrate
+
+- Lower the lens until it touches the IP-Dip.
+- Set ScanImage's zoom level to 1.
+- Set ScanImage's power level somewhere too low to cause polymerisation. This will take experience, but start at 5%. On our equipment, at zoom level 1, polymerisation does not happen below around 40%, so we image at 10% or so.
+- Press the ScanImage "FOCUS" button to begin obtaining images.
+  - ScanImage's view window should glow, and you will probably see some vignetting at zoom=1.
+- IP-Dip fluoresces at the print wavelength (780 nm), and glass does not. As long as the lens is focusing in the IP-Dip, the microscope will show an image. Lower the lens until the whole FOV turns dark, indicating that the lens is now focused on the substrate. Lowering another micron or 3 ensures good bonding.
 
 ## Power calibration
 
@@ -38,3 +50,10 @@
 
 ## Controlling print size
 
+## After printing
+
+### Inspecting the print
+
+### Resetting the Z position
+
+### Developing the print
