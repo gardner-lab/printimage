@@ -40,6 +40,13 @@
 
 ## Finding the substrate
 
+The working distance of the lens is important, as you do not want the lens to touch anything solid! Our lens has a 380-um working distance, which has the following implications:
+- If we are focused on the surface of the substrate we can move down another 380 microns before something breaks.
+  - If we have just printed something 200 um high, we can scroll down 180 um before the lens hits the thing we just printed.
+- If we are imaging at substrate+10 um and moving the XY stage, anything over 390 um (previously printed, or slide holders, etc) can potentially hit the lens.
+
+### Finding 0
+
 - Lower the lens until it touches the IP-Dip.
 - Set ScanImage's zoom level to 1.
 - Set ScanImage's power level somewhere too low to cause polymerisation. This will take experience, but start at 5%. On our equipment, at zoom level 1, polymerisation does not happen below around 40%, so we image at 10% or so.
