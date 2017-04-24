@@ -68,7 +68,7 @@ The working distance of the lens is important, as you do not want the lens to to
 
 ## Power calibration
 
-PrintImage's "Power Test" button will print a bunch of rectangular prisms at various power settings, which can be seen in ScanImage's "Power Control" FIXME window.
+PrintImage's "Power Test" button will print a bunch of rectangular prisms at various power settings, which can be seen in ScanImage's "Power Box Settings" window, available through the "POWER CONTROLS" window.
 - Unfortunately there is a nonlinear relationship between zoom level, Z step size, and polymerisation power required. If those parameters change, you should re-run the power test at that level.
 - Set the "Print Power" level to something that polymerises but doesn't bubble.
 
