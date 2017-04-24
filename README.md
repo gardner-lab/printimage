@@ -1,9 +1,9 @@
 # Requirements
 
 - [ScanImage](http://scanimage.vidriotechnologies.com/)  by Vidrio Technologies.
-    - Version 5.2.3 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions)
-    - Other versions, including the nonfree versions, may also work, but are untested.
-- PrintImage requires that these pieces of hardware be configured in ScanImage:
+  - Version 5.2.3 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions)
+  - Other versions, including the nonfree versions, may also work, but are untested.
+  - PrintImage requires that these pieces of hardware be configured in ScanImage:
     - Resonant scanner
     - Fast Z piezo stage
     - Pockels cell controlled by a fast analogue output card
