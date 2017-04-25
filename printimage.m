@@ -78,6 +78,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
+    hSI.hFastZ.actuatorLag = 11.7e-3;
     
     STL.print.zstep = 1;     % microns per step in z (vertical)
     STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
@@ -85,8 +86,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.power = 1;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
-    STL.print.zoom_min = 1;
-    STL.print.zoom = 1;
+    STL.print.zoom_min = 1.3;
+    STL.print.zoom = 1.3;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
     STL.print.metavoxel_overlap = [10 10 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
@@ -95,8 +96,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.invert_z = false;
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
-    STL.print.fastZhomePos = 450;
-    % I'm going to drop the fastZ stage to 450. To make that safe, first
+    STL.print.fastZhomePos = 420;
+    % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
     if STL.logistics.simulated
@@ -105,7 +106,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [17000 9600]; % Maybe approximately, until Yarden moves the thing?
+    STL.logistics.stage_centre = [15836 9775]; % Until Yarden moves the thing?
     foo = questdlg(sprintf('Stage rotation centre set to [%d, %d]. Ok?', ...
         STL.logistics.stage_centre(1), STL.logistics.stage_centre(2)), ...
         'Stage setup', 'Yes', 'No', 'No');
@@ -115,21 +116,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         case 'No'
             STL.logistics.stage_centre = [];
     end
-    % Compensate for ThorLabs error: it's giving 30% less motion
-    % than requested at z=450, and about correct at z=0. And I've
-    % inverted those coordinates, so... When you ask the FastZ to move from
-    % 450 to 440, it actually goes to 443 or so. I'm going to try (first)
-    % assuming that this motion is linear. *cross fingers*
-    bottom_of_thorlabs_fuckup_correctness = 0.65;
-    top_of_thorlabs_fuckup_correctness = 1;
-    STL.params.zc = cumsum(linspace(bottom_of_thorlabs_fuckup_correctness, ...
-        top_of_thorlabs_fuckup_correctness, ...
-        STL.print.fastZhomePos));
 
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     lens_working_distance = 370;
-    zbound = min(lens_working_distance, STL.params.zc(end));
+    zbound = min(lens_working_distance, STL.print.fastZhomePos);
     STL.bounds_1 = [NaN NaN  zbound ];
     STL.print.bounds_max = [NaN NaN  zbound ];
     STL.print.bounds = [NaN NaN  zbound ];
@@ -214,7 +205,7 @@ function update_gui(handles);
         set(handles.autozoom, 'String', sprintf('Auto: %g', STL.print.zoom_best));
     end
     set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
-
+    set(handles.z_step, 'String', num2str(STL.print.zstep,2));
 end
 
 
@@ -675,6 +666,7 @@ function print_Callback(hObject, eventdata, handles)
     end
     toc;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
+    hSI.startFocus();
 end
 
 
@@ -830,6 +822,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hBeams.enablePowerBox = false;  
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
     motorHold(handles, 'off');
+    
+    hSI.startFocus();
 end
 
 
@@ -929,7 +923,7 @@ end
 %function fastZlower_Callback(hObject, eventdata, handles)
 %    global STL;
 %%    hSI = evalin('base', 'hSI');
-%    hSI.hFastZ.positionTarget = 450;
+%    hSI.hFastZ.positionTarget = 420;
 %    motorHold(handles, 'reset');
 %end
 
@@ -1319,7 +1313,6 @@ function z_step_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
-    set(hObject, 'String', num2str(STL.print.zstep,2));
     
 end
 
@@ -1339,7 +1332,10 @@ function search_Callback(hObject, eventdata, handles)
     end
     hSI.hRoiManager.scanZoomFactor = 1;
     
-    
+    if strcmpi(hSI.acqState, 'idle')
+        hSI.startFocus();
+    end
+
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         waitbar(0, wbar, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
     else
@@ -1384,7 +1380,7 @@ function search_Callback(hObject, eventdata, handles)
             if radius >= max_radius
                 break;
             end
-            pause(0.1);
+            pause(0.3);
         end
         
         for nsteps_so_far_this_leg = 1:nsteps_needed
@@ -1405,7 +1401,7 @@ function search_Callback(hObject, eventdata, handles)
             if radius >= max_radius
                 break;
             end
-            pause(0.1);
+            pause(0.3);
         end
         
         %scatter(positions(1,:), positions(2,:), 'Parent', handles.axes2);
