@@ -862,7 +862,8 @@ function build_x_axis_Callback(hObject, eventdata, handles)
     
     STL.print.xaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
-        STL.print.zaxis = setdiff([1 2], STL.print.xaxis);
+        STL.print.zaxis = setdiff([1 2 3], STL.print.xaxis);
+        STL.print.zaxis = STL.print.zaxis(1);
     end
     update_dimensions(handles);
 end
@@ -883,7 +884,8 @@ function build_z_axis_Callback(hObject, eventdata, handles)
     STL.print.valid = 0;
     STL.print.zaxis = get(hObject, 'Value');
     if STL.print.zaxis == STL.print.xaxis
-        STL.print.xaxis = setdiff([1 2], STL.print.zaxis);
+        STL.print.xaxis = setdiff([1 2 3], STL.print.zaxis);
+        STL.print.xaxis = STL.print.xaxis(1);
     end
     update_dimensions(handles);
 end
