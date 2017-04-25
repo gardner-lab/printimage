@@ -43,7 +43,7 @@ beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};  % Optional string cell array
 beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = [-0.00210564 0.0128628];                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = [-0.00222381 -0.00756629];                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = [false false];        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 beamDaqs(1).referenceClockRate = 1e+07;
@@ -99,14 +99,13 @@ fastZBaudRate = [];                 % Value identifying baud rate of serial comm
 fastZDeviceName = 'PXI1Slot5';               % String specifying device name used for FastZ control
 frameClockIn = '';                  % One of {PFI0..15, ''} to which external frame trigger is connected. Leave empty for automatic routing via PXI/RTSI bus
 fastZAOChanID = 0;                 % Scalar integer indicating AO channel used for FastZ control
-fastZAIChanID = 0;                 % Scalar integer indicating AI channel used for FastZ sensor
+fastZAIChanID = 4;                 % Scalar integer indicating AI channel used for FastZ sensor
 
 %% LSC Pure Analog
-commandVoltsPerMicron = 0.0222222; % Conversion factor for command signal to analog linear stage controller
-sensorVoltsPerMicron = [];  % Conversion signal for sensor signal from analog linear stage controller. Leave empty for automatic calibration
-
+commandVoltsPerMicron = 10/450; % Conversion factor for command signal to analog linear stage controller
+sensorVoltsPerMicron = 10/450;  % Conversion signal for sensor signal from analog linear stage controller. Leave empty for automatic calibration
 commandVoltsOffset = 0; % Offset value, in volts, for command signal to analog linear stage controller
-sensorVoltsOffset = [];  % Offset value, in volts, for sensor signal from analog linear stage controller. Leave empty for automatic calibration
+sensorVoltsOffset = 0;  % Offset value, in volts, for sensor signal from analog linear stage controller. Leave empty for automatic calibration
 
 % Optional limits (any of these fields can be left blank; if ommited, default limits are +/-10V)
 maxCommandVolts = 10;       % Maximum allowable voltage command
