@@ -61,7 +61,7 @@ motors(1).velocitySlow = [];             % Velocity to use for moves smaller tha
 motors(1).velocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).moveCompleteDelay = 0;        % Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
 motors(1).moveTimeout = [];              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
-motors(1).moveTimeoutFactor = [];        % (s/um) Time to add to timeout duration based on distance of motor move command
+motors(1).moveTimeoutFactor = 2e-4;        % (s/um) Time to add to timeout duration based on distance of motor move command
 
 %% FastZ
 %FastZ hardware used for fast axial motion, supporting fast stacks and/or volume imaging
