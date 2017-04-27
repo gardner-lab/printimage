@@ -50,7 +50,7 @@ end
 function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     handles.output = hObject;
     
-    clear global -regexp STL;
+    clear -global STL;
     global STL;
     
     % Add a menubar
@@ -119,8 +119,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
 
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
-    lens_working_distance = 370;
-    zbound = min(lens_working_distance, STL.print.fastZhomePos);
+    STL.logistics.lens_working_distance = 370;
+    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
     STL.bounds_1 = [NaN NaN  zbound ];
     STL.print.bounds_max = [NaN NaN  zbound ];
     STL.print.bounds = [NaN NaN  zbound ];
@@ -133,6 +133,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         return;
     end
     
+    
+    STL.logistics.wbar_pos = [.05 .85];
+
     foo = {};
     if STL.logistics.simulated
         foo = -1;
@@ -524,7 +527,7 @@ function print_Callback(hObject, eventdata, handles)
         wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
         set(wbar, 'Units', 'Normalized');
         wp = get(wbar, 'Position');
-        wp(1:2) = [.05 .85];
+        wp(1:2) = STL.logistics.wbar_pos(1:2);
         set(wbar, 'Position', wp);
         drawnow;
     end
@@ -546,6 +549,7 @@ function print_Callback(hObject, eventdata, handles)
                     % (and presumably return).
                     disp('Aborting due to user.');
                     if ishandle(wbar) & isvalid(wbar)
+                        STL.logistics.wbar_pos = get(wbar, 'Position');
                         delete(wbar);
                     end
                     if exist('handles', 'var');
@@ -651,6 +655,7 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        STL.logistics.wbar_pos = get(wbar, 'Position');
         delete(wbar);
     end
     
@@ -1344,7 +1349,7 @@ function search_Callback(hObject, eventdata, handles)
         wbar = waitbar(0, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
         set(wbar, 'Units', 'Normalized');
         wp = get(wbar, 'Position');
-        wp(1:2) = [.05 .85];
+        wp(1:2) = STL.logistics.wbar_pos(1:2);
         set(wbar, 'Position', wp);
         drawnow;
     end
@@ -1367,6 +1372,7 @@ function search_Callback(hObject, eventdata, handles)
         for nsteps_so_far_this_leg = 1:nsteps_needed
             if STL.logistics.abort
                 if ishandle(wbar) & isvalid(wbar)
+                    STL.logistics.wbar_pos = get(wbar, 'Position');
                     delete(wbar);
                 end
                 if exist('handles', 'var');
@@ -1388,6 +1394,7 @@ function search_Callback(hObject, eventdata, handles)
         for nsteps_so_far_this_leg = 1:nsteps_needed
             if STL.logistics.abort
                 if ishandle(wbar) & isvalid(wbar)
+                    STL.logistics.wbar_pos = get(wbar, 'Position');
                     delete(wbar);
                 end
                 if exist('handles', 'var');
@@ -1422,6 +1429,7 @@ function search_Callback(hObject, eventdata, handles)
     end
     
     if ishandle(wbar) & isvalid(wbar)
+        STL.logistics.wbar_pos = get(wbar, 'Position');
         delete(wbar);
     end
 

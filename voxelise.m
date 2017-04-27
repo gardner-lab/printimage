@@ -88,7 +88,7 @@ function [] = voxelise(handles, target)
             
             % Z centres aren't defined by zoom, but by zstep. THIS IS WHAT
             % IT SHOULD BE IF THORLABS FastZ STAGE WORKED PROPERLY:
-            zc = STL.print.zstep : STL.print.zstep : STL.print.fastZhomePos;
+            zc = STL.print.zstep : STL.print.zstep : min([STL.print.bounds(3) STL.print.size(3)]);
             
             % Compensate for ThorLabs error: it's giving 30% less motion
             % than requested at z=450, and about correct at z=0. And I've
@@ -113,7 +113,7 @@ function [] = voxelise(handles, target)
                 wbar = waitbar(0, 'Voxelising...', 'CreateCancelBtn', 'cancel_button_callback');
                 set(wbar, 'Units', 'Normalized');
                 wp = get(wbar, 'Position');
-                wp(1:2) = [.05 .85];
+                wp(1:2) = STL.logistics.wbar_pos(1:2);
                 set(wbar, 'Position', wp);
                 drawnow;
             end
@@ -134,6 +134,7 @@ function [] = voxelise(handles, target)
                             % (and presumably return).
                             disp('Aborting due to user.');
                             if ishandle(wbar) & isvalid(wbar)
+                                STL.logistics.wbar_pos = get(wbar, 'Position');
                                 delete(wbar);
                             end
                             if exist('handles', 'var');
@@ -203,6 +204,7 @@ function [] = voxelise(handles, target)
             end
             
             if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+                STL.logistics.wbar_pos = get(wbar, 'Position');
                 delete(wbar);
             end
 
