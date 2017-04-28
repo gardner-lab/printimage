@@ -65,6 +65,8 @@ The working distance of the lens is important, as you do not want the lens to to
   - Press the PrintImage "Set rotation centre" button.
     - You may also want to change the PrintImage parameter STL.logistics.rotation_centre to match this.
   - From now on, if you manually rotate the stage, you can have PrintImage track the location of the object by entering the angle of rotation in the "Track rotation" box.
+- The "Print preview" button will paint the current preview slice (PrintImage's rightmost figure) where PrintImage will print it. You can then move the item under the image to align it.
+  - But it's not quite accurate: it shows where PrintImage will turn up the power to the Pockels, but does not take into account any delays in the latter's response.
 
 ## Power calibration
 
