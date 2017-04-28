@@ -1,14 +1,14 @@
 # Requirements
 
 - [ScanImage](http://scanimage.vidriotechnologies.com/)  by Vidrio Technologies.
-  - Version 5.2.3 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
+  - Version 5.2.4 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
   - Other versions, including the nonfree versions, may also work, but are untested.
   - PrintImage requires that these pieces of hardware be configured in ScanImage:
     - Resonant scanner
     - Fast Z piezo stage
     - Pockels cell controlled by a fast analogue output card
-    - Post-Pockels power measurement
-    - For stitched printing: an XYZ stage
+    - Pockels power calibration hardware (e.g. a photodiode)
+    - For stitched printing: an XYZ stage with around 0.1% linear error
 - Mesh Voxelisation by Adam A: [Matlab File Exchange 27390](https://www.mathworks.com/matlabcentral/fileexchange/27390-mesh-voxelisation)
 - STL File Reader by Eric Johnson: [Matlab File Exchange 22409](https://www.mathworks.com/matlabcentral/fileexchange/22409-stl-file-reader)
 - stlTools by Pau Micó: [Matlab File Exchange 51200](https://www.mathworks.com/matlabcentral/fileexchange/51200-stltools)
