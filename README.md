@@ -1,15 +1,15 @@
 # Requirements
 
 - [ScanImage](http://scanimage.vidriotechnologies.com/)  by Vidrio Technologies.
-  - Version 5.2.3 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
+  - Version 5.2.4 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
   - Other versions, including the nonfree versions, may also work, but are untested.
   - PrintImage requires that these pieces of hardware be configured in ScanImage:
     - Resonant scanner
     - Fast Z piezo stage
     - Pockels cell controlled by a fast analogue output card
-    - Post-Pockels power measurement
-    - For stitched printing: an XYZ stage
-- Mesh Voxelisation by Adam A: [Matlab File Exchange 27390](https://www.mathworks.com/matlabcentral/fileexchange/27390-mesh-voxelisation)
+    - Pockels power calibration hardware (e.g. a photodiode)
+    - For stitched printing: an XYZ stage with around 0.1% linear error
+- Mesh Voxelisation by Adam H. Aitkenhead: [Matlab File Exchange 27390](https://www.mathworks.com/matlabcentral/fileexchange/27390-mesh-voxelisation)
 - STL File Reader by Eric Johnson: [Matlab File Exchange 22409](https://www.mathworks.com/matlabcentral/fileexchange/22409-stl-file-reader)
 - stlTools by Pau Micó: [Matlab File Exchange 51200](https://www.mathworks.com/matlabcentral/fileexchange/51200-stltools)
 - Significant Figures by Teck Por Lim: [Matlab File Exchange 10669](https://www.mathworks.com/matlabcentral/fileexchange/10669-significant-figures)
@@ -65,6 +65,8 @@ The working distance of the lens is important, as you do not want the lens to to
   - Press the PrintImage "Set rotation centre" button.
     - You may also want to change the PrintImage parameter STL.logistics.rotation_centre to match this.
   - From now on, if you manually rotate the stage, you can have PrintImage track the location of the object by entering the angle of rotation in the "Track rotation" box.
+- The "Print preview" button will paint the current preview slice (PrintImage's rightmost figure) where PrintImage will print it. You can then move the item under the image to align it.
+  - But it's not quite accurate: it shows where PrintImage will turn up the power to the Pockels, but does not take into account any delays in the latter's response.
 
 ## Power calibration
 
