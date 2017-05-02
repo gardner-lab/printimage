@@ -78,7 +78,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
-    hSI.hFastZ.actuatorLag = 11.7e-3;
+    hSI.hFastZ.actuatorLag = 13e-3; % Should calibrate with zstep = whatever you're going to use
     
     STL.print.zstep = 1;     % microns per step in z (vertical)
     STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
@@ -88,6 +88,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.size = [360 360 360];
     STL.print.zoom_min = 1.3;
     STL.print.zoom = 1.3;
+    STL.print.zoom_best = 1.3;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
     STL.print.metavoxel_overlap = [10 10 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
@@ -198,7 +199,7 @@ function update_gui(handles);
     set(handles.invert_z, 'Value', STL.print.invert_z);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.show_metavoxel_slice, 'String', sprintf(['%d '], STL.preview.show_metavoxel_slice));
-    set(handles.PrinterBounds, 'String', sprintf('Metavoxel: [ %s] um', ...
+    set(handles.PrinterBounds, 'String', sprintf('Max single: [ %s] um', ...
         sprintf('%d ', round(STL.print.bounds))));
     %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
     nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
@@ -209,6 +210,19 @@ function update_gui(handles);
     end
     set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
+    spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
+    spinnerSet(handles.printZoom, STL.print.zoom);
+    update_best_zoom(handles);
+end
+
+% Set the value of a spinner GUI component to the given number.
+function spinnerSet(h, val, format);
+    if ~exist('format', 'var')
+        format = '%g';
+    end
+    vals = get(h, 'String');
+    match = find(strcmp(vals, sprintf(format, val)));
+    set(h, 'Value', match);
 end
 
 
