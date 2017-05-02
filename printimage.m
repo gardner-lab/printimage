@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 19-Apr-2017 14:45:39
+    % Last Modified by GUIDE v2.5 02-May-2017 16:45:12
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -685,7 +685,9 @@ function print_Callback(hObject, eventdata, handles)
     end
     toc;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-    hSI.startFocus();
+    if get(handles.focusWhenDone, 'Value')
+        hSI.startFocus();
+    end
 end
 
 
@@ -842,7 +844,9 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
     motorHold(handles, 'off');
     
-    hSI.startFocus();
+    if get(handles.focusWhenDone, 'Value')
+        hSI.startFocus();
+    end
 end
 
 
@@ -1489,4 +1493,8 @@ function track_rotation_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+function focusWhenDone_Callback(hObject, eventdata, handles)
 end
