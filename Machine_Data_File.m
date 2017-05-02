@@ -44,7 +44,7 @@ beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};                  % Optional s
 beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = [-0.00222109 -0.0176951];                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = [-0.00224709 -0.014798];                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = [false false];        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 
@@ -60,27 +60,27 @@ motors(1).positionDeviceUnits = [];      % 1xN array specifying, in meters, raw 
 motors(1).velocitySlow = [];             % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).velocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).moveCompleteDelay = 0;        % Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
-motors(1).moveTimeout = [];              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
-motors(1).moveTimeoutFactor = 2e-4;        % (s/um) Time to add to timeout duration based on distance of motor move command
+motors(1).moveTimeout = [5];              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
+motors(1).moveTimeoutFactor = 5e-4;        % (s/um) Time to add to timeout duration based on distance of motor move command
 
 %% FastZ
 %FastZ hardware used for fast axial motion, supporting fast stacks and/or volume imaging
 
-actuators(1).controllerType = 'thorlabs.pfm450';           % If supplied, one of {'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
+actuators(1).controllerType = 'analog';%'thorlabs.pfm450';           % If supplied, one of {'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
 actuators(1).comPort = [];                  % Integer identifying COM port for controller, if using serial communication
 actuators(1).customArgs = {};               % Additional arguments to stage controller
 actuators(1).daqDeviceName = 'PXI1Slot5';            % String specifying device name used for FastZ control
 actuators(1).frameClockIn = '';             % One of {PFI0..15, ''} to which external frame trigger is connected. Leave empty for automatic routing via PXI/RTSI bus
 actuators(1).cmdOutputChanID = 0;          % AO channel number (e.g. 0) used for analog position control
-actuators(1).sensorInputChanID = 4;        % AI channel number (e.g. 0) used for analog position sensing
-actuators(1).commandVoltsPerMicron = [];    % Conversion factor for desired command position in um to output voltage
+actuators(1).sensorInputChanID = 0;        % AI channel number (e.g. 0) used for analog position sensing
+actuators(1).commandVoltsPerMicron = (10/450)/1.1;    % Conversion factor for desired command position in um to output voltage
 actuators(1).commandVoltsOffset = [];        % Offset in volts for desired command position in um to output voltage
-actuators(1).sensorVoltsPerMicron = [];     % Conversion factor from sensor signal voltage to actuator position in um. Leave empty for automatic calibration
-actuators(1).sensorVoltsOffset = [];        % Sensor signal voltage offset. Leave empty for automatic calibration
-actuators(1).maxCommandVolts = [];          % Maximum allowable voltage command
-actuators(1).maxCommandPosn = [];           % Maximum allowable position command in microns
-actuators(1).minCommandVolts = [];          % Minimum allowable voltage command
-actuators(1).minCommandPosn = [];           % Minimum allowable position command in microns
+actuators(1).sensorVoltsPerMicron = (10/450)/1.1;     % Conversion factor from sensor signal voltage to actuator position in um. Leave empty for automatic calibration
+actuators(1).sensorVoltsOffset = -0.12;        % Sensor signal voltage offset. Leave empty for automatic calibration
+actuators(1).maxCommandVolts = 10;          % Maximum allowable voltage command
+actuators(1).maxCommandPosn = 450;           % Maximum allowable position command in microns
+actuators(1).minCommandVolts = 0;          % Minimum allowable voltage command
+actuators(1).minCommandPosn = 0;           % Minimum allowable position command in microns
 actuators(1).optimizationFcn = [];          % Function for waveform optimization
 actuators(1).affectedScanners = {};         % If this actuator only changes the focus for an individual scanner, enter the name
 
@@ -109,7 +109,7 @@ galvoAOChanIDY = 1;                 % The numeric ID of the Analog Output channe
 galvoAIChanIDX = [];                % The numeric ID of the Analog Input channel for the X Galvo feedback signal.
 galvoAIChanIDY = [];                % The numeric ID of the Analog Input channel for the Y Galvo feedback signal.
 
-xGalvoAngularRange = 15;            % max range in optical degrees (pk-pk) for x galvo if present
+xGalvoAngularRange = [];            % max range in optical degrees (pk-pk) for x galvo if present
 yGalvoAngularRange = 20;            % max range in optical degrees (pk-pk) for y galvo
 
 galvoVoltsPerOpticalDegreeX = 1;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
@@ -123,7 +123,7 @@ resonantZoomDeviceName = 'PXI1Slot2';        % String identifying the NI-DAQ boa
 resonantZoomAOChanID = 0;           % resonantZoomAOChanID: The numeric ID of the Analog Output channel to be used to control the Resonant Scanner Zoom level.
 
 resonantAngularRange = 26;          % max range in optical degrees (pk-pk) for resonant
-rScanVoltsPerOpticalDegree = 0.1923;  % resonant scanner conversion factor from optical degrees to volts
+rScanVoltsPerOpticalDegree = 0.2155;  % resonant scanner conversion factor from optical degrees to volts
 
 resonantScannerSettleTime = 0.5;    % [seconds] time to wait for the resonant scanner to reach its desired frequency after an update of the zoomFactor
 
