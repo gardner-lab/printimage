@@ -75,6 +75,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         assignin('base', 'hSI', hSI);
     end
     
+    try
+        connect_PI_hexapod();
+        STL.motors.C887.qPOS(axisname);
+    end
+    
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
@@ -82,7 +87,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     STL.print.zstep = 1;     % microns per step in z (vertical)
     STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
-    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc) 
+    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
     STL.print.power = 1;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
@@ -117,7 +122,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         case 'No'
             STL.logistics.stage_centre = [];
     end
-
+    
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     STL.logistics.lens_working_distance = 370;
@@ -136,7 +141,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     
     STL.logistics.wbar_pos = [.05 .85];
-
+    
     foo = {};
     if STL.logistics.simulated
         foo = -1;
@@ -263,7 +268,7 @@ function update_dimensions(handles, dim, val)
             STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
         end
         aspect_ratio = STL.aspect_ratio(STL.print.dims);
-            
+        
         if nargin == 1
             % If we're not looking to change a particular dimension,
             % default to holding Z constant and adjusting X and Y.
@@ -301,7 +306,7 @@ function [] = rescale_object(handles);
     
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
     set(handles.messages, 'String', sprintf('New dims (2) are [ %s]', sprintf('%d ', STL.print.dims)));
-        
+    
     max_dim = max(STL.print.size);
     
     meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
@@ -586,13 +591,13 @@ function print_Callback(hObject, eventdata, handles)
                     
                     return;
                 end
-
+                
                 disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
                 
                 % 0. Update the slice preview, because why the hell not?
                 set(handles.show_metavoxel_slice, 'String', sprintf('%d %d %d', mvx, mvy, mvz));
                 show_metavoxel_slice_Callback(hObject, eventdata, handles)
-
+                
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
@@ -780,8 +785,8 @@ function powertest_Callback(hObject, eventdata, handles)
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
-
-
+    
+    
     gridx = 5;
     gridy = 6;
     gridn = gridx * gridy;
@@ -839,8 +844,8 @@ function powertest_Callback(hObject, eventdata, handles)
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
     end
-
-    hSI.hBeams.enablePowerBox = false;  
+    
+    hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
     motorHold(handles, 'off');
     
@@ -1156,7 +1161,7 @@ end
 
 function show_metavoxel_slice_Callback(hObject, eventdata, handles)
     global STL;
-        
+    
     STL.preview.show_metavoxel_slice = str2num(get(handles.show_metavoxel_slice, 'String'));
     zslider_Callback([], [], handles);
 end
@@ -1177,7 +1182,7 @@ function voxelise_print_button_Callback(hObject, eventdata, handles)
         STL.logistics.abort = false;
         set(handles.messages, 'String', 'Canceled.');
         set(handles.show_metavoxel_slice, 'String', 'NaN');
-
+        
         return;
     end
     set(handles.show_metavoxel_slice, 'String', '1 1 1');
@@ -1205,18 +1210,18 @@ function test_button_Callback(hObject, eventdata, handles)
     end
     
     STL.print.motorOrigin = hSI.hMotors.motorPosition;
-
+    
     if STL.logistics.simulated
         userZoomFactor = 1;
     else
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     end
-        
+    
     hSI.hRoiManager.scanZoomFactor = 1;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
-        
+    
     % A bunch of stuff needs to be set up for this. Should undo it all later!
     oldBeams = hSI.hBeams;
     hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
@@ -1261,11 +1266,9 @@ function test_button_Callback(hObject, eventdata, handles)
         end
         
         newpos = posns(xy, :) + STL.print.motorOrigin(1:2);
-        disp(sprintf(' ...servoing to [%g %g]...', posns(xy, 1), posns(xy, 2)));
-        % Go to position-x on all dimensions in order to always
-        % complete the move in the same direction.
-        hSI.hMotors.motorPosition(1:2) = origin_pos;
-        hSI.hMotors.motorPosition(1:2) = newpos;
+
+        move('mom', newpos);
+        
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
         hSI.startLoop();
@@ -1275,7 +1278,7 @@ function test_button_Callback(hObject, eventdata, handles)
     end
     
     % Clean up
-    hSI.hBeams.enablePowerBox = false;  
+    hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = 1;
     motorHold(handles, 'off');
     
@@ -1329,12 +1332,12 @@ function z_step_Callback(hObject, eventdata, handles)
     STL.print.zstep = temp;
     STL.print.voxelise_needed = true;
     set(hObject, 'String', num2str(temp,2));
-        
+    
 end
 
 function z_step_CreateFcn(hObject, eventdata, handles)
     global STL;
-
+    
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
@@ -1347,7 +1350,7 @@ function search_Callback(hObject, eventdata, handles)
     global STL;
     global wbar;
     hSI = evalin('base', 'hSI');
-
+    
     % Save user zoom factor. But at the end, should we restore it? Perhaps
     % not...
     if STL.logistics.simulated
@@ -1360,7 +1363,7 @@ function search_Callback(hObject, eventdata, handles)
     if strcmpi(hSI.acqState, 'idle')
         hSI.startFocus();
     end
-
+    
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         waitbar(0, wbar, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
     else
@@ -1373,7 +1376,7 @@ function search_Callback(hObject, eventdata, handles)
     end
     
     positions = [];
-        
+    
     search_start_pos = hSI.hMotors.motorPosition;
     disp(sprintf('Search starting at [%d %d]', search_start_pos(1), search_start_pos(2)));
     
@@ -1422,7 +1425,7 @@ function search_Callback(hObject, eventdata, handles)
                 STL.logistics.abort = false;
                 return;
             end
-
+            
             hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_y;
             radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
             if radius >= max_radius
@@ -1436,7 +1439,7 @@ function search_Callback(hObject, eventdata, handles)
         %drawnow;
         
         pos = hSI.hMotors.motorPosition;
-
+        
         nsteps_needed = nsteps_needed + 1;
         direction = -direction;
     end
@@ -1450,7 +1453,7 @@ function search_Callback(hObject, eventdata, handles)
         STL.logistics.wbar_pos = get(wbar, 'Position');
         delete(wbar);
     end
-
+    
 end
 
 
@@ -1468,7 +1471,7 @@ end
 function track_rotation_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
-
+    
     if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.logistics.stage_centre)
         set(handles.messages, 'String', 'No stage rotation centre set. Do that first.');
         return;
