@@ -60,6 +60,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
+    menu_test = uimenu(hObject, 'Label', 'Test');
+    menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
+    
     try
         hSI = evalin('base', 'hSI');
         STL.logistics.simulated = false;
@@ -88,12 +91,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.power = 1;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
-    STL.print.zoom_min = 1.3;
-    STL.print.zoom = 1.3;
-    STL.print.zoom_best = 1.3;
+    STL.print.zoom_min = 1.5;
+    STL.print.zoom = 1.5;
+    STL.print.zoom_best = 1.5;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [10 10 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
+    STL.print.metavoxel_overlap = [5 5 5]; % Microns of overlap (positive is more overlap) in order to get good bonding
     STL.print.voxelise_needed = true;
     STL.preview.voxelise_needed = true;
     STL.print.invert_z = false;
@@ -125,7 +128,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     STL.motors.mom.axis_signs = [ -1 1 -1 ];
     STL.motors.mom.axis_order = [ 2 1 3 ];
-    STL.motors.hex.axis_signs = [ 1 1 1 ];
+    STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
 
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
@@ -724,7 +727,7 @@ function motorHold(handles, v);
         
         % Don't use MOVE, since I haven't written it to just move Z.
         if isfield(STL.motors.mom, 'origin')
-            hSI.hMotors.motorPosition(3) = STL.motors.hex.origin(3);
+            hSI.hMotors.motorPosition(3) = STL.motors.mom.origin(3);
         end
         if isfield(STL.motors.hex, 'origin')
             STL.motors.hex.C887.MOV('Z', STL.motors.hex.origin(3));
@@ -1194,9 +1197,12 @@ function voxelise_print_button_Callback(hObject, eventdata, handles)
 end
 
 
-function test_button_Callback(hObject, eventdata, handles)
+function test_linearity_Callback(varargin)
     global STL;
+    global wbar;
     hSI = evalin('base', 'hSI');
+    
+    handles = guidata(gcbo);
     
     if ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents your test.');
@@ -1222,7 +1228,7 @@ function test_button_Callback(hObject, eventdata, handles)
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     end
     
-    hSI.hRoiManager.scanZoomFactor = 1;
+    hSI.hRoiManager.scanZoomFactor = 2;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
@@ -1240,7 +1246,7 @@ function test_button_Callback(hObject, eventdata, handles)
     
     hSI.hBeams.powerBoxes(ind) = pb;
     
-    nframes = 20;
+    nframes = 30;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -1253,20 +1259,61 @@ function test_button_Callback(hObject, eventdata, handles)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:100:500, 0:100:500);
+    [X Y] = meshgrid(0:50:500, 0:50:500);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
-    posns = posns(:, randperm(prod(size(X))))';
+    metavoxel_counter = 0;
+    metavoxel_total = prod(size(X));
+    start_time = datetime('now');
+    eta = 'next weekend';
+
         
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        waitbar(0, wbar, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
+    else
+        wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
+        set(wbar, 'Units', 'Normalized');
+        wp = get(wbar, 'Position');
+        wp(1:2) = STL.logistics.wbar_pos(1:2);
+        set(wbar, 'Position', wp);
+        drawnow;
+    end
+    
+    
+    posns = posns(:, randperm(prod(size(X))))';
+
+
     for xy = 1:size(posns, 1)
         if STL.logistics.abort
+            % The caller has to unset STL.logistics.abort
+            % (and presumably return).
+            disp('Aborting due to user.');
+            if ishandle(wbar) & isvalid(wbar)
+                STL.logistics.wbar_pos = get(wbar, 'Position');
+                delete(wbar);
+            end
+            if exist('handles', 'var');
+                set(handles.messages, 'String', 'Canceled.');
+                drawnow;
+            end
             STL.logistics.abort = false;
-            hSI.hBeams.enablePowerBox = false;
-            hSI.hRoiManager.scanZoomFactor = 1;
-            motorHold(handles, 'off');
+            
+            STL.print.armed = false;
+            hSI.hStackManager.numSlices = 1;
+            hSI.hFastZ.enable = false;
+            
+            if ~STL.logistics.simulated
+                while ~strcmpi(hSI.acqState,'idle')
+                    pause(0.1);
+                end
+            end
+                    
+            break;
         end
         
+        
+
         newpos = posns(xy, :) + motor.origin(1:2);
 
         move(STL.motors.stitching, newpos);
@@ -1277,6 +1324,20 @@ function test_button_Callback(hObject, eventdata, handles)
         while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
         end
+        
+        metavoxel_counter = metavoxel_counter + 1;
+        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+            current_time = datetime('now');
+            eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
+            if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
+                eta = datestr(eta_date, 'HH:MM:SS');
+            else
+                eta = datestr(eta_date, 'dddd HH:MM');
+            end
+            
+            waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Printing. Done around %s.', eta));
+        end
+        
     end
     
     % Clean up

@@ -61,7 +61,7 @@ function hexapod_pi_connect()
     % Open connection
     STL.motors.hex.boolC887connected = false;
     
-    if (isfield(STL.motors.hex, 'C887')) & C887.IsConnected
+    if (isfield(STL.motors.hex, 'C887')) & STL.motors.hex.C887.IsConnected
         STL.motors.hex.boolC887connected = true;
     end
     
