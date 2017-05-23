@@ -75,10 +75,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         assignin('base', 'hSI', hSI);
     end
     
-    try
-        connect_PI_hexapod();
-        STL.motors.C887.qPOS(axisname);
-    end
+    hexapod_pi_connect();
     
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
@@ -103,13 +100,16 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
+    STL.motors.stitching = 'hex';
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
     if STL.logistics.simulated
-        STL.print.motorOrigin = [10000 10000 6000];
+        STL.motors.mom.origin = [10000 10000 6000];
+        STL.motors.hex.origin = [0 0 0];
     else
-        STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+        STL.motors.mom.origin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+        STL.motors.hex.origin = move('hex');
     end
     STL.logistics.abort = false;
     STL.logistics.stage_centre = [15836 9775]; % Until Yarden moves the thing?
@@ -123,6 +123,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
             STL.logistics.stage_centre = [];
     end
     
+    STL.motors.mom.axis_signs = [ -1 1 -1 ];
+    STL.motors.mom.axis_order = [ 2 1 3 ];
+    STL.motors.hex.axis_signs = [ 1 1 1 ];
+    STL.motors.hex.axis_order = [ 1 2 3 ];
+
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     STL.logistics.lens_working_distance = 370;
@@ -134,7 +139,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % ScanImage freaks out if we pass an illegal command to its motor stage
     % controller--and also if I can't move up the required amount, I
     % probably shouldn't drop the fastZ stage. Error out:
-    if any(STL.print.motorOrigin < 0)
+    if any(STL.motors.mom.origin < 0)
         error('Cannot initialise PrintImage: lower the slow Z stage just a little and restart PrintImage');
         return;
     end
@@ -155,8 +160,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
             foo{i} = sprintf('%d', i);
         end
         
-        disp(sprintf('Servoing to [ %s]', sprintf('%g ', STL.print.motorOrigin)));
-        hSI.hMotors.motorPosition = STL.print.motorOrigin;
+        move('mom', STL.motors.mom.origin);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     end
     set(handles.whichBeam, 'String', foo);
@@ -486,6 +490,7 @@ function print_Callback(hObject, eventdata, handles)
     
     UpdateBounds_Callback([], [], handles);
     
+    eval(sprintf('motor = STL.motors.%s;', STL.motors.stitching));
     
     if ~STL.logistics.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
@@ -551,8 +556,6 @@ function print_Callback(hObject, eventdata, handles)
         drawnow;
     end
     
-    axis_signs = [ -1 1 -1 ];
-    axis_order = [ 2 1 3 ];
     
     start_time = datetime('now');
     eta = 'next weekend';
@@ -615,21 +618,16 @@ function print_Callback(hObject, eventdata, handles)
                 
                 % Some of the axes may want the opposite sign. This should be done in Machine_Data_File but I don't see how; see
                 % below.
-                newpos = newpos .* axis_signs;
+                newpos = newpos .* motor.axis_signs;
                 
                 % My axes and the motor's may be at odds, so reshuffle the order. This should be done in Machine_Data_File but I
                 % don't see how; the docs are a little obsolete (or ahead of the free version?).
-                newpos = newpos(axis_order);
+                newpos = newpos(motor.axis_order);
                 
                 % Add the motor origin from the start of this function
-                newpos = newpos + STL.print.motorOrigin(1:3);
+                newpos = newpos + motor.origin(1:3);
                 
-                disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
-                % Go to position-x on all dimensions in order to always
-                % complete the move in the same direction.
-                hSI.hMotors.motorPosition(1:3) = newpos + [1 1 1] * 3;
-                pause(0.1);
-                hSI.hMotors.motorPosition(1:3) = newpos;
+                move(STL.motors.stitching, newpos);
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
                 pause(0.1);
                 
@@ -710,7 +708,8 @@ function motorHold(handles, v);
         STL.print.motorHold = true;
         %warning('Disabled fastZ hold hack.');
         STL.print.motor_reset_needed = true;
-        STL.print.motorOrigin = hSI.hMotors.motorPosition;
+        STL.motors.mom.origin = move('mom');
+        STL.motors.hex.origin = move('hex');
     end
     
     if strcmp(v, 'off')
@@ -723,9 +722,12 @@ function motorHold(handles, v);
         %want.
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
-        if isfield(STL.print, 'motorOrigin')
-            disp(sprintf('Servoing to z = [ %s ]',STL.print.motorOrigin(3)));
-            hSI.hMotors.motorPosition(3) = STL.print.motorOrigin(3);
+        % Don't use MOVE, since I haven't written it to just move Z.
+        if isfield(STL.motors.mom, 'origin')
+            hSI.hMotors.motorPosition(3) = STL.motors.hex.origin(3);
+        end
+        if isfield(STL.motors.hex, 'origin')
+            STL.motors.hex.C887.MOV('Z', STL.motors.hex.origin(3));
         end
         
         STL.print.motorHold = false;
@@ -1147,7 +1149,8 @@ function crushReset_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.print.motorOrigin = hSI.hMotors.motorPosition;
+    STL.motors.mom.origin = move('mom');
+    STL.motors.hex.origin = move('hex');
     %STL.print.motor_reset_needed = false;
 end
 
@@ -1209,7 +1212,9 @@ function test_button_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    STL.print.motorOrigin = hSI.hMotors.motorPosition;
+    STL.motors.mom.origin = move('mom');
+    STL.motors.hex.origin = move('hex');
+    eval(sprintf('motor = STL.motors.%s', STL.motors.stitching));
     
     if STL.logistics.simulated
         userZoomFactor = 1;
@@ -1235,7 +1240,7 @@ function test_button_Callback(hObject, eventdata, handles)
     
     hSI.hBeams.powerBoxes(ind) = pb;
     
-    nframes = 100;
+    nframes = 20;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -1252,11 +1257,8 @@ function test_button_Callback(hObject, eventdata, handles)
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
-    
     posns = posns(:, randperm(prod(size(X))))';
-    
-    origin_pos = STL.print.motorOrigin(1:2) - [200 200];
-    
+        
     for xy = 1:size(posns, 1)
         if STL.logistics.abort
             STL.logistics.abort = false;
@@ -1265,9 +1267,9 @@ function test_button_Callback(hObject, eventdata, handles)
             motorHold(handles, 'off');
         end
         
-        newpos = posns(xy, :) + STL.print.motorOrigin(1:2);
+        newpos = posns(xy, :) + motor.origin(1:2);
 
-        move('mom', newpos);
+        move(STL.motors.stitching, newpos);
         
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
@@ -1404,7 +1406,7 @@ function search_Callback(hObject, eventdata, handles)
                 return;
             end
             
-            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_x;
+            move('mom', hSI.hMotors.motorPosition + direction * stepsize_x);
             radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
             if radius >= max_radius
                 break;
@@ -1426,7 +1428,7 @@ function search_Callback(hObject, eventdata, handles)
                 return;
             end
             
-            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_y;
+            move('mom', hSI.hMotors.motorPosition + direction * stepsize_y);
             radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
             if radius >= max_radius
                 break;
@@ -1485,7 +1487,7 @@ function track_rotation_Callback(hObject, eventdata, handles)
     pos_relative = pos_relative * rm;
     try
         set(handles.messages, 'String', '');
-        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
+        move('mom',  pos_relative + STL.logistics.stage_centre);
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
