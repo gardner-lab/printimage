@@ -1345,6 +1345,10 @@ function test_linearity_Callback(varargin)
     hSI.hRoiManager.scanZoomFactor = 1;
     motorHold(handles, 'off');
     
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        STL.logistics.wbar_pos = get(wbar, 'Position');
+        delete(wbar);
+    end
 end
 
 
