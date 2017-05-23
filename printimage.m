@@ -1322,7 +1322,7 @@ function z_step_Callback(hObject, eventdata, handles)
     global STL;
     
     temp = str2double(get(hObject, 'String'));
-    temp = floor(10*temp)/10
+    temp = floor(10*temp)/10;
     if (temp<0.1)
         temp = 0.1;
     elseif (temp > 10)
