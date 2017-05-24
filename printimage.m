@@ -103,7 +103,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
-    STL.motors.stitching = 'hex';
+    STL.motors.stitching = 'hex'; % 'hex' is PI hexapod, 'mom' is Sutter MOM
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
