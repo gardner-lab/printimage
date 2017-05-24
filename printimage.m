@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 02-May-2017 16:45:12
+    % Last Modified by GUIDE v2.5 24-May-2017 17:32:55
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -60,6 +60,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
+    menu_calibrate = uimenu(hObject, 'Label', 'Calibrate')
+    menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
+    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Microscope is aligned with hexapod centre', 'Callback', @hexapod_microscope_aligned);
+    
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
@@ -77,6 +81,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
         assignin('base', 'hSI', hSI);
     end
+    
+    set(gcf, 'CloseRequestFcn', @clean_shutdown);
     
     hexapod_pi_connect();
     
@@ -224,6 +230,10 @@ function update_gui(handles);
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
     spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
     spinnerSet(handles.printZoom, STL.print.zoom);
+    hexapod_rotation_vals = hexapod_get_position();
+    set(handles.hexapod_rotate_u, 'Value', hexapod_rotation_vals(4));
+    set(handles.hexapod_rotate_v, 'Value', hexapod_rotation_vals(5));
+    set(handles.hexapod_rotate_w, 'Value', hexapod_rotation_vals(6));
     update_best_zoom(handles);
 end
 
@@ -1567,4 +1577,92 @@ end
 
 
 function focusWhenDone_Callback(hObject, eventdata, handles)
+end
+
+
+function clean_shutdown(varargin)
+    global STL;
+    global wbar;
+    hSI = evalin('base', 'hSI');
+
+    try
+        hSI.hRoiManager.scanZoomFactor = 1;
+    end
+    
+    try
+        hexapod_pi_disconnect();
+    end
+    
+    try
+        delete(wbar);
+    end
+end
+
+
+function hexapod_reset_to_centre()
+    for i = 1:6
+        disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), 0));
+        STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
+    end
+    update_gui();
+end
+
+
+function hexapod_rotate_u_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
+end
+
+function hexapod_rotate_u_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+
+function hexapod_rotate_v_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
+end
+
+function hexapod_rotate_v_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function hexapod_rotate_w_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
+end
+
+function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function hexapod_zero_Callback(hObject, eventdata, handles)
+    hexapod_reset_to_centre();
+end
+
+
+%% Set the virtual rotation centre to the point under the microscope lens
+function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    head_position_rel = hSI.hMotors.motorPosition - STL.motors.mom_zero_relative_to_hexapod;
+    
+    % Change only U and V; keep W at zero for now.
+    for i = 1:2
+        STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), head_position_rel(i));
+    end
+end
+
+function hexapod_get_position()
+    global STL;
+    for i = 1:6
+        newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
+    end
 end
