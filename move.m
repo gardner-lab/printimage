@@ -48,9 +48,16 @@ function [newpos] = move(motor, target_um)
             for i = 1:length(target_mm)
                 disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), target_mm(i)));
                 STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i));
-                %while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
-                %    pause(0.1);
-                %end
             end
+            for i = 1:length(target_mm)
+                while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
+                    pause(0.1);
+                end
+            end
+            
+        otherwise
+            
+            error('Invalid motor "%s". No movement.',  motor);
+            
     end
 end

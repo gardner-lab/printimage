@@ -94,7 +94,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.zstep = 1;     % microns per step in z (vertical)
     STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
     STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
-    STL.print.power = 1;
+    STL.print.power = 0.6;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
     STL.print.zoom_min = 1.5;
@@ -1238,7 +1238,7 @@ function test_linearity_Callback(varargin)
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     end
     
-    hSI.hRoiManager.scanZoomFactor = 2;
+    hSI.hRoiManager.scanZoomFactor = 2.2;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
@@ -1248,7 +1248,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
     
     ind = 1;
-    pb.rect = [0.45 0.45 0.1 0.1];
+    pb.rect = [0.49 0.49 0.02 0.02];
     pb.powers = STL.print.power * 100;
     pb.name = 'hi';
     pb.oddLines = 1;
@@ -1256,7 +1256,7 @@ function test_linearity_Callback(varargin)
     
     hSI.hBeams.powerBoxes(ind) = pb;
     
-    nframes = 30;
+    nframes = 40;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -1269,7 +1269,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:50:500, 0:50:500);
+    [X Y] = meshgrid(0:10:500, 0:10:500);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     

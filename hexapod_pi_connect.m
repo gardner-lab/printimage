@@ -87,7 +87,7 @@ function hexapod_pi_connect()
         error('No axes available');
     end
     
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(0.5);
     
     % Reference stage
     fprintf('Referencing hexapod axes... ');
