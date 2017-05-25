@@ -109,8 +109,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
-    STL.motors.hex.pivot_z_um = 10430 + 3450; % For hexapods, virtual pivot height offset of sample
+
     STL.motors.stitching = 'hex'; % 'hex' is PI hexapod, 'mom' is Sutter MOM
+    %This is completely ad-hoc, based on PI apparently being WRONG:
+    STL.motors.hex.pivot_z_um = 35e3; % For hexapods, virtual pivot height offset of sample.
     
     
     hexapod_pi_connect();
@@ -127,7 +129,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.motors.hex.origin = move('hex');
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [10641 357 18410]; % Until Yarden moves the thing?
+    STL.logistics.stage_centre = [9410 11650 18650]; % When are we centred over the hexapod's origin?
     foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
         sprintf(' %d', STL.logistics.stage_centre)), ...
         'Stage setup', 'Yes', 'No', 'Yes');
@@ -1655,7 +1657,32 @@ end
 
 function hexapod_rotate_u_Callback(hObject, eventdata, handles)
     global STL;
-    STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
+    try
+        STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
+end
+
+function hexapod_rotate_v_Callback(hObject, eventdata, handles)
+    global STL;
+    try
+        STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
+end
+
+function hexapod_rotate_w_Callback(hObject, eventdata, handles)
+    global STL;
+    try
+        STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
 end
 
 function hexapod_rotate_u_CreateFcn(hObject, eventdata, handles)
@@ -1664,21 +1691,10 @@ function hexapod_rotate_u_CreateFcn(hObject, eventdata, handles)
     end
 end
 
-
-function hexapod_rotate_v_Callback(hObject, eventdata, handles)
-    global STL;
-    STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
-end
-
 function hexapod_rotate_v_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
-end
-
-function hexapod_rotate_w_Callback(hObject, eventdata, handles)
-    global STL;
-    STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
 end
 
 function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
