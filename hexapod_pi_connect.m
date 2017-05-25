@@ -87,6 +87,8 @@ function hexapod_pi_connect()
     end
     
     STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.SPI('X', 0);
+    STL.motors.hex.C887.SPI('Y', 0);
     STL.motors.hex.C887.SPI('Z', STL.motors.hex.pivot_z_um / 1e3);
 
     % Reference stage
