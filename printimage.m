@@ -111,8 +111,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.fastZhomePos = 420;
 
     STL.motors.stitching = 'hex'; % 'hex' is PI hexapod, 'mom' is Sutter MOM
-    %This is completely ad-hoc, based on PI apparently being WRONG:
-    STL.motors.hex.pivot_z_um = 35e3; % For hexapods, virtual pivot height offset of sample.
+    
+    % This is completely ad-hoc, based on PI apparently being WRONG (this
+    % should be around 10430 + 3450 + 3450 = 17330.
+    STL.motors.hex.pivot_z_um = 33e3; % For hexapods, virtual pivot height offset of sample.
     
     
     hexapod_pi_connect();
