@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 24-May-2017 17:32:55
+    % Last Modified by GUIDE v2.5 25-May-2017 14:23:05
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -60,9 +60,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
-    menu_calibrate = uimenu(hObject, 'Label', 'Calibrate')
+    menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Microscope is aligned with hexapod centre', 'Callback', @hexapod_microscope_aligned);
+    menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
@@ -84,7 +85,6 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     set(gcf, 'CloseRequestFcn', @clean_shutdown);
     
-    hexapod_pi_connect();
     
     % Some parameters are only computed on grab. So do one.
     hSI.hStackManager.numSlices = 1;
@@ -109,7 +109,13 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
+    STL.motors.hex.pivot_z_um = 10430 + 3450; % For hexapods, virtual pivot height offset of sample
     STL.motors.stitching = 'hex'; % 'hex' is PI hexapod, 'mom' is Sutter MOM
+    
+    
+    hexapod_pi_connect();
+
+    
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
@@ -121,10 +127,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.motors.hex.origin = move('hex');
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [15836 9775]; % Until Yarden moves the thing?
-    foo = questdlg(sprintf('Stage rotation centre set to [%d, %d]. Ok?', ...
-        STL.logistics.stage_centre(1), STL.logistics.stage_centre(2)), ...
-        'Stage setup', 'Yes', 'No', 'No');
+    STL.logistics.stage_centre = [10641 357 18410]; % Until Yarden moves the thing?
+    foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
+        sprintf(' %d', STL.logistics.stage_centre)), ...
+        'Stage setup', 'Yes', 'No', 'Yes');
     switch foo
         case 'Yes'
             ;
@@ -136,6 +142,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.motors.mom.axis_order = [ 2 1 3 ];
     STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
+
 
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
@@ -153,7 +160,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         return;
     end
     
+    % Disable this for PI...
+    warning('Disabling warning "MATLAB:subscripting:noSubscriptsSpecified" because there will be A LOT of them!');
+    evalin('base', 'warning(''off'', ''MATLAB:subscripting:noSubscriptsSpecified'');');
     
+
     STL.logistics.wbar_pos = [.05 .85];
     
     foo = {};
@@ -230,10 +241,10 @@ function update_gui(handles);
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
     spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
     spinnerSet(handles.printZoom, STL.print.zoom);
-    hexapod_rotation_vals = hexapod_get_position();
-    set(handles.hexapod_rotate_u, 'Value', hexapod_rotation_vals(4));
-    set(handles.hexapod_rotate_v, 'Value', hexapod_rotation_vals(5));
-    set(handles.hexapod_rotate_w, 'Value', hexapod_rotation_vals(6));
+    hexapod_pos = hexapod_get_position();
+    set(handles.hexapod_rotate_u, 'Value', hexapod_pos(4));
+    set(handles.hexapod_rotate_v, 'Value', hexapod_pos(5));
+    set(handles.hexapod_rotate_w, 'Value', hexapod_pos(6));
     update_best_zoom(handles);
 end
 
@@ -1099,7 +1110,7 @@ function minGoodZoom_Callback(hObject, eventdata, handles)
         STL.print.zoom = STL.print.zoom_min;
     end
     
-    possibleZooms = STL.print.zoom_min:0.1:5;
+    possibleZooms = STL.print.zoom_min:0.1:6;
     for i = 1:length(possibleZooms)
         foo{i} = sprintf('%g', possibleZooms(i));
         
@@ -1164,7 +1175,8 @@ function crushReset_Callback(hObject, eventdata, handles)
     
     STL.motors.mom.origin = move('mom');
     STL.motors.hex.origin = move('hex');
-    %STL.print.motor_reset_needed = false;
+    STL.print.motor_reset_needed = false;
+    set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
 end
 
 
@@ -1269,7 +1281,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:10:500, 0:10:500);
+    [X Y] = meshgrid(0:10:10, 0:10:10);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1538,7 +1550,7 @@ function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.logistics.stage_centre = hSI.hMotors.motorPosition(1:2);
+    STL.logistics.stage_centre = hSI.hMotors.motorPosition;
     set(handles.messages, 'String', '');
 end
 
@@ -1555,14 +1567,14 @@ function track_rotation_Callback(hObject, eventdata, handles)
     end
     
     pos = hSI.hMotors.motorPosition(1:2);
-    pos_relative = pos - STL.logistics.stage_centre;
+    pos_relative = pos - STL.logistics.stage_centre(1:2);
     
     r = pi*str2double(get(hObject, 'String'))/180;
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
     pos_relative = pos_relative * rm;
     try
         set(handles.messages, 'String', '');
-        move('mom',  pos_relative + STL.logistics.stage_centre);
+        move('mom',  pos_relative + STL.logistics.stage_centre(1:2));
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
@@ -1583,9 +1595,9 @@ end
 function clean_shutdown(varargin)
     global STL;
     global wbar;
-    hSI = evalin('base', 'hSI');
-
+    
     try
+        hSI = evalin('base', 'hSI');
         hSI.hRoiManager.scanZoomFactor = 1;
     end
     
@@ -1596,15 +1608,48 @@ function clean_shutdown(varargin)
     try
         delete(wbar);
     end
+    
+    clear -global STL;
+    
+    delete(gcf);
 end
 
 
-function hexapod_reset_to_centre()
+function hexapod_reset_to_centre(handles)
+    global STL;
+    
+    STL.motors.hex.C887.VLS(2);
     for i = 1:6
         disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), 0));
         STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
     end
-    update_gui();
+    hexapod_wait(handles);
+    STL.motors.hex.C887.VLS(2);
+    update_gui(handles);
+end
+
+function hexapod_reset_to_zero_rotation(handles)
+    global STL;
+    
+    pos = hexapod_get_position();
+    if any(abs(pos(4:6)) > 0.1)
+        foo = questdlg('Ok to un-rotate hexapod?', ...
+            'Stage setup', 'Yes', 'No', 'Yes');
+        switch foo
+            case 'Yes'
+                ;
+            case 'No'
+                return;
+        end
+    end
+
+    STL.motors.hex.C887.VLS(2);
+    for i = 4:6
+        STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
+    end
+    hexapod_wait(handles);
+    STL.motors.hex.C887.VLS(2);
+    update_gui(handles);
 end
 
 
@@ -1643,26 +1688,60 @@ function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
 end
 
 function hexapod_zero_Callback(hObject, eventdata, handles)
-    hexapod_reset_to_centre();
+    hexapod_reset_to_zero_rotation(handles);
 end
 
+function hexapod_wait(handles)
+    global STL;
+    
+    if exist('handles', 'var')
+        set(handles.messages, 'String', 'Waiting for hexapod to finish zeroing...');
+    end
+    for i = 1:6
+        while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
+            pause(0.1);
+        end
+    end
+    if exist('handles', 'var')
+        set(handles.messages, 'String', '');
+    end
+end
 
 %% Set the virtual rotation centre to the point under the microscope lens
 function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    head_position_rel = hSI.hMotors.motorPosition - STL.motors.mom_zero_relative_to_hexapod;
-    
-    % Change only U and V; keep W at zero for now.
+    hexapod_reset_to_zero_rotation(handles);
+
+    head_position_rel = hSI.hMotors.motorPosition - STL.logistics.stage_centre;
+    head_position_rel = (head_position_rel(STL.motors.mom.axis_order) .* STL.motors.mom.axis_signs)
+    head_position_rel = head_position_rel / 1e3;
     for i = 1:2
         STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), head_position_rel(i));
     end
 end
 
-function hexapod_get_position()
+function pos = hexapod_get_position()
     global STL;
     for i = 1:6
-        newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
+        pos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
+    end
+end
+
+
+function add_bullseye_Callback(hObject, eventdata, handles)
+    add_bullseye();
+end
+
+function align_stages(hObject, eventdata, handles);
+    global STL;
+    hSI = evalin('base', 'hSI');
+
+    
+    add_bullseye();
+    
+    for i = 1:3
+        STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), 0);
     end
 end

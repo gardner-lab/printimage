@@ -16,7 +16,6 @@ function hexapod_pi_connect()
         end
     end
     
-    
     if~isfield(STL, 'motors') | ~isfield(STL.motors, 'hex') | ~isfield(STL.motors.hex, 'Controller')
         STL.motors.hex.Controller = PI_GCS_Controller();
     end;
@@ -87,8 +86,9 @@ function hexapod_pi_connect()
         error('No axes available');
     end
     
-    STL.motors.hex.C887.VLS(0.5);
-    
+    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.SPI('Z', STL.motors.hex.pivot_z_um / 1e3);
+
     % Reference stage
     fprintf('Referencing hexapod axes... ');
     for i = 1:6
@@ -97,16 +97,14 @@ function hexapod_pi_connect()
         STL.motors.hex.axes(i) = axis;
         if ~STL.motors.hex.C887.qFRF(axis)
             STL.motors.hex.C887.FRF(axis);
-        end
+        end        
+    end
     
-        % Wait for referencing to finish
+    for i = 1:6
         while ~STL.motors.hex.C887.qFRF(axis)
             pause(0.1);
         end
-        
         STL.motors.hex.range(i,:) = [STL.motors.hex.C887.qTMN(axis) STL.motors.hex.C887.qTMX(axis)];
     end
     fprintf('done.\n');
-    
-    
 end
