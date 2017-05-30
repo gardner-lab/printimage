@@ -59,6 +59,10 @@ function hexapod_pi_connect()
     
     % Open connection
     STL.motors.hex.boolC887connected = false;
+    try
+        hexapod_pi_disconnect();
+    catch ME
+    end
     
     if (isfield(STL.motors.hex, 'C887')) & STL.motors.hex.C887.IsConnected
         STL.motors.hex.boolC887connected = true;
@@ -86,10 +90,6 @@ function hexapod_pi_connect()
         error('No axes available');
     end
     
-    STL.motors.hex.C887.VLS(2);
-    STL.motors.hex.C887.SPI('X', 0);
-    STL.motors.hex.C887.SPI('Y', 0);
-    STL.motors.hex.C887.SPI('Z', STL.motors.hex.pivot_z_um / 1e3);
 
     % Reference stage
     fprintf('Referencing hexapod axes... ');
@@ -99,7 +99,7 @@ function hexapod_pi_connect()
         STL.motors.hex.axes(i) = axis;
         if ~STL.motors.hex.C887.qFRF(axis)
             STL.motors.hex.C887.FRF(axis);
-        end        
+        end
     end
     
     for i = 1:6
@@ -109,4 +109,11 @@ function hexapod_pi_connect()
         STL.motors.hex.range(i,:) = [STL.motors.hex.C887.qTMN(axis) STL.motors.hex.C887.qTMX(axis)];
     end
     fprintf('done.\n');
+
+    STL.motors.hex.C887.VLS(2);
+    hexapod_reset_to_zero_rotation();
+    STL.motors.hex.C887.SPI('X', 0);
+    STL.motors.hex.C887.SPI('Y', 0);
+    STL.motors.hex.C887.SPI('Z', STL.motors.hex.pivot_z_um / 1e3);
+
 end

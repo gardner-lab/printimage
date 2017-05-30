@@ -118,6 +118,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % should be around 10430 + 3450 + 3450 = 17330.
     STL.motors.hex.pivot_z_um = 33e3; % For hexapods, virtual pivot height offset of sample.
     
+    STL.motors.mom.axis_signs = [ -1 1 -1 ];
+    STL.motors.mom.axis_order = [ 2 1 3 ];
+    STL.motors.hex.axis_signs = [ 1 1 -1 ];
+    STL.motors.hex.axis_order = [ 1 2 3 ];
+
     
     if ~STL.logistics.simulated
         hexapod_pi_connect();
@@ -145,11 +150,6 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
             STL.logistics.stage_centre = [];
     end
     
-    STL.motors.mom.axis_signs = [ -1 1 -1 ];
-    STL.motors.mom.axis_order = [ 2 1 3 ];
-    STL.motors.hex.axis_signs = [ 1 1 -1 ];
-    STL.motors.hex.axis_order = [ 1 2 3 ];
-
 
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
@@ -214,56 +214,6 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     guidata(hObject, handles);
 end
 
-
-function update_gui(handles);
-    global STL;
-    
-    if isfield(STL, 'file')
-        set(gcf, 'Name', STL.file);
-    else
-        set(gcf, 'Name', 'PrintImage');
-    end
-    set(handles.build_x_axis, 'Value', STL.print.xaxis);
-    set(handles.build_z_axis, 'Value', STL.print.zaxis);
-    set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
-    set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))));
-    set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))));
-    set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))));
-    set(handles.fastZhomePos, 'String', sprintf('%d', round(STL.print.fastZhomePos)));
-    set(handles.powertest_start, 'String', sprintf('%g', 1));
-    set(handles.powertest_end, 'String', sprintf('%g', 100));
-    set(handles.invert_z, 'Value', STL.print.invert_z);
-    set(handles.whichBeam, 'Value', STL.print.whichBeam);
-    set(handles.show_metavoxel_slice, 'String', sprintf(['%d '], STL.preview.show_metavoxel_slice));
-    set(handles.PrinterBounds, 'String', sprintf('Max single: [ %s] um', ...
-        sprintf('%d ', round(STL.print.bounds))));
-    %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
-    nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
-    if STL.print.voxelise_needed
-        set(handles.autozoom, 'String', '');
-    else
-        set(handles.autozoom, 'String', sprintf('Auto: %g', STL.print.zoom_best));
-    end
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
-    set(handles.z_step, 'String', num2str(STL.print.zstep,2));
-    spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
-    spinnerSet(handles.printZoom, STL.print.zoom);
-    hexapod_pos = hexapod_get_position();
-    set(handles.hexapod_rotate_u, 'Value', hexapod_pos(4));
-    set(handles.hexapod_rotate_v, 'Value', hexapod_pos(5));
-    set(handles.hexapod_rotate_w, 'Value', hexapod_pos(6));
-    update_best_zoom(handles);
-end
-
-% Set the value of a spinner GUI component to the given number.
-function spinnerSet(h, val, format);
-    if ~exist('format', 'var')
-        format = '%g';
-    end
-    vals = get(h, 'String');
-    match = find(strcmp(vals, sprintf(format, val)));
-    set(h, 'Value', match);
-end
 
 
 % Sets STL.print.dims, and calls for reorientation of the model.
@@ -514,6 +464,18 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hMotors.zprvResetHome();
     %hSI.hBeams.zprvResetHome();
     %hSI.hFastZ.positionTarget = foo;
+    hexapos = hexapod_get_position();
+    if any(abs(hexapos(1:3) > 0.001))
+        foo = questdlg(sprintf('Hexpod is at [%s ], not [ 0 0 0 ]. Continue?', ...
+            sprintf(' %d', hexapos(1:3))), ...
+            'Print', 'Yes', 'No', 'No');
+        switch foo
+            case 'Yes'
+                ;
+            case 'No'
+                return;
+        end
+    end
     
     if STL.print.rescale_needed
         rescale_object(handles);
@@ -1251,6 +1213,19 @@ function test_linearity_Callback(varargin)
         set(handles.messages, 'String', '');
     end
     
+    hexapos = hexapod_get_position();
+    if any(abs(hexapos(1:3) > 0.001))
+        foo = questdlg(sprintf('Hexpod is at [%s ], not [ 0 0 0 ]. Continue?', ...
+            sprintf(' %d', hexapos(1:3))), ...
+            'Print', 'Yes', 'No', 'No');
+        switch foo
+            case 'Yes'
+                ;
+            case 'No'
+                return;
+        end
+    end
+
     STL.motors.mom.origin = move('mom');
     STL.motors.hex.origin = move('hex');
     eval(sprintf('motor = STL.motors.%s', STL.motors.stitching));
@@ -1292,7 +1267,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:10:20, 0:10:20);
+    [X Y] = meshgrid(0:10:300, 0:10:300);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1641,34 +1616,6 @@ function hexapod_reset_to_centre(handles)
     update_gui(handles);
 end
 
-function hexapod_reset_to_zero_rotation(handles)
-    global STL;
-    
-    pos = hexapod_get_position();
-    if any(abs(pos(4:6)) > 0.1)
-        foo = questdlg('Ok to un-rotate hexapod?', ...
-            'Stage setup', 'Yes', 'No', 'Yes');
-        switch foo
-            case 'Yes'
-                ;
-            case 'No'
-                return;
-        end
-    end
-
-    % For some reason, this can lead to about a 400-micron up-and-down. So
-    % give us space!
-    mompos = move('mom');
-    move('mom', mompos - [ 0 0 400]);
-    STL.motors.hex.C887.VLS(1);
-    for i = 4:6
-        STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
-    end
-    hexapod_wait(handles);
-    move('mom', mompos);
-    STL.motors.hex.C887.VLS(1);
-    update_gui(handles);
-end
 
 
 function hexapod_rotate_u_Callback(hObject, eventdata, handles)
@@ -1723,22 +1670,6 @@ function hexapod_zero_Callback(hObject, eventdata, handles)
     hexapod_reset_to_zero_rotation(handles);
 end
 
-function hexapod_wait(handles)
-    global STL;
-    
-    if exist('handles', 'var')
-        set(handles.messages, 'String', 'Waiting for hexapod to finish zeroing...');
-    end
-    for i = 1:6
-        while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
-            pause(0.1);
-        end
-    end
-    if exist('handles', 'var')
-        set(handles.messages, 'String', '');
-    end
-end
-
 % Set the virtual rotation centre to the point under the microscope lens.
 % This assumes that STL.logistics.stage_centre (MOM's coordinates when
 % aligned to hexapod's true centre) is correct.
@@ -1753,19 +1684,6 @@ function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
     % This DOES NOT WORK for Z
     for i = 1:2
         STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), -head_position_rel(i) / 1e3);
-    end
-end
-
-function pos = hexapod_get_position()
-    global STL;
-    
-    if STL.logistics.simulated
-        pos = STL.logistics.simulated_pos;
-        return;
-    end
-    
-    for i = 1:6
-        pos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
     end
 end
 
