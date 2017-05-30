@@ -70,10 +70,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     try
         hSI = evalin('base', 'hSI');
+        fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
         STL.logistics.simulated = true;
+        STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
         hSI.hRoiManager.linesPerFrame = 256;
@@ -117,8 +119,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.motors.hex.pivot_z_um = 33e3; % For hexapods, virtual pivot height offset of sample.
     
     
-    hexapod_pi_connect();
-
+    if ~STL.logistics.simulated
+        hexapod_pi_connect();
+    end
     
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
@@ -755,7 +758,11 @@ function motorHold(handles, v);
             hSI.hMotors.motorPosition(3) = STL.motors.mom.origin(3);
         end
         if isfield(STL.motors.hex, 'origin')
-            STL.motors.hex.C887.MOV('Z', STL.motors.hex.origin(3));
+            if STL.logistics.simulated
+                STL.logistics.simulated_pos(3) = STL.motors.hex.origin(3);
+            else
+                STL.motors.hex.C887.MOV('Z', STL.motors.hex.origin(3));
+            end
         end
         
         STL.print.motorHold = false;
@@ -1285,7 +1292,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:10:10, 0:10:10);
+    [X Y] = meshgrid(0:10:20, 0:10:20);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1742,6 +1749,12 @@ end
 
 function pos = hexapod_get_position()
     global STL;
+    
+    if STL.logistics.simulated
+        pos = STL.logistics.simulated_pos;
+        return;
+    end
+    
     for i = 1:6
         pos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
     end

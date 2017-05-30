@@ -6,12 +6,17 @@ function [newpos] = move(motor, target_um)
     
     % if target_um is blank, just return the current position
     if ~exist('target_um', 'var')
+        if STL.logistics.simulated
+            newpos = STL.logistics.simulated_pos(1:3);
+            return;
+        end
+        
         switch motor
             case 'mom'
                 newpos = hSI.hMotors.motorPosition;
             case 'hex'
                 for i = 1:3
-                    newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i));
+                    newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) * 1e3;
                 end
         end
         return;
@@ -22,7 +27,15 @@ function [newpos] = move(motor, target_um)
         target_um = target_um(1:3);
     end
 
+    
     disp(sprintf(' ...moving %s to [%s ]...', motor, sprintf('%g ', target_um)));
+    
+    if STL.logistics.simulated
+        STL.logistics.simulated_pos(1:3) = target_um;
+        newpos = target_um;
+        
+        return;
+    end
 
     anti_backlash = [20 20 20];
     

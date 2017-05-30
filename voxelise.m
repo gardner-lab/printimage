@@ -43,7 +43,11 @@ function [] = voxelise(handles, target)
             
             update_best_zoom(handles);
             
-            user_zoom = hSI.hRoiManager.scanZoomFactor;
+            if STL.logistics.simulated
+                user_zoom = 1;
+            else
+                user_zoom = hSI.hRoiManager.scanZoomFactor;
+            end
             hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
             fov = hSI.hRoiManager.imagingFovUm;
             hSI.hRoiManager.scanZoomFactor = user_zoom;
@@ -109,7 +113,7 @@ function [] = voxelise(handles, target)
             STL.logistics.abort = false;
 
             
-            for mvx = 1:nmetavoxels(1)
+            parfor mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
                         
