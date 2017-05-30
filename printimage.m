@@ -86,6 +86,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.print.power = 1;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
+%     STL.print.size = [380 380 410];
     STL.print.zoom_min = 1.3;
     STL.print.zoom = 1.3;
     STL.print.zoom_best = 1.3;
