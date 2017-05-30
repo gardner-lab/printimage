@@ -39,13 +39,13 @@ beamDaqs(1).frameClockIn = '';                  % one of {PFI0..15, ''} to which
 beamDaqs(1).referenceClockIn = '';              % one of {PFI0..15, ''} to which external reference clock is connected. Leave empty for automatic routing via PXI/RTSI bus
 beamDaqs(1).referenceClockRate = 1e+07;          % if referenceClockIn is used, referenceClockRate defines the rate of the reference clock in Hz. Default: 10e6Hz
 
-beamDaqs(1).chanIDs = [0 1];                       % Array of integers specifying AO channel IDs, one for each beam modulation channel. Length of array determines number of 'beams'.
-beamDaqs(1).displayNames = {'Ch1 780' 'Ch2 1140'};                  % Optional string cell array of identifiers for each beam
-beamDaqs(1).voltageRanges = [2 2];                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
+beamDaqs(1).chanIDs = 0;                       % Array of integers specifying AO channel IDs, one for each beam modulation channel. Length of array determines number of 'beams'.
+beamDaqs(1).displayNames = {'Ch1 780'};                  % Optional string cell array of identifiers for each beam
+beamDaqs(1).voltageRanges = 2;                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
-beamDaqs(1).calInputChanIDs = [0 1];               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = [-0.00224709 -0.014798];                    % Array of beam calibration offset voltages for each beam calibration channel
-beamDaqs(1).calUseRejectedLight = [false false];        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
+beamDaqs(1).calInputChanIDs = 0;               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
+beamDaqs(1).calOffsets = -0.00243738;                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calUseRejectedLight = false;        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 
 %% Motors
@@ -60,8 +60,8 @@ motors(1).positionDeviceUnits = [];      % 1xN array specifying, in meters, raw 
 motors(1).velocitySlow = [];             % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).velocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).moveCompleteDelay = 0;        % Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
-motors(1).moveTimeout = [5];              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
-motors(1).moveTimeoutFactor = 5e-4;        % (s/um) Time to add to timeout duration based on distance of motor move command
+motors(1).moveTimeout = 5;              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
+motors(1).moveTimeoutFactor = 0.0005;        % (s/um) Time to add to timeout duration based on distance of motor move command
 
 %% FastZ
 %FastZ hardware used for fast axial motion, supporting fast stacks and/or volume imaging
@@ -73,9 +73,9 @@ actuators(1).daqDeviceName = 'PXI1Slot5';            % String specifying device 
 actuators(1).frameClockIn = '';             % One of {PFI0..15, ''} to which external frame trigger is connected. Leave empty for automatic routing via PXI/RTSI bus
 actuators(1).cmdOutputChanID = 0;          % AO channel number (e.g. 0) used for analog position control
 actuators(1).sensorInputChanID = 0;        % AI channel number (e.g. 0) used for analog position sensing
-actuators(1).commandVoltsPerMicron = (10/450)/1.1;    % Conversion factor for desired command position in um to output voltage
+actuators(1).commandVoltsPerMicron = 0.020202;    % Conversion factor for desired command position in um to output voltage
 actuators(1).commandVoltsOffset = [];        % Offset in volts for desired command position in um to output voltage
-actuators(1).sensorVoltsPerMicron = (10/450)/1.1;     % Conversion factor from sensor signal voltage to actuator position in um. Leave empty for automatic calibration
+actuators(1).sensorVoltsPerMicron = 0.020202;     % Conversion factor from sensor signal voltage to actuator position in um. Leave empty for automatic calibration
 actuators(1).sensorVoltsOffset = -0.12;        % Sensor signal voltage offset. Leave empty for automatic calibration
 actuators(1).maxCommandVolts = 10;          % Maximum allowable voltage command
 actuators(1).maxCommandPosn = 450;           % Maximum allowable position command in microns
