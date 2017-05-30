@@ -134,7 +134,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.motors.hex.origin = move('hex');
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [9410 11650 18650]; % When are we centred over the hexapod's origin?
+    STL.logistics.stage_centre = [9480 12750 18580]; % When are we centred over the hexapod's origin?
     foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
         sprintf(' %d', STL.logistics.stage_centre)), ...
         'Stage setup', 'Yes', 'No', 'Yes');
@@ -1557,6 +1557,8 @@ function search_Callback(hObject, eventdata, handles)
 end
 
 
+% When the microscope is aiming at the rotation stage's natural centre,
+% store that value for referencing.
 function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
@@ -1629,13 +1631,13 @@ end
 function hexapod_reset_to_centre(handles)
     global STL;
     
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(1);
     for i = 1:6
         disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), 0));
         STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
     end
     hexapod_wait(handles);
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(1);
     update_gui(handles);
 end
 
@@ -1654,12 +1656,17 @@ function hexapod_reset_to_zero_rotation(handles)
         end
     end
 
-    STL.motors.hex.C887.VLS(2);
+    % For some reason, this can lead to about a 400-micron up-and-down. So
+    % give us space!
+    mompos = move('mom');
+    move('mom', mompos - [ 0 0 400]);
+    STL.motors.hex.C887.VLS(1);
     for i = 4:6
         STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
     end
     hexapod_wait(handles);
-    STL.motors.hex.C887.VLS(2);
+    move('mom', mompos);
+    STL.motors.hex.C887.VLS(1);
     update_gui(handles);
 end
 
@@ -1732,7 +1739,9 @@ function hexapod_wait(handles)
     end
 end
 
-%% Set the virtual rotation centre to the point under the microscope lens
+% Set the virtual rotation centre to the point under the microscope lens.
+% This assumes that STL.logistics.stage_centre (MOM's coordinates when
+% aligned to hexapod's true centre) is correct.
 function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
@@ -1740,10 +1749,10 @@ function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
     hexapod_reset_to_zero_rotation(handles);
 
     head_position_rel = hSI.hMotors.motorPosition - STL.logistics.stage_centre;
-    head_position_rel = (head_position_rel(STL.motors.mom.axis_order) .* STL.motors.mom.axis_signs)
-    head_position_rel = head_position_rel / 1e3;
+    head_position_rel = (head_position_rel(STL.motors.mom.axis_order) .* (STL.motors.mom.axis_signs .* STL.motors.hex.axis_signs))
+    % This DOES NOT WORK for Z
     for i = 1:2
-        STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), head_position_rel(i));
+        STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), -head_position_rel(i) / 1e3);
     end
 end
 
@@ -1769,9 +1778,11 @@ function align_stages(hObject, eventdata, handles);
     global STL;
     hSI = evalin('base', 'hSI');
 
-    
+    handles = guidata(gcbo);
+
     add_bullseye();
-    
+    hexapod_reset_to_zero_rotation(handles);
+
     for i = 1:3
         STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), 0);
     end
