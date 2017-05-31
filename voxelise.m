@@ -133,13 +133,41 @@ function [] = voxelise(handles, target)
                         STL.print.voxelpos{mvx, mvy, mvz}.x = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
                         STL.print.voxelpos{mvx, mvy, mvz}.y = yc + (mvy - 1) * STL.print.metavoxel_shift(2);
                         STL.print.voxelpos{mvx, mvy, mvz}.z = zc + (mvz - 1) * STL.print.metavoxel_shift(3);
+                        xlength = numel(STL.print.voxelpos{mvx, mvy, mvz}.x);
+                        ylength = numel(STL.print.voxelpos{mvx, mvy, mvz}.y);
+                        zlength = numel(STL.print.voxelpos{mvx, mvy, mvz}.z);
 
-                        STL.print.metavoxels{mvx, mvy, mvz} = VOXELISE(...
+                        A = parVOXELISE(...
                             STL.print.voxelpos{mvx, mvy, mvz}.x, ...
                             STL.print.voxelpos{mvx, mvy, mvz}.y, ...
                             STL.print.voxelpos{mvx, mvy, mvz}.z, ...
                             STL.print.mesh);
+
+                       
+                        parfor vx = 1:xlength
+                            zvector = A(vx,:,:);
+                            for vy = 1:ylength
+                                for vz = 1:(zlength-5)
+                                    test1 = [zvector(1,vy,vz) ~zvector(1,vy,vz+1) zvector(1,vy,vz+2) zvector(1,vy,vz+3)];
+                                    %test2 = [zvector(vz) ~zvector(vz+1) ~zvector(vz+2) zvector(vz+3) zvector(vz+4) zvector(vz+5)];
+                                    if all(test1)
+                                        zvector(1,vy,vz+1) = 1;
+                                    elseif ~any(test1)
+                                        zvector(1,vy,vz+1) = 0;
+%                                     elseif ~any(test2)
+%                                         zvector(vz+1) = 0;
+%                                         zvector(vz+2) = 0;
+%                                     elseif all(test2)
+%                                         zvector(vz+1) = 1;
+%                                         zvector(vz+2) = 1;
+                                    end
+                                end
+                                
+                            end
+                            A(vx,:,:) = zvector;
+                        end
                         
+                        STL.print.metavoxels{mvx, mvy, mvz} = A;
                         STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}).*metapower;
                         
                         % Delete empty zstack slices if they are above
@@ -233,4 +261,23 @@ function [] = voxelise(handles, target)
 
 end
 
-    
+% was used instead of the parfor after parVOXELISE, keeping it as backup    
+function zvector = smoothen(zvector)
+    for i=2:(numel(zvector)-3)
+%         test1 = [zvector(i) ~zvector(i+1) ~zvector(i+2) zvector(i+3) zvector(i+4) zvector(i+5)];
+%         if ~any(test1)
+%             zvector(i+1) = 0;
+%             zvector(i+2) = 0;
+%         end
+%         if all(test1)
+%             zvector(i+1) = 1;
+%             zvector(i+2) = 1;
+%         end
+        test2 = [zvector(i) ~zvector(i+1) zvector(i+2) zvector(i+3)];
+        if all(test2)
+            zvector(i+1) = 1;
+        elseif ~any(test2)
+            zvector(i+1) = 0;
+        end
+    end
+end
