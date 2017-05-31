@@ -103,17 +103,36 @@ function hexapod_pi_connect()
     end
     
     for i = 1:6
+        axis = availableaxes{i};
         while ~STL.motors.hex.C887.qFRF(axis)
             pause(0.1);
         end
         STL.motors.hex.range(i,:) = [STL.motors.hex.C887.qTMN(axis) STL.motors.hex.C887.qTMX(axis)];
     end
     fprintf('done.\n');
+    
+    hexapos = hexapod_get_position();
+    if any(abs(hexapos(1:3)) > 0.001)
+        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ].');
+        mompos = move('mom');
+        
+        error('Ben just added this code. Test it first!');
+        
+        % mompos(3): > is lower, hexapos(3): > is higher
+        mompos(3) = mompos(3) + hexapos(3);
+        if hexapos(3) < 0
+            % Move the hexapod up AFTER the lens makes room
+            move('mom', mompos);
+            move('hex', [0 0 0]);
+        else
+            % Move the hexapod down BEFORE the lens follows
+            move('hex', [0 0 0]);
+            move('mom', mompos);
+        end
+    else
+        set(handles.messages, 'String', '');
+    end
 
     STL.motors.hex.C887.VLS(2);
-    hexapod_reset_to_zero_rotation();
-    STL.motors.hex.C887.SPI('X', 0);
-    STL.motors.hex.C887.SPI('Y', 0);
-    STL.motors.hex.C887.SPI('Z', STL.motors.hex.pivot_z_um / 1e3);
 
 end

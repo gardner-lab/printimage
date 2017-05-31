@@ -465,16 +465,11 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hBeams.zprvResetHome();
     %hSI.hFastZ.positionTarget = foo;
     hexapos = hexapod_get_position();
-    if any(abs(hexapos(1:3) > 0.001))
-        foo = questdlg(sprintf('Hexpod is at [%s ], not [ 0 0 0 ]. Continue?', ...
-            sprintf(' %d', hexapos(1:3))), ...
-            'Print', 'Yes', 'No', 'No');
-        switch foo
-            case 'Yes'
-                ;
-            case 'No'
-                return;
-        end
+    if any(abs(hexapos(1:3)) > 0.001)
+        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first');
+        return;
+    else
+        set(handles.messages, 'String', '');
     end
     
     if STL.print.rescale_needed
@@ -672,6 +667,9 @@ function print_Callback(hObject, eventdata, handles)
     STL.print.armed = false;
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
+    
+    % Reset just the XY plane to the starting point (NOT Z!)
+    move('hex', [ 0 0 ]);
     
     motorHold(handles, 'off');
     if ~STL.logistics.simulated
@@ -1214,16 +1212,11 @@ function test_linearity_Callback(varargin)
     end
     
     hexapos = hexapod_get_position();
-    if any(abs(hexapos(1:3) > 0.001))
-        foo = questdlg(sprintf('Hexpod is at [%s ], not [ 0 0 0 ]. Continue?', ...
-            sprintf(' %d', hexapos(1:3))), ...
-            'Print', 'Yes', 'No', 'No');
-        switch foo
-            case 'Yes'
-                ;
-            case 'No'
-                return;
-        end
+    if any(abs(hexapos(1:3)) > 0.001)
+        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first');
+        return;
+    else
+        set(handles.messages, 'String', '');
     end
 
     STL.motors.mom.origin = move('mom');
@@ -1254,7 +1247,7 @@ function test_linearity_Callback(varargin)
     
     hSI.hBeams.powerBoxes(ind) = pb;
     
-    nframes = 40;
+    nframes = 50;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -1291,6 +1284,7 @@ function test_linearity_Callback(varargin)
     
     posns = posns(:, randperm(prod(size(X))))';
 
+    STL.motors.hex.C887.VLS(0.2);
 
     for xy = 1:size(posns, 1)
         if STL.logistics.abort
@@ -1352,6 +1346,9 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = 1;
     motorHold(handles, 'off');
+    
+    % Move hexapod home
+    move('hex', [ 0 0 0 ]);
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         STL.logistics.wbar_pos = get(wbar, 'Position');
@@ -1620,8 +1617,15 @@ end
 
 function hexapod_rotate_u_Callback(hObject, eventdata, handles)
     global STL;
+    
+    hexapod_set_rotation_centre_Callback();
     try
+        set(handles.messages, 'String', sprintf('Rotating U to %g', get(hObject, 'Value') * STL.motors.hex.range(4, 2)));
+        STL.motors.hex.C887.KEN('rotation');
         STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
+        hexapod_wait();
+        set(handles.messages, 'String', '');
+        STL.motors.hex.C887.KEN('ZERO');
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
@@ -1630,8 +1634,15 @@ end
 
 function hexapod_rotate_v_Callback(hObject, eventdata, handles)
     global STL;
+
+    hexapod_set_rotation_centre_Callback();
     try
+        set(handles.messages, 'String', sprintf('Rotating V to %g', get(hObject, 'Value') * STL.motors.hex.range(5, 2)));
+        STL.motors.hex.C887.KEN('rotation');
         STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
+        hexapod_wait();
+        set(handles.messages, 'String', '');
+        STL.motors.hex.C887.KEN('ZERO');
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
@@ -1640,8 +1651,15 @@ end
 
 function hexapod_rotate_w_Callback(hObject, eventdata, handles)
     global STL;
+    
+    hexapod_set_rotation_centre_Callback();
     try
+        set(handles.messages, 'String', sprintf('Rotating W to %g', get(hObject, 'Value') * STL.motors.hex.range(6, 2)));
+        STL.motors.hex.C887.KEN('rotation');
         STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
+        hexapod_wait();
+        set(handles.messages, 'String', '');
+        STL.motors.hex.C887.KEN('ZERO');
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
@@ -1673,17 +1691,19 @@ end
 % Set the virtual rotation centre to the point under the microscope lens.
 % This assumes that STL.logistics.stage_centre (MOM's coordinates when
 % aligned to hexapod's true centre) is correct.
-function hexapod_set_rotation_centre_Callback(hObject, eventdata, handles)
+function hexapod_set_rotation_centre_Callback(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    hexapod_reset_to_zero_rotation(handles);
-
     head_position_rel = hSI.hMotors.motorPosition - STL.logistics.stage_centre;
     head_position_rel = (head_position_rel(STL.motors.mom.axis_order) .* (STL.motors.mom.axis_signs .* STL.motors.hex.axis_signs))
-    % This DOES NOT WORK for Z
-    for i = 1:2
-        STL.motors.hex.C887.SPI(STL.motors.hex.axes(i), -head_position_rel(i) / 1e3);
+    try
+        for i = 1:2
+            STL.motors.hex.C887.KSD('rotation', STL.motors.hex.axes(i), -head_position_rel(i) / 1e3);
+        end
+        STL.motors.hex.C887.KSD('rotation', STL.motors.hex.axes(3), STL.motors.hex.pivot_z_um / 1e3);
+    catch ME
+        rethrow(ME);
     end
 end
 
@@ -1699,6 +1719,13 @@ function align_stages(hObject, eventdata, handles);
     handles = guidata(gcbo);
 
     add_bullseye();
+    
+    hexapos = hexapod_get_position();
+    for i = 1:2
+        STL.motors.hex.C887.KSD('rotation', STL.motors.hex.axes(i), 0);
+    end
+    STL.motors.hex.C887.KSD('rotation', STL.motors.hex.axes(3), STL.motors.hex.pivot_z_um / 1e3);
+
     hexapod_reset_to_zero_rotation(handles);
 
     for i = 1:3

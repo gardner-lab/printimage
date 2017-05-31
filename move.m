@@ -59,15 +59,15 @@ function [newpos] = move(motor, target_um)
             %position = rand(1)*(STL.motors.hex.dAxisMax-STL.motors.hex.dAxisMin)+STL.motors.hex.dAxisMin;
             % Possible to do this as a single command?
             for i = 1:length(target_mm)
-                disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), target_mm(i)));
+                % anti-backlash:
+                STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i) - 0.02);
+            end
+            hexapod_wait();
+            
+            for i = 1:length(target_mm)
                 STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i));
             end
-            for i = 1:length(target_mm)
-                while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
-                    pause(0.1);
-                end
-            end
-            
+            hexapod_wait();
         otherwise
             
             error('Invalid motor "%s". No movement.',  motor);
