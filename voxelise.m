@@ -112,8 +112,9 @@ function [] = voxelise(handles, target)
             STL.print.metavoxels = {};
             STL.logistics.abort = false;
 
-            
-            parfor mvx = 1:nmetavoxels(1)
+%             parfor mvx = 1:nmetavoxels(1) % parfor threw an error --
+%             can't use with an embedded return command
+            for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
                         
