@@ -15,6 +15,14 @@ function [newpos] = move(motor, target_um)
             case 'mom'
                 newpos = hSI.hMotors.motorPosition;
             case 'hex'
+                % If the hexapod is in 'rotation' coordinate system,
+                % wait for move to finish and then switch to 'ZERO'.
+                [~, b] = STL.motors.hex.C887.qKEN('');
+                if ~strcmpi(b(1:8), 'PI_LEVEL')
+                    hexapod_wait();
+                    STL.motors.hex.C887.KEN('ZERO');
+                end
+
                 for i = 1:3
                     newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) * 1e3;
                 end
@@ -49,6 +57,14 @@ function [newpos] = move(motor, target_um)
             
             
         case 'hex'
+            
+            % If the hexapod is in 'rotation' coordinate system,
+            % wait for move to finish and then switch to 'ZERO'.
+            [~, b] = STL.motors.hex.C887.qKEN('');
+            if ~strcmpi(b(1:8), 'PI_LEVEL')
+                hexapod_wait();
+                STL.motors.hex.C887.KEN('ZERO');
+            end
             
             target_mm = target_um / 1e3
 
