@@ -36,7 +36,7 @@ function [newpos] = move(motor, target_um)
     end
 
     
-    disp(sprintf(' ...moving %s to [%s ]...', motor, sprintf('%g ', target_um)));
+    %disp(sprintf(' ...moving %s to [%s ]...', motor, sprintf('%g ', target_um)));
     
     if STL.logistics.simulated
         STL.logistics.simulated_pos(1:3) = target_um;
@@ -66,7 +66,7 @@ function [newpos] = move(motor, target_um)
                 STL.motors.hex.C887.KEN('ZERO');
             end
             
-            target_mm = target_um / 1e3
+            target_mm = target_um / 1e3;
 
             % 0x19001500 (max velocity) qVLS, max seems around 2 (units?
             % should be 10 mm/s!)
@@ -74,11 +74,11 @@ function [newpos] = move(motor, target_um)
             % Parameter 0x19001901 should be 0
             %position = rand(1)*(STL.motors.hex.dAxisMax-STL.motors.hex.dAxisMin)+STL.motors.hex.dAxisMin;
             % Possible to do this as a single command?
-            for i = 1:length(target_mm)
-                % anti-backlash:
-                STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i) - 0.02);
-            end
-            hexapod_wait();
+            %for i = 1:length(target_mm)
+            %    % anti-backlash:
+            %    STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i) - 0.02);
+            %end
+            %hexapod_wait();
             
             for i = 1:length(target_mm)
                 STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i));
