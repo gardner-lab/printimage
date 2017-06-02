@@ -113,10 +113,10 @@ function hexapod_pi_connect()
     
     hexapos = hexapod_get_position();
     if any(abs(hexapos(1:3)) > 0.001)
-        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ].');
+        %set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ].');
         mompos = move('mom');
         
-        error('Ben just added this code. Test it first!');
+        %error('Ben just added this code. Test it first!');
         
         % mompos(3): > is lower, hexapos(3): > is higher
         mompos(3) = mompos(3) + hexapos(3);
@@ -130,7 +130,7 @@ function hexapod_pi_connect()
             move('mom', mompos);
         end
     else
-        set(handles.messages, 'String', '');
+        %set(handles.messages, 'String', '');
     end
 
     STL.motors.hex.C887.VLS(2);

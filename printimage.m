@@ -62,7 +62,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
-    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Microscope is aligned with hexapod centre', 'Callback', @hexapod_microscope_aligned);
+    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Microscope is aligned with hexapod centre', 'Callback', @set_stage_rotation_centre_Callback);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     
     menu_test = uimenu(hObject, 'Label', 'Test');
@@ -139,7 +139,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.motors.hex.origin = move('hex');
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [9480 12750 18580]; % When are we centred over the hexapod's origin?
+    
+    STL.logistics.stage_centre = [9358 12928 18520]; % When are we centred over the hexapod's origin?
     foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
         sprintf(' %d', STL.logistics.stage_centre)), ...
         'Stage setup', 'Yes', 'No', 'Yes');
@@ -1237,7 +1238,9 @@ function test_linearity_Callback(varargin)
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     end
     
-    hSI.hRoiManager.scanZoomFactor = 2.2;
+    hSI.hRoiManager.scanZoomFactor = 6;
+    userPower = hSI.hBeams.powers;
+    hSI.hBeams.powers = 1.3;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
@@ -1247,7 +1250,8 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
     
     ind = 1;
-    pb.rect = [0.49 0.49 0.02 0.02];
+    %pb.rect = [0.46 0.46 0.08 0.08];
+    pb.rect = [0.9 0.46 0.08 0.08];
     pb.powers = STL.print.power * 100;
     pb.name = 'hi';
     pb.oddLines = 1;
@@ -1268,7 +1272,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:10:400, 0:10:400);
+    [X Y] = meshgrid(0:10:100, 0:10:100);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1313,7 +1317,9 @@ function test_linearity_Callback(varargin)
             STL.print.armed = false;
             hSI.hStackManager.numSlices = 1;
             hSI.hFastZ.enable = false;
-            
+            hSI.hBeams.enablePowerBox = false;
+            hSI.hRoiManager.scanZoomFactor = 1;
+            hSI.hBeams.powers = userPower;
             if ~STL.logistics.simulated
                 while ~strcmpi(hSI.acqState,'idle')
                     pause(0.1);
@@ -1354,9 +1360,8 @@ function test_linearity_Callback(varargin)
     % Clean up
     hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = 1;
+    hSI.hBeams.powers = userPower;
     motorHold(handles, 'off');
-    
-    % Move hexapod home
     move('hex', [ 0 0 0 ]);
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
@@ -1676,6 +1681,8 @@ function hexapod_rotate_w_Callback(hObject, eventdata, handles)
     global STL;
     
     %hexapod_set_rotation_centre_Callback();
+    STL.motors.hex.C887.VLS(2);
+
     try
         %set(handles.messages, 'String', sprintf('Rotating W to %g', get(hObject, 'Value') * STL.motors.hex.range(6, 2)));
         [~, b] = STL.motors.hex.C887.qKEN('');
