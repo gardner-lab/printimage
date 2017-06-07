@@ -1,29 +1,21 @@
 % Moves 'mom' (Sutter MOM) or 'hex' (Physik-Instrumente hexapod), and a
 % 3-vector of target positions (in microns).
-function [newpos] = move(motor, target_um)
+function [pos] = move(motor, target_um)
     global STL;
     hSI = evalin('base', 'hSI');
     
     % if target_um is blank, just return the current position
     if ~exist('target_um', 'var')
         if STL.logistics.simulated
-            newpos = STL.logistics.simulated_pos(1:3);
+            pos = STL.logistics.simulated_pos(1:3);
             return;
         end
         
         switch motor
             case 'mom'
-                newpos = hSI.hMotors.motorPosition;
+                pos = hSI.hMotors.motorPosition;
             case 'hex'
-                % If the hexapod is in 'rotation' coordinate system,
-                % wait for move to finish and then switch to 'ZERO'.
-                [~, b] = STL.motors.hex.C887.qKEN('');
-                if ~strcmpi(b(1:8), 'PI_LEVEL')
-                    hexapod_wait();
-                    STL.motors.hex.C887.KEN('ZERO');
-                end
-
-                newpos = STL.motors.hex.C887.qPOS('X Y Z') * 1e3;
+                pos = hexapod_get_position();
         end
         return;
     end
@@ -38,7 +30,7 @@ function [newpos] = move(motor, target_um)
     
     if STL.logistics.simulated
         STL.logistics.simulated_pos(1:3) = target_um;
-        newpos = target_um;
+        pos = target_um;
         
         return;
     end
