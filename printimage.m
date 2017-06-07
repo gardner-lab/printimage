@@ -61,7 +61,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
     menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
-    menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_level);
+    menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_leveling);
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_rotation_centre_Callback);
@@ -140,6 +140,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hexapod_pi_connect();
     end
     
+    hexapod_set_leveling();
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
@@ -1784,7 +1785,7 @@ function align_stages(hObject, eventdata, handles);
 end
 
 
-function hexapod_set_level(varargin)
+function hexapod_set_leveling(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -1794,7 +1795,8 @@ function hexapod_set_level(varargin)
         STL.motors.hex.C887.KEN('ZERO');
     end
     
-    STL.motors.hex.leveling = hexapod_get_position;
+    %STL.motors.hex.leveling = hexapod_get_position;
+    %STL.motors.hex.leveling(1:3) = [0 0 0];
     
     STL.motors.hex.C887.CCL(1, 'advanced');
     %try
