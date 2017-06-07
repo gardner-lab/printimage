@@ -61,9 +61,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
     menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
+    menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_level);
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
-    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Microscope is aligned with hexapod centre', 'Callback', @set_stage_rotation_centre_Callback);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
+    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_rotation_centre_Callback);
     
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
@@ -133,7 +134,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     %                   [0 0 1] reduces height
     STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
-
+    STL.motors.hex.leveling = [0 0 0 -0.13 0.31 1.0];
     
     if ~STL.logistics.simulated
         hexapod_pi_connect();
@@ -151,7 +152,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     end
     STL.logistics.abort = false;
     
-    STL.logistics.stage_centre = [8098 13291 19479]; % When are we centred over the hexapod's origin?
+    STL.logistics.stage_centre = [7894 13523 19479]; % When are we centred over the hexapod's origin?
     foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
         sprintf(' %d', STL.logistics.stage_centre)), ...
         'Stage setup', 'Yes', 'No', 'Yes');
@@ -1305,8 +1306,9 @@ function test_linearity_Callback(varargin)
     end
     
     
-    posns = posns(:, randperm(prod(size(X))))';
-
+    %posns = posns(:, randperm(prod(size(X))));
+    posns = posns';
+    
     STL.motors.hex.C887.VLS(1);
 
     for xy = 1:size(posns, 1)
@@ -1625,8 +1627,10 @@ function clean_shutdown(varargin)
 end
 
 
-function hexapod_reset_to_centre(handles)
+function hexapod_reset_to_centre(varargin)
     global STL;
+    
+    nargin
     
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
@@ -1761,6 +1765,12 @@ function align_stages(hObject, eventdata, handles);
     global STL;
     hSI = evalin('base', 'hSI');
 
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:8), 'PI_LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+    
     handles = guidata(gcbo);
 
     add_bullseye();
@@ -1772,3 +1782,27 @@ function align_stages(hObject, eventdata, handles);
 
     STL.motors.hex.C887.SPI('X Y Z', [0 0 0]);
 end
+
+
+function hexapod_set_level(varargin)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:8), 'PI_LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+    
+    STL.motors.hex.leveling = hexapod_get_position;
+    
+    STL.motors.hex.C887.CCL(1, 'advanced');
+    %try
+        STL.motors.hex.C887.KLD('level', 'x y z u v w', STL.motors.hex.leveling);
+    %catch ME
+    %    rethrow(ME);
+    %end
+    STL.motors.hex.C887.KEN('level');
+    STL.motors.hex.C887.CCL(0, 'advanced');
+end
+
