@@ -44,7 +44,7 @@ beamDaqs(1).displayNames = {'Ch1 780'};                  % Optional string cell 
 beamDaqs(1).voltageRanges = 2;                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = 0;               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = -0.00243738;                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = -0.00181939;                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = false;        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 
@@ -60,7 +60,7 @@ motors(1).positionDeviceUnits = [];      % 1xN array specifying, in meters, raw 
 motors(1).velocitySlow = [];             % Velocity to use for moves smaller than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).velocityFast = [];             % Velocity to use for moves larger than motorFastMotionThreshold value. If unspecified, default value used for controller. Specified in units appropriate to controller type.
 motors(1).moveCompleteDelay = 0;        % Delay from when stage controller reports move is complete until move is actually considered complete. Allows settling time for motor
-motors(1).moveTimeout = 5;              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
+motors(1).moveTimeout = 10;              % Default: 2s. Fixed time to wait for motor to complete movement before throwing a timeout error
 motors(1).moveTimeoutFactor = 0.0005;        % (s/um) Time to add to timeout duration based on distance of motor move command
 
 %% FastZ

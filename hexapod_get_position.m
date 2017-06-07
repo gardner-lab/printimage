@@ -6,7 +6,5 @@ function pos = hexapod_get_position()
         return;
     end
     
-    for i = 1:6
-        pos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) / STL.motors.hex.range(i, 2);
-    end
+    pos = STL.motors.hex.C887.qPOS('x y z u v w') ./ STL.motors.hex.range(:, 2);
 end

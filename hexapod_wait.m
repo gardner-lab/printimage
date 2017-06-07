@@ -4,10 +4,8 @@ function hexapod_wait(handles)
     if exist('handles', 'var')
         set(handles.messages, 'String', 'Waiting for hexapod to finish zeroing...');
     end
-    for i = 1:6
-        while(STL.motors.hex.C887.IsMoving(STL.motors.hex.axes(i)))
-            pause(0.1);
-        end
+    while(any(STL.motors.hex.C887.IsMoving('X Y Z U V W')))
+        pause(0.1);
     end
     if exist('handles', 'var')
         set(handles.messages, 'String', '');

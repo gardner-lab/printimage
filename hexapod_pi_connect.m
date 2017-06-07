@@ -90,25 +90,25 @@ function hexapod_pi_connect()
         error('No axes available');
     end
     
+    all_axes = 'X Y Z U V W';
 
     % Reference stage
     fprintf('Referencing hexapod axes... ');
-    for i = 1:6
-        axis = availableaxes{i};
-        fprintf('%s ', axis);
-        STL.motors.hex.axes(i) = axis;
-        if ~STL.motors.hex.C887.qFRF(axis)
-            STL.motors.hex.C887.FRF(axis);
-        end
+    if any(STL.motors.hex.C887.qFRF(all_axes) == 0)
+        STL.motors.hex.C887.FRF(all_axes);
     end
     
-    for i = 1:6
-        axis = availableaxes{i};
-        while ~STL.motors.hex.C887.qFRF(axis)
-            pause(0.1);
-        end
-        STL.motors.hex.range(i,:) = [STL.motors.hex.C887.qTMN(axis) STL.motors.hex.C887.qTMX(axis)];
+    while any(STL.motors.hex.C887.qFRF(all_axes) == 0)
+        pause(0.1);
     end
+    
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:8), 'PI_LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+    
+    STL.motors.hex.range = [STL.motors.hex.C887.qTMN(all_axes) STL.motors.hex.C887.qTMX(all_axes)];
     fprintf('done.\n');
     
     hexapos = hexapod_get_position();

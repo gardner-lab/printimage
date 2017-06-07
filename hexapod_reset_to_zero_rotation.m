@@ -17,10 +17,8 @@ function hexapod_reset_to_zero_rotation(handles)
     % give us space!
     mompos = move('mom');
     move('mom', mompos - [ 0 0 400]);
-    STL.motors.hex.C887.VLS(1);
-    for i = 4:6
-        STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
-    end
+    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.MOV('U V W', [0 0 0]);
     
     if exist('handles', 'var')
         hexapod_wait(handles);

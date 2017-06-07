@@ -23,9 +23,7 @@ function [newpos] = move(motor, target_um)
                     STL.motors.hex.C887.KEN('ZERO');
                 end
 
-                for i = 1:3
-                    newpos(i) = STL.motors.hex.C887.qPOS(STL.motors.hex.axes(i)) * 1e3;
-                end
+                newpos = STL.motors.hex.C887.qPOS('X Y Z') * 1e3;
         end
         return;
     end
@@ -49,6 +47,10 @@ function [newpos] = move(motor, target_um)
     
     switch motor
         case 'mom'
+            
+            % Move along the expected axes in the expected direction
+            %target_um = target_um(STL.motors.mom.axis_order(1:length(target_um)));
+            
             
             % Go to position-x on all dimensions in order to always
             % complete the move in the same direction.
@@ -80,8 +82,12 @@ function [newpos] = move(motor, target_um)
             %end
             %hexapod_wait();
             
-            for i = 1:length(target_mm)
-                STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), target_mm(i));
+            if length(target_mm) == 2
+                STL.motors.hex.C887.MOV('X Y', target_mm);
+            elseif length(target_mm) == 3
+                STL.motors.hex.C887.MOV('X Y Z', target_mm);
+            else
+                error('need XY or XYZ');
             end
             hexapod_wait();
         otherwise
