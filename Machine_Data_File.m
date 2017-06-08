@@ -44,7 +44,7 @@ beamDaqs(1).displayNames = {'Ch1 780'};                  % Optional string cell 
 beamDaqs(1).voltageRanges = 2;                % Scalar or array of values specifying voltage range to use for each beam. Scalar applies to each beam.
 
 beamDaqs(1).calInputChanIDs = 0;               % Array of integers specifying AI channel IDs, one for each beam modulation channel. Values of nan specify no calibration for particular beam.
-beamDaqs(1).calOffsets = -0.00181939;                    % Array of beam calibration offset voltages for each beam calibration channel
+beamDaqs(1).calOffsets = -0.00237079;                    % Array of beam calibration offset voltages for each beam calibration channel
 beamDaqs(1).calUseRejectedLight = false;        % Scalar or array indicating if rejected light (rather than transmitted light) for each beam's modulation device should be used to calibrate the transmission curve 
 beamDaqs(1).calOpenShutterIDs = 1;             % Array of shutter IDs that must be opened for calibration (ie shutters before light modulation device).
 
@@ -113,7 +113,7 @@ xGalvoAngularRange = [];            % max range in optical degrees (pk-pk) for x
 yGalvoAngularRange = 20;            % max range in optical degrees (pk-pk) for y galvo
 
 galvoVoltsPerOpticalDegreeX = 1;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
-galvoVoltsPerOpticalDegreeY = 1;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
+galvoVoltsPerOpticalDegreeY = 0.97;  % galvo conversion factor from optical degrees to volts (negative values invert scan direction)
 
 galvoParkDegreesX = -8;             % Numeric [deg]: Optical degrees from center position for X galvo to park at when scanning is inactive
 galvoParkDegreesY = -8;             % Numeric [deg]: Optical degrees from center position for Y galvo to park at when scanning is inactive
