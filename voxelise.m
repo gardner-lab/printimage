@@ -238,7 +238,7 @@ function [] = voxelise(handles, target)
     
     % Save what we've done... just in case...
     disp('Saving voxelised file as LastVoxelised.mat');
-    save('LastVoxelised', 'STL');
+    save('LastVoxelised_dont_remove_this_until_last_one_is_rescued', 'STL');
 end
 
     
