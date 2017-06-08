@@ -102,13 +102,15 @@ function hexapod_pi_connect()
         pause(0.1);
     end
     
-    [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
-        hexapod_wait();
-        STL.motors.hex.C887.KEN('ZERO');
-    end
-    
+    % This is required to get the range?!?
+    STL.motors.hex.C887.CCL(1, 'advanced');
+    STL.motors.hex.C887.KEN('zero');
     STL.motors.hex.range = [STL.motors.hex.C887.qTMN(all_axes) STL.motors.hex.C887.qTMX(all_axes)];
+    STL.motors.hex.C887.KLD('level', 'x y z u v w', STL.motors.hex.leveling);
+    STL.motors.hex.C887.KEN('level');
+    STL.motors.hex.C887.KEN('PI_Base');
+    STL.motors.hex.C887.CCL(0, 'advanced');
+    
     fprintf('done.\n');
     
     hexapos = hexapod_get_position();
@@ -134,5 +136,6 @@ function hexapod_pi_connect()
     end
 
     STL.motors.hex.C887.VLS(2);
-
+    hexapod_set_leveling(STL.motors.hex.leveling);
+    hexapod_reset_to_zero_rotation();
 end

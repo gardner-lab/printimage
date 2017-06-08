@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 25-May-2017 14:23:05
+    % Last Modified by GUIDE v2.5 08-Jun-2017 16:19:04
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -134,13 +134,13 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     %                   [0 0 1] reduces height
     STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
-    STL.motors.hex.leveling = [0 0 0 -0.13 0.31 1.0];
+    %STL.motors.hex.leveling = [0 0 0 -0.13 0.31 1.0];
+    STL.motors.hex.leveling = [0 0 0 0.3 -0.1 -1];
     
     if ~STL.logistics.simulated
         hexapod_pi_connect();
     end
     
-    hexapod_set_leveling();
     % I'm going to drop the fastZ stage to 420. To make that safe, first
     % I'll move the slow stage up in order to create sufficient clearance
     % (with appropriate error checks).
@@ -176,9 +176,17 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % ScanImage freaks out if we pass an illegal command to its motor stage
     % controller--and also if I can't move up the required amount, I
     % probably shouldn't drop the fastZ stage. Error out:
-    if any(STL.motors.mom.origin < 0)
-        error('Cannot initialise PrintImage: lower the slow Z stage just a little and restart PrintImage');
-        return;
+    zpos = hSI.hMotors.motorPosition(3);
+    while zpos < 500
+        foo = questdlg('Please safely drop the MOM''s Z axis to at least 500 microns.', ...
+            'Stage setup', 'I did it', 'Cancel');
+        switch foo
+            case 'I did it'
+                zpos = hSI.hMotors.motorPosition(3);
+            case 'Cancel'
+                hexapod_pi_disconnect()
+                return;
+        end
     end
     
     % Disable this for PI...
@@ -739,7 +747,7 @@ function motorHold(handles, v);
                 % If the hexapod is in 'rotation' coordinate system,
                 % wait for move to finish and then switch to 'ZERO'.
                 [~, b] = STL.motors.hex.C887.qKEN('');
-                if ~strcmpi(b(1:8), 'PI_LEVEL')
+                if ~strcmpi(b(1:5), 'LEVEL')
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
@@ -1285,7 +1293,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:20:500, 0:20:500);
+    [X Y] = meshgrid(0:100:400, 0:100:400);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1636,7 +1644,7 @@ function hexapod_reset_to_centre(varargin)
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
     [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
+    if ~strcmpi(b(1:5), 'LEVEL')
         hexapod_wait();
         STL.motors.hex.C887.KEN('ZERO');
     end
@@ -1725,7 +1733,7 @@ function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
     end
 end
 
-function hexapod_zero_Callback(hObject, eventdata, handles)
+function hexapod_zero_angles_Callback(hObject, eventdata, handles)
     hexapod_reset_to_zero_rotation(handles);
 end
 
@@ -1745,7 +1753,7 @@ function hexapod_set_rotation_centre_Callback(varargin)
     new_pivot_mm = new_pivot_mm .* [-1 -1 1]
     
     [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
+    if ~strcmpi(b(1:5), 'LEVEL')
         hexapod_wait();
         STL.motors.hex.C887.KEN('ZERO');
     end
@@ -1767,7 +1775,7 @@ function align_stages(hObject, eventdata, handles);
     hSI = evalin('base', 'hSI');
 
     [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
+    if ~strcmpi(b(1:5), 'LEVEL')
         hexapod_wait();
         STL.motors.hex.C887.KEN('ZERO');
     end
@@ -1785,26 +1793,11 @@ function align_stages(hObject, eventdata, handles);
 end
 
 
-function hexapod_set_leveling(varargin)
+function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
-        hexapod_wait();
-        STL.motors.hex.C887.KEN('ZERO');
-    end
-    
-    %STL.motors.hex.leveling = hexapod_get_position;
-    %STL.motors.hex.leveling(1:3) = [0 0 0];
-    
-    STL.motors.hex.C887.CCL(1, 'advanced');
-    %try
-        STL.motors.hex.C887.KLD('level', 'x y z u v w', STL.motors.hex.leveling);
-    %catch ME
-    %    rethrow(ME);
-    %end
-    STL.motors.hex.C887.KEN('level');
-    STL.motors.hex.C887.CCL(0, 'advanced');
+    foo = hexapod_get_position();
+    hexapod_wait();
+    STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
 end
-
