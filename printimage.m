@@ -135,7 +135,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
     %STL.motors.hex.leveling = [0 0 0 -0.13 0.31 1.0];
-    STL.motors.hex.leveling = [0 0 0 0.3 -0.1 -1];
+    STL.motors.hex.leveling = [0 0 0 0.3 -0.1 -1.1];
     
     if ~STL.logistics.simulated
         hexapod_pi_connect();

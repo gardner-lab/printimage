@@ -235,7 +235,10 @@ function [] = voxelise(handles, target)
         set(handles.messages, 'String', '');
         drawnow;
     end
-
+    
+    % Save what we've done... just in case...
+    disp('Saving voxelised file as LastVoxelised.mat');
+    save('LastVoxelised', 'STL');
 end
 
     
