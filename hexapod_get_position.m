@@ -8,7 +8,7 @@ function pos = hexapod_get_position()
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
     [~, b] = STL.motors.hex.C887.qKEN('');
-    if ~strcmpi(b(1:8), 'PI_LEVEL')
+    if ~strcmpi(b(1:5), 'LEVEL')
         hexapod_wait();
         STL.motors.hex.C887.KEN('ZERO');
     end

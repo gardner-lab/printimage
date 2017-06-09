@@ -34,4 +34,3 @@ function hexapod_set_leveling(varargin)
     STL.motors.hex.C887.KEN('level');
     STL.motors.hex.C887.CCL(0, 'advanced');
 end
-

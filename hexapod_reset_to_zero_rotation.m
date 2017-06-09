@@ -16,14 +16,11 @@ function hexapod_reset_to_zero_rotation(handles)
     % For some reason, this can lead to about a 400-micron up-and-down. So
     % give us space!
     mompos = move('mom');
-    if mompos(3) < 400
-        error('MOM Z position must be >= 400 so it can escape bad hexapod moves.');
-    end
-    
+    minmommove = max(min(mompos(3), 400) - 1, 0)
     disp('Moving MOM to:');
-    mompos - [0 0 400]
+    mompos - [0 0 minmommove]
 
-    move('mom', mompos - [ 0 0 400]);
+    move('mom', mompos - [ 0 0 minmommove]);
     STL.motors.hex.C887.VLS(2);
     STL.motors.hex.C887.MOV('U V W', [0 0 0]);
     

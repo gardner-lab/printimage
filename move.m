@@ -46,9 +46,16 @@ function [pos] = move(motor, target_um)
             
             % Go to position-x on all dimensions in order to always
             % complete the move in the same direction.
-            hSI.hMotors.motorPosition(1:length(target_um)) = target_um - anti_backlash(1:length(target_um));
-            hSI.hMotors.motorPosition(1:length(target_um)) = target_um;
             
+            if all(target_um - anti_backlash(1:length(target_um)) >= 0)
+                warning('MOM anti-backlash position is out of range.');
+                hSI.hMotors.motorPosition(1:length(target_um)) = target_um - anti_backlash(1:length(target_um));
+            end
+            if all(target_um >= 0) & all(target_um <= 21500)
+                hSI.hMotors.motorPosition(1:length(target_um)) = target_um;
+            else
+                error('MOM commanded position is out of range.');
+            end
             
         case 'hex'
             
