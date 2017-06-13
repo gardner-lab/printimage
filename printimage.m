@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 02-May-2017 16:45:12
+    % Last Modified by GUIDE v2.5 12-Jun-2017 20:04:01
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -108,7 +108,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
     end
     STL.logistics.abort = false;
-    STL.logistics.stage_centre = [15836 9775]; % Until Yarden moves the thing?
+    STL.logistics.stage_centre = [11240 10547]; % Until Yarden moves the thing?
     foo = questdlg(sprintf('Stage rotation centre set to [%d, %d]. Ok?', ...
         STL.logistics.stage_centre(1), STL.logistics.stage_centre(2)), ...
         'Stage setup', 'Yes', 'No', 'No');
@@ -118,7 +118,18 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         case 'No'
             STL.logistics.stage_centre = [];
     end
+    
+    
+    set(gcf, 'CloseRequestFcn', @clean_shutdown);
 
+    STL.motors.rot.esp301 = espConnect('com5');
+    setzero(STL.motors.rot.esp301, 3);
+    fopen(STL.motors.rot.esp301);
+    settrajmode = strcat('3TJ2');
+    fprintf(STL.motors.rot.esp301, settrajmode);
+    query(STL.motors.rot.esp301, '3TJ?')
+    fclose(STL.motors.rot.esp301);
+    
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     STL.logistics.lens_working_distance = 370;
@@ -158,6 +169,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     set(handles.whichBeam, 'String', foo);
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
+    addlistener(handles.rotate_by_slider, 'Value', 'PreSet', @(~,~)rotate_by_slider_show_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
     
@@ -1454,8 +1466,8 @@ function search_Callback(hObject, eventdata, handles)
 
 end
 
-
-function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
+% This is used to calibrate the MOM-understage positions at 0.
+function set_stage_true_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -1467,6 +1479,11 @@ end
 % If the underlying object is rotated, we can servo to its new location (if
 % we know the centre of rotation (see set_stage_rotation_centre_Callback).
 function track_rotation_Callback(hObject, eventdata, handles)
+    angle_deg = str2double(get(hObject, 'String'));
+    track_rotation(handles, angle_deg);
+end
+
+function track_rotation(handles, angle_deg)
     global STL;
     hSI = evalin('base', 'hSI');
 
@@ -1475,14 +1492,16 @@ function track_rotation_Callback(hObject, eventdata, handles)
         return;
     end
     
+    % Always rotate about the current position!
     pos = hSI.hMotors.motorPosition(1:2);
-    pos_relative = pos - STL.logistics.stage_centre;
+    pos_relative = pos - STL.logistics.stage_centre
     
-    r = pi*str2double(get(hObject, 'String'))/180;
+    r = pi*angle_deg/180;
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
-    pos_relative = pos_relative * rm;
+    pos_relative = pos_relative * rm
     try
-        set(handles.messages, 'String', '');
+        set(handles.messages, 'String','');
+        set(handles.rotate_by_textbox, 'String', '');
         hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
     catch ME
         ME
@@ -1499,3 +1518,54 @@ end
 
 function focusWhenDone_Callback(hObject, eventdata, handles)
 end
+
+
+function rotate_by_slider_show_Callback(hObject, eventdata, handles)
+    spos = get(handles.rotate_by_slider, 'Value');
+    sscaled = sign(spos) * 90^abs(spos);
+    set(handles.rotate_by_textbox, 'String', sprintf('%.3g', sscaled));
+end
+
+function rotate_by_slider_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    spos = get(hObject, 'Value');
+    rotangle = sign(spos) * 90^abs(spos);
+    set(handles.rotate_by_textbox, 'String', sprintf('Target: %.3g', rotangle));
+    set(handles.rotate_by_slider, 'Value', 0);
+    
+    moveto_rel(STL.motors.rot.esp301, 3, -rotangle);
+    track_rotation(handles, rotangle);
+end
+
+
+function rotate_by_slider_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+
+function clean_shutdown(varargin)
+    global STL;
+    global wbar;
+    
+    try
+        hSI = evalin('base', 'hSI');
+        hSI.hRoiManager.scanZoomFactor = 1;
+    end
+    
+    try
+        fclose(STL.motors.rot.esp301);
+    end
+    
+    try
+        delete(wbar);
+    end
+    
+    clear -global STL;
+    
+    delete(gcf);
+end
+
+
