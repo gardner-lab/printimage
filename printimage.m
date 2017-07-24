@@ -72,6 +72,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     try
         hSI = evalin('base', 'hSI');
         fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
+        if isfield(hSI, 'simulated') & hSI.simulated
+            error('Catch me!');
+        end
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
@@ -80,6 +83,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.simulated = true;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
         hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
