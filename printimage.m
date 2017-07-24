@@ -62,6 +62,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     try
         hSI = evalin('base', 'hSI');
+        if isfield(STL, 'logistics') & isfield(STL.logistics, 'simulated') & STL.logistics.simulated
+            error('Catch me!');
+        end
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
