@@ -62,6 +62,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     try
         hSI = evalin('base', 'hSI');
+        if isfield(hSI, 'simulated') & hSI.simulated
+            error('Catch me!');
+        end
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
@@ -69,6 +72,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.simulated = true;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
         hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
@@ -122,13 +126,15 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     set(gcf, 'CloseRequestFcn', @clean_shutdown);
 
-    STL.motors.rot.esp301 = espConnect('com5');
-    setzero(STL.motors.rot.esp301, 3);
-    fopen(STL.motors.rot.esp301);
-    settrajmode = strcat('3TJ2');
-    fprintf(STL.motors.rot.esp301, settrajmode);
-    query(STL.motors.rot.esp301, '3TJ?')
-    fclose(STL.motors.rot.esp301);
+    if ~STL.logistics.simulated
+        STL.motors.rot.esp301 = espConnect('com5');
+        setzero(STL.motors.rot.esp301, 3);
+        fopen(STL.motors.rot.esp301);
+        settrajmode = strcat('3TJ2');
+        fprintf(STL.motors.rot.esp301, settrajmode);
+        query(STL.motors.rot.esp301, '3TJ?')
+        fclose(STL.motors.rot.esp301);
+    end
     
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
