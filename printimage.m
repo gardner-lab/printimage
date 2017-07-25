@@ -75,11 +75,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
+        % Run in simulated mode!
         STL.logistics.simulated = true;
         STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
-        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
-        hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
+        hSI.hRoiManager.linesPerFrame = 512;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
@@ -1403,14 +1404,18 @@ end
 
 function LoadState_Callback(varargin)
     global STL;
+
+    simulated = STL.logistics.simulated; % This should be updated, at least!
     
     [FileName,PathName] = uigetfile('*.mat');
     
     if isequal(FileName, 0)
         return;
     end
-    
+        
     load(strcat(PathName, FileName));
+    
+    STL.logistics.simulated = simulated;
     
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
