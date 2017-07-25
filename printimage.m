@@ -70,8 +70,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     catch ME
         STL.logistics.simulated = true;
         hSI.simulated = true;
-        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
-        hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
+        hSI.hRoiManager.linesPerFrame = 512;
         hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
@@ -384,7 +384,7 @@ function updateSTLfile(handles, STLfile)
     STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
-    STL.patchobj1 = stlread(STL.file);
+    STL.patchobj1 = stlRead(STL.file);
     
     % Reset one or two things...
     STL.print.invert_z = 0;
@@ -1318,7 +1318,11 @@ function LoadState_Callback(varargin)
         return;
     end
     
+    simulated = STL.logistics.simulated;
+    
     load(strcat(PathName, FileName));
+    
+    STL.logistics.simulated = simulated;
     
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
