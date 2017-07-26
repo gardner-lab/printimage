@@ -127,7 +127,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     set(gcf, 'CloseRequestFcn', @clean_shutdown);
 
     if ~STL.logistics.simulated
-        STL.motors.rot.esp301 = espConnect('com5');
+        STL.motors.rot.esp301 = espConnect('com4');
         setzero(STL.motors.rot.esp301, 3);
         fopen(STL.motors.rot.esp301);
         settrajmode = strcat('3TJ2');
