@@ -47,7 +47,7 @@ For X and Y, three parameters affect two degrees of freedom. I think there's a c
 ScanImage mainains its idea of the lens's field of view in a variable called `hSI.hRoiManager.imagingFovUm`. This is a matrix giving the corner positions of the FOV. I've assumed that this is square and centered around 0, so if it's not, my code will be buggy! But here's one way to read ScanImage's idea of the FOV in X and Y:
 
         fov = hSI.hRoiManager.imagingFovUm
-        [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)
+        [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)]
 
 ### Parameters in `Machine_Data_File.m`
 
@@ -67,7 +67,7 @@ This accomplished, compute your error in X and Y, and just multiply some combina
 
 ScanImage allows you to specify certain known models of FastZ stage. From `Machine_Data_File.m`:
 
-        actuators(1).controllerType = 'analog';        %'thorlabs.pfm450';           % If supplied, one of {'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
+        actuators(1).controllerType = 'thorlabs.pfm450';           % If supplied, one of {'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
 
 We have a ThorLabs pfm450, which ScanImage <em>should</em> know how to talk to. However, ours was not moving quite as far as ScanImage expected. In order to correct that, I modified some variables.
 
@@ -79,7 +79,7 @@ The procedure is generally the same as for X and Y: either print something of os
 
 ### Setting the values
 
-First, convince ScanImage that you don't know what kind of FastZ controller you're using, so it will actually use your adjusted values and not its own!
+First, convince ScanImage that you don't know what kind of FastZ controller you're using, so it will actually use your adjusted values and not its own. Just tell it you're using an analog controller:
 
         actuators(1).controllerType = 'analog';          % If supplied, one of {'thorlabs.pfm450', 'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
 
@@ -89,12 +89,12 @@ Now, adjust the VoltsPerMicron values according to your measurements:
 
 The maximum voltage is 10 (specified in the manual, transcribed to `actuators(1).maxCommandVolts`; likewise the 450 and other constants (see below).
 
-* The "/1.1" is the important part--it compensates for the 10% error that we measured. *
+<em>The "/1.1" is the important part--it compensates for the 10% error that we measured.</em>
 
         actuators(1).commandVoltsOffset = [];        % Offset in volts for desired command position in um to output voltage
         actuators(1).sensorVoltsPerMicron = (10/450)/1.1;     % Conversion factor from sensor signal voltage to actuator position in um. Leave empty for automatic calibration
 
-Same thing here--the sensor was off by the same amount. That led us to double-check our measurements (looks like two independent (?) systems were in agreement), but the printed parts really were the wrong size, measured on an SEM and via our slow Z stage (Sutter MOM). So that can happen, I guess. Photoresist shrinkage? Anyway, our parts are the right size now.
+Same thing here--the sensor was off by the same amount. That led us to double-check our measurements (looks like two independent (?) systems were in agreement), but the printed parts really were the wrong size, measured on an SEM and via our slow Z stage (Sutter MOM, which is notoriously inaccurate but which in this case agreed with the SEM, as well as with itself at different locations in its range). So that can happen, I guess. Photoresist shrinkage? Anyway, our parts are the right size now.
 
         actuators(1).sensorVoltsOffset = -0.12;        % Sensor signal voltage offset. Leave empty for automatic calibration
         actuators(1).maxCommandVolts = 10;          % Maximum allowable voltage command
