@@ -152,6 +152,14 @@ PrintImage's "Power Test" button will print a bunch of rectangular prisms at var
 - Objects are printed in slices from Z=0 to higher Z. Slices that print later must attach to slices that print earlier. The Z axis should have no overhangs.
   - Because PrintImage is so fast, we have noticed that some overhangs are okay: the overhanging part may not have time to drift away. But this is untested: do not rely on it! Rather, choose Z so that there are no overhangs.
 
+## Controlling print resolution
+
+X and Y resolutions are functions of various things (position on the X axis, zoom level, hardware...), and you have limited control over them. Z is easiest.
+
+- X "resolution" is always determined by the speed of the analogue output card controlling your Pockels cell. It will always be as high as it can be. There's no single number for this--voxels are smaller near the edges of the FOV than in the middle where the resonant scanner moves the beam faster. Sorry.
+- Y "resolution" (the number of Y scan lines) is controlled by ScanImage's `Lines / Frame` parameter in the CONFIGURATION window, also available at the command line through `hSI.hRoiManager.linesPerFrame`. It is always a power of two, so the choice of actual resolutions is somewhat limited.
+- Z resolution is a little different: it's agnostic to zoom level, and it's measured in real units. Please control this through PrintImage's variable `STL.print.zstep`, which is in microns, and it will instruct ScanImage correctly <em>assuming ScanImage moves your FastZ stage in the same direction as mine with the same voltage change. You may need to change the sign.</em> (Internally, PrintImage controls ScanImage's internal variable `Steps/Slice` in the FAST Z CONTROLS window (`hSI.hStackManager.stackZStepSize`).) One version of the PrintImage interface gives you direct control over that, but if you don't see it, then you have to modify the variable in `printimage.m`.
+
 ## Controlling print size
 
 Because STL files are dimensionless, you have to choose the size of the object.
