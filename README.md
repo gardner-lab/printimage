@@ -61,6 +61,12 @@ You'll need a way to measure the actual FOV. This can be done by imaging somethi
 
 This accomplished, compute your error in X and Y, and just multiply some combination of those numbers to scale the image. It is likely that the numbers have nominal values (e.g. for our hardware, in theory `galvoVoltsPerOpticalDegreeY = 1`), so maybe try not to stray too far from those values, or keep one of them at the nominal value or something. We've found that one iteration of this procedure can get us to within 1% or so.
 
+### Scan phase
+
+If the size of objects appears different on the left vs. right sides of the display (e.g. if you print or image a grid, and scrolling left-right changes the apparent grid size), you may need to adjust the scan phase. It's `hSI.hScan2D.linePhase`, available in the "Scan Phase" box in ScanImage's CONFIGURATION window. I haven't had much luck with "Auto Adjust".
+
+Note that since this is not available in `Machine_Data_File.m`, I set it by hand in `printimage.m`. This will be moved to a printimage config file soon... For now, change the value until it looks right, and then modify `hSI.hScan2D.linePhase` in `printimage.m`.
+
 ## Z scale (FastZ scale adjustment)
 
 ### Background
