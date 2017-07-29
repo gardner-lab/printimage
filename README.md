@@ -67,7 +67,7 @@ If the size of objects appears different on the left vs. right sides of the disp
 
 Note that since this is not available in `Machine_Data_File.m`, I set it by hand in `printimage.m`. This will be moved to a printimage config file soon... For now, change the value until it looks right, and then modify `hSI.hScan2D.linePhase` in `printimage.m`.
 
-## Z scale (FastZ scale adjustment)
+## Z scale (adjusting the FastZ actuator)
 
 ### Background
 
@@ -85,7 +85,7 @@ The procedure is generally the same as for X and Y: either print something of os
 
 ### Setting the values
 
-First, convince ScanImage that you don't know what kind of FastZ controller you're using, so it will actually use your adjusted values and not its own. Just tell it you're using an analog controller:
+If you need to adjust the scaling, you must <em>not</em> tell ScanImage what kind of FastZ controller you have, so it will actually use your adjusted values rather than its own. Just tell it you're using an analog controller:
 
         actuators(1).controllerType = 'analog';          % If supplied, one of {'thorlabs.pfm450', 'pi.e665', 'pi.e816', 'npoint.lc40x', 'analog'}.
 
@@ -175,10 +175,10 @@ Because STL files are dimensionless, you have to choose the size of the object.
 If the object to be printed exceeds any of the dimensions allowed by your hardware, PrintImage will break it into parts and print them in sequence using your XYZ stage.
 - Z and safe-working-depth warning!
 
-## After printing
+# After printing
 
-### Inspecting the print
+## Inspecting the print
 
-### Resetting the Z position
+## Resetting the Z position
 
-### Developing the print
+## Developing the print
