@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 08-Jun-2017 16:19:04
+    % Last Modified by GUIDE v2.5 12-Jun-2017 20:04:01
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -64,7 +64,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_leveling);
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
-    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_rotation_centre_Callback);
+    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
     
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
@@ -72,6 +72,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     try
         hSI = evalin('base', 'hSI');
         fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
+        if isfield(hSI, 'simulated') & hSI.simulated
+            error('Catch me!');
+        end
         STL.logistics.simulated = false;
         hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
@@ -81,6 +84,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.simulated = true;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
         hSI.hRoiManager.linesPerFrame = 512;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
@@ -89,89 +93,36 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     set(gcf, 'CloseRequestFcn', @clean_shutdown);
     
-    
-    % Some parameters are only computed on grab. So do one.
-    hSI.hStackManager.numSlices = 1;
-    hSI.hFastZ.enable = false;
-    hSI.hFastZ.actuatorLag = 13e-3; % Should calibrate with zstep = whatever you're going to use
-    
-    STL.print.zstep = 1;     % microns per step in z (vertical)
-    STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
-    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
-    STL.print.power = 0.6;
-    STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
-    STL.print.size = [360 360 360];
-    STL.print.zoom_min = 1.5;
-    STL.print.zoom = 1.5;
-    STL.print.zoom_best = 1.5;
-    STL.print.armed = false;
-    STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [8 8 8]; % Microns of overlap (positive is more overlap) in order to get good bonding
-    STL.print.voxelise_needed = true;
-    STL.preview.voxelise_needed = true;
-    STL.print.invert_z = false;
-    STL.print.motor_reset_needed = false;
-    STL.preview.show_metavoxel_slice = NaN;
-    STL.print.fastZhomePos = 420;
+    STL.logistics.wbar_pos = [.05 .85];
 
-    STL.motors.stitching = 'hex'; % 'hex' is PI hexapod, 'mom' is Sutter MOM
     
-    STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
+    %% From this point onward, STL vars are not supposed to be user-configurable
     
+    set_up_params();
+    %foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
+    %    sprintf(' %d', STL.logistics.stage_centre)), ...
+    %    'Stage setup', 'Yes', 'No', 'Yes');
+    %switch foo
+    %    case 'Yes'
+    %        ;
+    %    case 'No'
+    %        STL.logistics.stage_centre = [];
+    %end
     
-    
-    % MOM to image: [1 0 0] moves down
-    %               [0 1 0] moves left
-    %               [0 0 1] reduces height
-    % MOM to hex:
-    STL.motors.mom.coords_to_hex = [0 1 0; ...
-        -1 0 0; ...
-        0 0 -1];
-    STL.motors.mom.axis_signs = [ -1 1 -1 ];
-    STL.motors.mom.axis_order = [ 2 1 3 ];
-
-    % Hexapod to image: [1 0 0] moves right
-    %                   [0 1 0] moves down
-    %                   [0 0 1] reduces height
-    STL.motors.hex.axis_signs = [ 1 1 -1 ];
-    STL.motors.hex.axis_order = [ 1 2 3 ];
-    STL.motors.hex.leveling = [0 0 0 0.3 -0.1 -1.1];
     
     if ~STL.logistics.simulated
-        hexapod_pi_connect();
+        switch STL.motors.special
+            case 'hex_pi'
+                hexapod_pi_connect();
+            case 'rot_esp301'
+                rot_esp301_connect();
+            case 'none'
+                ;
+            otherwise
+                warning('STL.motors.special: I don''t know what a ''%s'' is.', STL.motors.special);
+        end
     end
     
-    % I'm going to drop the fastZ stage to 420. To make that safe, first
-    % I'll move the slow stage up in order to create sufficient clearance
-    % (with appropriate error checks).
-    if STL.logistics.simulated
-        STL.motors.mom.origin = [10000 10000 6000];
-        STL.motors.hex.origin = [0 0 0];
-    else
-        STL.motors.mom.origin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
-        STL.motors.hex.origin = move('hex');
-    end
-    STL.logistics.abort = false;
-    
-    STL.logistics.stage_centre = [7894 13523 19479]; % When are we centred over the hexapod's origin?
-    foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
-        sprintf(' %d', STL.logistics.stage_centre)), ...
-        'Stage setup', 'Yes', 'No', 'Yes');
-    switch foo
-        case 'Yes'
-            ;
-        case 'No'
-            STL.logistics.stage_centre = [];
-    end
-    
-
-    % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
-    % 380um.
-    STL.logistics.lens_working_distance = 370;
-    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
-    STL.bounds_1 = [NaN NaN  zbound ];
-    STL.print.bounds_max = [NaN NaN  zbound ];
-    STL.print.bounds = [NaN NaN  zbound ];
     
     % ScanImage freaks out if we pass an illegal command to its motor stage
     % controller--and also if I can't move up the required amount, I
@@ -193,28 +144,45 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     warning('Disabling warning "MATLAB:subscripting:noSubscriptsSpecified" because there will be A LOT of them!');
     evalin('base', 'warning(''off'', ''MATLAB:subscripting:noSubscriptsSpecified'');');
     
-
-    STL.logistics.wbar_pos = [.05 .85];
+    STL.logistics.abort = false; % Bookkeeping; not user-configurable
     
-    foo = {};
+    
+    % Some parameters are only computed on grab. So do one.
+    hSI.hStackManager.numSlices = 1;
+    hSI.hFastZ.enable = false;
+    hSI.hFastZ.actuatorLag = 13e-3; % Should calibrate with zstep = whatever you're going to use
+
+    legal_beams = {};
     if STL.logistics.simulated
-        foo = -1;
+        STL.motors.mom.origin = [10000 10000 6000];
+        STL.motors.hex.origin = [0 0 0];
+        legal_beams = -1;
     else
         evalin('base', 'hSI.startGrab()');
         while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
         end
         
+        % Get the list of legal beam channels
         for i = 1:length(hSI.hChannels.channelName)
-            foo{i} = sprintf('%d', i);
+            legal_beams{i} = sprintf('%d', i);
         end
         
+        % I'm going to drop the fastZ stage to 420. To make that safe, first
+        % I'll move the slow stage up in order to create sufficient clearance
+        % (with appropriate error checks).
+        STL.motors.mom.origin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
+        if strcmp(STL.motors.special, 'hex_pi')
+            STL.motors.hex.origin = move('hex');
+        end
         move('mom', STL.motors.mom.origin);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     end
-    set(handles.whichBeam, 'String', foo);
+    set(handles.whichBeam, 'String', legal_beams);
+    
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
+    addlistener(handles.rotate_by_slider, 'Value', 'PreSet', @(~,~)rotate_by_slider_show_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
     
@@ -237,6 +205,73 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
 end
 
 
+% This sets up default values for user-configurable STL parameters. Then,
+% if printimage_config.m exists, we load that, and replace all valid
+% parameters' default values with the user-configured versions. If a
+% default value doesn't exist, the user configuration parameter is ignored
+% and a warning issued.
+function set_up_params()
+    global STL;
+    
+    STL.print.zstep = 1;     % microns per step in z (vertical)
+    STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
+    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
+    STL.print.power = 0.6;
+    STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
+    STL.print.size = [360 360 360];
+    STL.print.zoom_min = 1.5;
+    STL.print.zoom = 1.5;
+    STL.print.zoom_best = 1.5;
+    STL.print.armed = false;
+    STL.preview.resolution = [120 120 120];
+    STL.print.metavoxel_overlap = [8 8 8]; % Microns of overlap (positive is more overlap) in order to get good bonding
+    STL.print.voxelise_needed = true;
+    STL.preview.voxelise_needed = true;
+    STL.print.invert_z = false;
+    STL.print.motor_reset_needed = false;
+    STL.preview.show_metavoxel_slice = NaN;
+    STL.print.fastZhomePos = 420;
+
+    STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
+    STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
+    STL.motors.rot.com_port = 'com4';
+    
+    STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
+    
+    % MOM to image: [1 0 0] moves down
+    %               [0 1 0] moves left
+    %               [0 0 1] reduces height
+    % MOM to hex:
+    STL.motors.mom.coords_to_hex = [0 1 0; ...
+        -1 0 0; ...
+        0 0 -1];
+    STL.motors.mom.axis_signs = [ -1 1 -1 ];
+    STL.motors.mom.axis_order = [ 2 1 3 ];
+
+    % Hexapod to image: [1 0 0] moves right
+    %                   [0 1 0] moves down
+    %                   [0 0 1] reduces height
+    STL.motors.hex.axis_signs = [ 1 1 -1 ];
+    STL.motors.hex.axis_order = [ 1 2 3 ];
+    STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
+    STL.logistics.stage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+    
+    % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
+    % 380um.
+    STL.logistics.lens_working_distance = 370;
+    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
+    STL.bounds_1 = [NaN NaN  zbound ];
+    STL.print.bounds_max = [NaN NaN  zbound ];
+    STL.print.bounds = [NaN NaN  zbound ];
+
+    
+    %%%%%
+    %% Finally, allow the user to override any of these:
+    %%%%%
+    
+    params_file = 'printimage_config'; 
+    load_params(params_file, 'STL');
+end
 
 % Sets STL.print.dims, and calls for reorientation of the model.
 function update_dimensions(handles, dim, val)
@@ -377,7 +412,7 @@ function updateSTLfile(handles, STLfile)
     STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
-    STL.patchobj1 = stlread(STL.file);
+    STL.patchobj1 = stlRead(STL.file);
     
     % Reset one or two things...
     STL.print.invert_z = 0;
@@ -979,7 +1014,7 @@ end
 
 %function fastZlower_Callback(hObject, eventdata, handles)
 %    global STL;
-%%    hSI = evalin('base', 'hSI');
+%    hSI = evalin('base', 'hSI');
 %    hSI.hFastZ.positionTarget = 420;
 %    motorHold(handles, 'reset');
 %end
@@ -1568,21 +1603,25 @@ function search_Callback(hObject, eventdata, handles)
     
 end
 
-
-% When the microscope is aiming at the rotation stage's natural centre,
-% store that value for referencing.
-function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
+% This is used to calibrate the MOM-understage positions at 0.
+function set_stage_true_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
     STL.logistics.stage_centre = hSI.hMotors.motorPosition;
-    set(handles.messages, 'String', '');
+    set(handles.messages, 'String', sprintf('You can add ''STL.logistics.stage_centre = [%s ]'' to your config.', ...
+        sprintf(' %d', STL.logistics.stage_centre)));
 end
 
 
 % If the underlying object is rotated, we can servo to its new location (if
 % we know the centre of rotation (see set_stage_rotation_centre_Callback).
 function track_rotation_Callback(hObject, eventdata, handles)
+    angle_deg = str2double(get(hObject, 'String'));
+    track_rotation(handles, angle_deg);
+end
+
+function track_rotation(handles, angle_deg)
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -1591,15 +1630,17 @@ function track_rotation_Callback(hObject, eventdata, handles)
         return;
     end
     
+    % Always rotate about the current position!
     pos = hSI.hMotors.motorPosition(1:2);
     pos_relative = pos - STL.logistics.stage_centre(1:2);
     
-    r = pi*str2double(get(hObject, 'String'))/180;
+    r = pi*angle_deg/180;
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
     pos_relative = pos_relative * rm;
     try
-        set(handles.messages, 'String', '');
-        move('mom',  pos_relative + STL.logistics.stage_centre(1:2));
+        set(handles.messages, 'String','');
+        set(handles.rotate_by_textbox, 'String', '');
+        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
@@ -1620,10 +1661,14 @@ end
 function clean_shutdown(varargin)
     global STL;
     global wbar;
-    
+        
     try
         hSI = evalin('base', 'hSI');
         hSI.hRoiManager.scanZoomFactor = 1;
+    end
+    
+    try
+        fclose(STL.motors.rot.esp301);
     end
     
     try
@@ -1732,6 +1777,31 @@ function hexapod_rotate_v_CreateFcn(hObject, eventdata, handles)
 end
 
 function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function rotate_by_slider_show_Callback(hObject, eventdata, handles)
+    spos = get(handles.rotate_by_slider, 'Value');
+    sscaled = sign(spos) * 90^abs(spos);
+    set(handles.rotate_by_textbox, 'String', sprintf('%.3g', sscaled));
+end
+
+function rotate_by_slider_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    spos = get(hObject, 'Value');
+    rotangle = sign(spos) * 90^abs(spos);
+    set(handles.rotate_by_textbox, 'String', sprintf('Target: %.3g', rotangle));
+    set(handles.rotate_by_slider, 'Value', 0);
+    
+    moveto_rel(STL.motors.rot.esp301, 3, -rotangle);
+    track_rotation(handles, rotangle);
+end
+
+
+function rotate_by_slider_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
