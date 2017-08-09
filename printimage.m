@@ -248,6 +248,7 @@ function set_up_params()
     STL.motors.mom.axis_signs = [ -1 1 -1 ];
     STL.motors.mom.axis_order = [ 2 1 3 ];
 
+    STL.motors.hex.ip_address = '0.0.0.0';
     % Hexapod to image: [1 0 0] moves right
     %                   [0 1 0] moves down
     %                   [0 0 1] reduces height

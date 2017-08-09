@@ -46,13 +46,13 @@ function hexapod_pi_connect()
     
     
     if (STL.motors.hex.use_RS232_Connection)
-        STL.motors.hex.comPort = 1;          % Look at the device manager to get the rigth COM port.
+        STL.motors.hex.comPort = 1;          % Look at the device manager to get the right COM port.
         STL.motors.hex.baudRate = 115200;    % Look at the manual to get the right baud rate for your controller.
     end
     
     if (STL.motors.hex.use_TCPIP_Connection)
         %devicesTcpIp = Controller.EnumerateTCPIPDevices('')
-        STL.motors.hex.ip = '128.197.37.110';  % Use "devicesTcpIp = Controller.EnumerateTCPIPDevices('')" to get all PI controller available on the network.
+        STL.motors.hex.ip = STL.motors.hex.ip_address;  % Use "devicesTcpIp = Controller.EnumerateTCPIPDevices('')" to get all PI controller available on the network.
         STL.motors.hex.port = 50000;           % Is 50000 for almost all PI controllers
     end
     
