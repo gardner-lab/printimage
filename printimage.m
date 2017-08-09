@@ -416,7 +416,7 @@ function updateSTLfile(handles, STLfile)
     STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
-    STL.patchobj1 = stlRead(STL.file);
+    STL.patchobj1 = stlread(STL.file);
     
     % Reset one or two things...
     STL.print.invert_z = 0;
