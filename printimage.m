@@ -82,6 +82,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         STL.logistics.simulated = true;
         STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
         hSI.hRoiManager.linesPerFrame = 512;
         hSI.hRoiManager.scanZoomFactor = 2.2;
