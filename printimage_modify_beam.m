@@ -18,14 +18,14 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     foo = size(STL.print.voxelpower);
     STL.print.voxelpower(end,:,:) = zeros(foo(2:3));
     v = STL.print.voxelpower(:);
-    disp(sprintf('=== Cosine took power down to %g', ...
-        min(v(find(v~=0)))));
+    %disp(sprintf('=== Cosine took power down to %g', ...
+    %    min(v(find(v~=0)))));
     % boost low-power voxels, but not the zero-power voxels
     vnot = (v > 0.1);
     v = v * STL.print.power;
     v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
-    disp(sprintf('=== Compensation took power down to %g', ...
-        min(v(find(v~=0)))));
+    %disp(sprintf('=== Compensation took power down to %g', ...
+    %    min(v(find(v~=0)))));
 
     STL.print.ao_volts_raw = ao_volts_raw;
     STL.print.ao_volts_raw.B(:, STL.print.whichBeam) = hSI.hBeams.zprpBeamsPowerFractionToVoltage(STL.print.whichBeam, v);

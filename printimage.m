@@ -540,9 +540,7 @@ function print_Callback(hObject, eventdata, handles)
     end
     
     UpdateBounds_Callback([], [], handles);
-    
-    eval(sprintf('motor = STL.motors.%s;', STL.motors.stitching));
-    
+        
     if ~STL.logistics.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
@@ -610,6 +608,8 @@ function print_Callback(hObject, eventdata, handles)
     start_time = datetime('now');
     eta = 'next weekend';
     
+    eval(sprintf('motor = STL.motors.%s;', STL.motors.stitching));
+
     metavoxel_counter = 0;
     metavoxel_total = prod(STL.print.nmetavoxels);
     for mvz = 1:STL.print.nmetavoxels(3)
@@ -1245,6 +1245,7 @@ function crushReset_Callback(hObject, eventdata, handles)
     STL.motors.hex.origin = move('hex');
     STL.print.motor_reset_needed = false;
     set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
+    set(handles.messages, 'String', '');
 end
 
 
@@ -1671,7 +1672,7 @@ function track_rotation(handles, angle_deg)
     try
         set(handles.messages, 'String','');
         set(handles.rotate_infinite_textbox, 'String', '');
-        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre(1:2);
+        move('mom', pos_relative + STL.logistics.stage_centre(1:2));
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
@@ -1733,10 +1734,7 @@ function hexapod_reset_to_centre(varargin)
     end
 
     STL.motors.hex.C887.VLS(2);
-    for i = 1:6
-        disp(sprintf('Axis %s to %g', STL.motors.hex.axes(i), 0));
-        STL.motors.hex.C887.MOV(STL.motors.hex.axes(i), 0);
-    end
+    STL.motors.hex.C887.MOV('x y z u v w', [0 0 0 0 0 0]);
     hexapod_wait(handles);
     STL.motors.hex.C887.VLS(2);
     update_gui(handles);

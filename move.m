@@ -3,7 +3,7 @@
 function [pos] = move(motor, target_um)
     global STL;
     hSI = evalin('base', 'hSI');
-    
+        
     % if target_um is blank, just return the current position
     if ~exist('target_um', 'var')
         if STL.logistics.simulated
@@ -43,11 +43,10 @@ function [pos] = move(motor, target_um)
             % Move along the expected axes in the expected direction
             %target_um = target_um(STL.motors.mom.axis_order(1:length(target_um)));
             
-            
             % Go to position-x on all dimensions in order to always
             % complete the move in the same direction.
             
-            if all(target_um - anti_backlash(1:length(target_um)) >= 0)
+            if all(target_um - anti_backlash(1:length(target_um)) < 0)
                 warning('MOM anti-backlash position is out of range.');
                 hSI.hMotors.motorPosition(1:length(target_um)) = target_um - anti_backlash(1:length(target_um));
             end
