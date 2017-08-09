@@ -115,10 +115,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         switch STL.motors.special
             case 'hex_pi'
                 hexapod_pi_connect();
-                set(handles.panel_rotation_hexapod, 'Visible', 1);
+                set(handles.panel_rotation_hexapod, 'Visible', 'on');
             case 'rot_esp301'
                 rot_esp301_connect();
-                set(handles.panel_rotation_infinite, 'Visible', 1);
+                set(handles.panel_rotation_infinite, 'Visible', 'on');
             case 'none'
                 ;
             otherwise
@@ -237,6 +237,7 @@ function set_up_params()
 
     STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
     STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
+    STL.motors.rot.connected = false;
     STL.motors.rot.com_port = 'com4';
     
     STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
@@ -251,6 +252,7 @@ function set_up_params()
     STL.motors.mom.axis_signs = [ -1 1 -1 ];
     STL.motors.mom.axis_order = [ 2 1 3 ];
 
+    STL.motors.hex.connected = false;
     STL.motors.hex.ip_address = '0.0.0.0';
     % Hexapod to image: [1 0 0] moves right
     %                   [0 1 0] moves down
@@ -1643,11 +1645,12 @@ function track_rotation(handles, angle_deg)
     pos_relative = pos_relative * rm;
     try
         set(handles.messages, 'String','');
-        set(handles.rotate_by_textbox, 'String', '');
-        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
+        set(handles.rotate_infinite_textbox, 'String', '');
+        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre(1:2);
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
+        rethrow(ME);
     end
 end
 
@@ -1791,7 +1794,7 @@ end
 function rotate_by_slider_show_Callback(hObject, eventdata, handles)
     spos = get(handles.rotate_infinite_slider, 'Value');
     sscaled = sign(spos) * 90^abs(spos);
-    set(handles.rotate_by_textbox, 'String', sprintf('%.3g', sscaled));
+    set(handles.rotate_infinite_textbox, 'String', sprintf('%.3g', sscaled));
 end
 
 % Do the actual rotation when the drag ends. For infinite-rotation devices (currently just the esp301).
@@ -1800,7 +1803,7 @@ function rotate_infinite_slider_Callback(hObject, eventdata, handles)
     
     spos = get(hObject, 'Value');
     rotangle = sign(spos) * 90^abs(spos);
-    set(handles.rotate_by_textbox, 'String', sprintf('Target: %.3g', rotangle));
+    set(handles.rotate_infinite_textbox, 'String', sprintf('Target: %.3g', rotangle));
     set(handles.rotate_infinite_slider, 'Value', 0);
     
     moveto_rel(STL.motors.rot.esp301, 3, -rotangle);

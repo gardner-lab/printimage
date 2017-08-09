@@ -5,6 +5,12 @@ function pos = hexapod_get_position()
         pos = STL.logistics.simulated_pos;
         return;
     end
+    
+    if ~STL.motors.hex.connected
+        pos = [ 0 0 0 0 0 0 ];
+        return;
+    end
+    
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
     [~, b] = STL.motors.hex.C887.qKEN('');

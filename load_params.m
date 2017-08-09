@@ -2,7 +2,7 @@
 % 'vars' is a cell array of strings, each of which is the name of a variable that are global and can be
 % updated.
 
-function load_params(params_file, vars);
+function load_params(params_file, vars)
     
     % Make input args consistent
     if ischar(vars)
@@ -24,9 +24,7 @@ function load_params(params_file, vars);
         if isempty(a)
             warning('Global variable ''%s'' ain''t no thang!', vars{i});
         else
-            disp(sprintf('Making ''%s'' global', vars{i}));
-            eval(sprintf('global %s', vars{i}));
-            STL
+            eval(sprintf('global %s;', vars{i}));
         end
     end
     
@@ -56,15 +54,15 @@ function load_params(params_file, vars);
         if isempty(n) | n == 1
             continue;
         else
-            s = s(1:n-1)
+            s = s(1:n-1);
         end
         
         % Try to read the value of the variable. If it doesn't exist, catch
         % the error and turn it into a warning.
         try
             eval(sprintf('thing = %s;', s));
-            disp(sprintf('%s = new_params.%s', s, s));
-            eval(sprintf('%s = new_params.%s', s, s));
+            disp(sprintf('%s = new_params.%s;', s, s));
+            eval(sprintf('%s = new_params.%s;', s, s));
         catch ME
             warning('Parameter ''%s'' ain''t no thang!', s);
         end
