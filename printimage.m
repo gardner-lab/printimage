@@ -607,7 +607,6 @@ function print_Callback(hObject, eventdata, handles)
         drawnow;
     end
     
-    
     start_time = datetime('now');
     eta = 'next weekend';
     
@@ -621,7 +620,8 @@ function print_Callback(hObject, eventdata, handles)
                     % The caller has to unset STL.logistics.abort
                     % (and presumably return).
                     disp('Aborting due to user.');
-                    move('hex', [ 0 0 ]);
+                    motorHold(handles, 'resetXY');
+                    
                     if ishandle(wbar) & isvalid(wbar)
                         STL.logistics.wbar_pos = get(wbar, 'Position');
                         delete(wbar);
@@ -636,7 +636,6 @@ function print_Callback(hObject, eventdata, handles)
                     hSI.hStackManager.numSlices = 1;
                     hSI.hFastZ.enable = false;
                     
-                    motorHold(handles, 'off');
                     if ~STL.logistics.simulated
                         while ~strcmpi(hSI.acqState,'idle')
                             pause(0.1);
@@ -733,9 +732,8 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hFastZ.enable = false;
     
     % Reset just the XY plane to the starting point (NOT Z!)
-    move('hex', [ 0 0 ]);
+    motorHold(handles, 'resetXY');
     
-    motorHold(handles, 'off');
     if ~STL.logistics.simulated
         while ~strcmpi(hSI.acqState,'idle')
             pause(0.1);
@@ -752,7 +750,8 @@ end
 
 
 function motorHold(handles, v);
-    % Control motor position-hold-before-reset: 'on', 'off', 'reset'
+    % Control motor position-hold-before-reset: 'on', 'off', 'resetXY',
+    % 'resetZ'
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -772,19 +771,44 @@ function motorHold(handles, v);
         STL.print.motor_reset_needed = true;
     end
     
-    if strcmp(v, 'reset')
+    if strcmp(v, 'resetXY')
+        if isfield(STL.motors.mom, 'origin')
+            hSI.hMotors.motorPosition(1:2) = STL.motors.mom.origin(1:2);
+        end
+        if isfield(STL.motors.hex, 'origin')
+            if STL.logistics.simulated
+                STL.logistics.simulated_pos(1:2) = STL.motors.hex.origin(1:2);
+            elseif STL.motors.hex.connected
+                % If the hexapod is in 'rotation' coordinate system,
+                % wait for move to finish and then switch to 'ZERO'.
+                [~, b] = STL.motors.hex.C887.qKEN('');
+                if ~strcmpi(b(1:5), 'LEVEL')
+                    hexapod_wait();
+                    STL.motors.hex.C887.KEN('ZERO');
+                end
+                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.origin(1:2));
+            end
+        end
+        
+        %STL.print.motorHold = false;
+        %STL.print.motor_reset_needed = false;
+        %set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
+        set(handles.messages, 'String', 'Restored XY position but not Z position. Crush the thing?');
+    end
+    
+    if strcmp(v, 'resetZ')
         %hSI.hFastZ.goHome; % This takes us to 0 (as I've set it up), which is not what we
         %want.
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
-        % Don't use MOVE, since I haven't written it to just move Z.
+        % Don't use MOVE, since I haven't written MOVE to just move Z.
         if isfield(STL.motors.mom, 'origin')
             hSI.hMotors.motorPosition(3) = STL.motors.mom.origin(3);
         end
         if isfield(STL.motors.hex, 'origin')
             if STL.logistics.simulated
                 STL.logistics.simulated_pos(3) = STL.motors.hex.origin(3);
-            else
+            elseif STL.motors.hex.connected
                 % If the hexapod is in 'rotation' coordinate system,
                 % wait for move to finish and then switch to 'ZERO'.
                 [~, b] = STL.motors.hex.C887.qKEN('');
@@ -798,6 +822,7 @@ function motorHold(handles, v);
         
         STL.print.motorHold = false;
         STL.print.motor_reset_needed = false;
+        set(handles.messages, 'String', '');
         set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
     end
 end
@@ -900,12 +925,13 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
-    motorHold(handles, 'on');
     hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
     hSI.hBeams.powerLimits = 100;
     hSI.hBeams.enablePowerBox = true;
     
+    motorHold(handles, 'on');
+
     hSI.startLoop();
     
     % Clean up
@@ -915,7 +941,7 @@ function powertest_Callback(hObject, eventdata, handles)
     
     hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-    motorHold(handles, 'off');
+    motorHold(handles, 'resetZ');
     
     if get(handles.focusWhenDone, 'Value')
         hSI.startFocus();
@@ -1041,7 +1067,7 @@ end
 
 function crushThing_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
-    motorHold(handles, 'reset');
+    motorHold(handles, 'resetZ');
 end
 
 
@@ -1424,8 +1450,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = 1;
     hSI.hBeams.powers = userPower;
-    motorHold(handles, 'off');
-    move('hex', [ 0 0 0 ]);
+    motorHold(handles, 'resetXYZ');
     
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         STL.logistics.wbar_pos = get(wbar, 'Position');
@@ -1695,7 +1720,9 @@ end
 function hexapod_reset_to_centre(varargin)
     global STL;
     
-    nargin
+    if ~STL.motors.hex.connected
+        return;
+    end
     
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
