@@ -32,9 +32,9 @@ function update_gui(handles);
     spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
     spinnerSet(handles.printZoom, STL.print.zoom);
     hexapod_pos = hexapod_get_position();
-    set(handles.hexapod_rotate_u, 'Value', hexapod_pos(4));
-    set(handles.hexapod_rotate_v, 'Value', hexapod_pos(5));
-    set(handles.hexapod_rotate_w, 'Value', hexapod_pos(6));
+    set(handles.hexapod_rotate_x, 'Value', hexapod_pos(4));
+    set(handles.hexapod_rotate_y, 'Value', hexapod_pos(5));
+    set(handles.hexapod_rotate_z, 'Value', hexapod_pos(6));
     update_best_zoom(handles);
 end
 

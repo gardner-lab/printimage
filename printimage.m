@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 12-Jun-2017 20:04:01
+    % Last Modified by GUIDE v2.5 09-Aug-2017 15:23:01
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -115,8 +115,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         switch STL.motors.special
             case 'hex_pi'
                 hexapod_pi_connect();
+                set(handles.panel_rotation_hexapod, 'Visible', 1);
             case 'rot_esp301'
                 rot_esp301_connect();
+                set(handles.panel_rotation_infinite, 'Visible', 1);
             case 'none'
                 ;
             otherwise
@@ -183,7 +185,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
-    addlistener(handles.rotate_by_slider, 'Value', 'PreSet', @(~,~)rotate_by_slider_show_Callback(hObject, [], handles));
+    addlistener(handles.rotate_infinite_slider, 'Value', 'PreSet', @(~,~)rotate_by_slider_show_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
     
@@ -1712,7 +1714,7 @@ end
 
 
 
-function hexapod_rotate_u_Callback(hObject, eventdata, handles)
+function hexapod_rotate_x_Callback(hObject, eventdata, handles)
     global STL;
     
     %hexapod_set_rotation_centre_Callback();
@@ -1729,7 +1731,7 @@ function hexapod_rotate_u_Callback(hObject, eventdata, handles)
     end
 end
 
-function hexapod_rotate_v_Callback(hObject, eventdata, handles)
+function hexapod_rotate_y_Callback(hObject, eventdata, handles)
     global STL;
 
     %hexapod_set_rotation_centre_Callback();
@@ -1746,7 +1748,7 @@ function hexapod_rotate_v_Callback(hObject, eventdata, handles)
     end
 end
 
-function hexapod_rotate_w_Callback(hObject, eventdata, handles)
+function hexapod_rotate_z_Callback(hObject, eventdata, handles)
     global STL;
     
     %hexapod_set_rotation_centre_Callback();
@@ -1766,44 +1768,47 @@ function hexapod_rotate_w_Callback(hObject, eventdata, handles)
     end
 end
 
-function hexapod_rotate_u_CreateFcn(hObject, eventdata, handles)
+function hexapod_rotate_x_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
 end
 
-function hexapod_rotate_v_CreateFcn(hObject, eventdata, handles)
+function hexapod_rotate_y_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
 end
 
-function hexapod_rotate_w_CreateFcn(hObject, eventdata, handles)
+function hexapod_rotate_z_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
 end
 
+% During a drag of the slider, show the rotation angle that will be used if the drag ends now. This is for infinite-rotation
+% devices (e.g. the esp301).
 function rotate_by_slider_show_Callback(hObject, eventdata, handles)
-    spos = get(handles.rotate_by_slider, 'Value');
+    spos = get(handles.rotate_infinite_slider, 'Value');
     sscaled = sign(spos) * 90^abs(spos);
     set(handles.rotate_by_textbox, 'String', sprintf('%.3g', sscaled));
 end
 
-function rotate_by_slider_Callback(hObject, eventdata, handles)
+% Do the actual rotation when the drag ends. For infinite-rotation devices (currently just the esp301).
+function rotate_infinite_slider_Callback(hObject, eventdata, handles)
     global STL;
     
     spos = get(hObject, 'Value');
     rotangle = sign(spos) * 90^abs(spos);
     set(handles.rotate_by_textbox, 'String', sprintf('Target: %.3g', rotangle));
-    set(handles.rotate_by_slider, 'Value', 0);
+    set(handles.rotate_infinite_slider, 'Value', 0);
     
     moveto_rel(STL.motors.rot.esp301, 3, -rotangle);
     track_rotation(handles, rotangle);
 end
 
 
-function rotate_by_slider_CreateFcn(hObject, eventdata, handles)
+function rotate_infinite_slider_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
     end
