@@ -138,7 +138,7 @@ function hexapod_pi_connect()
         %set(handles.messages, 'String', '');
     end
 
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(20);
     hexapod_set_leveling(STL.motors.hex.leveling);
     hexapod_reset_to_zero_rotation();
 end

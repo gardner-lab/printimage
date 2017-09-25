@@ -20,7 +20,7 @@ function hexapod_reset_to_zero_rotation(handles)
     disp('Moving MOM to:');
     mompos - [0 0 minmommove]
 
-    move('mom', mompos - [ 0 0 minmommove]);
+    %move('mom', mompos - [ 0 0 minmommove]);
     STL.motors.hex.C887.VLS(2);
     STL.motors.hex.C887.MOV('U V W', [0 0 0]);
     
@@ -32,7 +32,7 @@ function hexapod_reset_to_zero_rotation(handles)
     disp('Moving MOM to:');
     mompos
 
-    move('mom', mompos);
+    %move('mom', mompos);
     if exist('handles', 'var')
         update_gui(handles);
     end

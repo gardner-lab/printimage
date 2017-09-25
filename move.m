@@ -1,6 +1,6 @@
 % Moves 'mom' (Sutter MOM) or 'hex' (Physik-Instrumente hexapod), and a
 % 3-vector of target positions (in microns).
-function [pos] = move(motor, target_um)
+function [pos] = move(motor, target_um, velocity)
     global STL;
     hSI = evalin('base', 'hSI');
         
@@ -80,6 +80,8 @@ function [pos] = move(motor, target_um)
             %end
             %hexapod_wait();
             
+            STL.motors.hex.C887.VLS(velocity);
+
             if length(target_mm) == 2
                 STL.motors.hex.C887.MOV('X Y', target_mm);
             elseif length(target_mm) == 3

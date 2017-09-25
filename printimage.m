@@ -174,11 +174,11 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         % I'm going to drop the fastZ stage to 420. To make that safe, first
         % I'll move the slow stage up in order to create sufficient clearance
         % (with appropriate error checks).
-        STL.motors.mom.origin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
-        if strcmp(STL.motors.special, 'hex_pi')
-            STL.motors.hex.origin = move('hex');
+        foo = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)];
+        if foo(3) < 0
+            foo(3) = 0;
         end
-        move('mom', STL.motors.mom.origin);
+        move('mom', foo);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     end
     set(handles.whichBeam, 'String', legal_beams);
@@ -239,6 +239,7 @@ function set_up_params()
     STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
     STL.motors.rot.connected = false;
     STL.motors.rot.com_port = 'com4';
+    STL.motors.mom.origin = [12066 1.0896e+04 1.6890e+04];
     
     STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
     
@@ -678,7 +679,7 @@ function print_Callback(hObject, eventdata, handles)
                 % Add the motor origin from the start of this function
                 newpos = newpos + motor.origin(1:3);
                 
-                move(STL.motors.stitching, newpos);
+                move(STL.motors.stitching, newpos, 1);
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
                 pause(0.1);
                 
@@ -1361,7 +1362,7 @@ function test_linearity_Callback(varargin)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:100:400, 0:100:400);
+    [X Y] = meshgrid(0:1000:4000, 0:1000:4000);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
@@ -1393,7 +1394,7 @@ function test_linearity_Callback(varargin)
             % The caller has to unset STL.logistics.abort
             % (and presumably return).
             disp('Aborting due to user.');
-            move('hex', [ 0 0 ]);
+            move('hex', [ 0 0 ], 20);
             if ishandle(wbar) & isvalid(wbar)
                 STL.logistics.wbar_pos = get(wbar, 'Position');
                 delete(wbar);
@@ -1423,7 +1424,7 @@ function test_linearity_Callback(varargin)
 
         newpos = posns(xy, :) + motor.origin(1:2);
 
-        move(STL.motors.stitching, newpos);
+        move(STL.motors.stitching, newpos, 1);
         
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
@@ -1733,10 +1734,10 @@ function hexapod_reset_to_centre(varargin)
         STL.motors.hex.C887.KEN('ZERO');
     end
 
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(5);
     STL.motors.hex.C887.MOV('x y z u v w', [0 0 0 0 0 0]);
     hexapod_wait(handles);
-    STL.motors.hex.C887.VLS(2);
+    STL.motors.hex.C887.VLS(5);
     update_gui(handles);
 end
 
@@ -1745,6 +1746,7 @@ end
 function hexapod_rotate_x_Callback(hObject, eventdata, handles)
     global STL;
     
+    hexapod_wait();
     %hexapod_set_rotation_centre_Callback();
     try
         %set(handles.messages, 'String', sprintf('Rotating U to %g', get(hObject, 'Value') * STL.motors.hex.range(4, 2)));
@@ -1752,6 +1754,13 @@ function hexapod_rotate_x_Callback(hObject, eventdata, handles)
         if ~strcmpi(b(1:8), 'rotation')
             STL.motors.hex.C887.KEN('rotation');
         end
+    catch ME
+        set(handles.messages, 'String', 'Set the virtual rotation centre first.');
+        return;
+    end
+    
+    try
+        STL.motors.hex.C887.VLS(5);
         STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
@@ -1762,6 +1771,8 @@ end
 function hexapod_rotate_y_Callback(hObject, eventdata, handles)
     global STL;
 
+    hexapod_wait();
+
     %hexapod_set_rotation_centre_Callback();
     try
         %set(handles.messages, 'String', sprintf('Rotating V to %g', get(hObject, 'Value') * STL.motors.hex.range(5, 2)));
@@ -1769,6 +1780,7 @@ function hexapod_rotate_y_Callback(hObject, eventdata, handles)
         if ~strcmpi(b(1:8), 'rotation')
             STL.motors.hex.C887.KEN('rotation');
         end
+        STL.motors.hex.C887.VLS(5);
         STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
@@ -1780,7 +1792,7 @@ function hexapod_rotate_z_Callback(hObject, eventdata, handles)
     global STL;
     
     %hexapod_set_rotation_centre_Callback();
-%    STL.motors.hex.C887.VLS(2);
+    hexapod_wait();
 
     try
         %set(handles.messages, 'String', sprintf('Rotating W to %g', get(hObject, 'Value') * STL.motors.hex.range(6, 2)));
@@ -1789,6 +1801,7 @@ function hexapod_rotate_z_Callback(hObject, eventdata, handles)
             STL.motors.hex.C887.KEN('rotation');
         end
 
+        STL.motors.hex.C887.VLS(5);
         STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
@@ -1906,7 +1919,7 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    foo = hexapod_get_position();
+    foo = hexapod_get_position;
     hexapod_wait();
     STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
 end
