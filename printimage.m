@@ -72,11 +72,12 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     try
         hSI = evalin('base', 'hSI');
         fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
-        if isfield(hSI, 'simulated') & hSI.simulated
-            error('Catch me!');
+        if isfield(hSI, 'simulated')
+            if hSI.simulated
+                error('Catch me!');
+            end
         end
         STL.logistics.simulated = false;
-        hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
         % Run in simulated mode!
         STL.logistics.simulated = true;
@@ -95,19 +96,20 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     set(gcf, 'CloseRequestFcn', @clean_shutdown);
     
     STL.logistics.wbar_pos = [.05 .85];
+    hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
 
     
     %% From this point onward, STL vars are not supposed to be user-configurable
     
     set_up_params();
     %foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
-    %    sprintf(' %d', STL.logistics.stage_centre)), ...
+    %    sprintf(' %d', STL.motors.mom.understage_centre)), ...
     %    'Stage setup', 'Yes', 'No', 'Yes');
     %switch foo
     %    case 'Yes'
     %        ;
     %    case 'No'
-    %        STL.logistics.stage_centre = [];
+    %        STL.motors.mom.understage_centre = [];
     %end
     
     
@@ -157,8 +159,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
 
     legal_beams = {};
     if STL.logistics.simulated
-        STL.motors.mom.origin = [10000 10000 6000];
-        STL.motors.hex.origin = [0 0 0];
+        STL.motors.mom.understage_centre = [10000 10000 6000];
+        %STL.motors.hex.tmp_origin = [0 0 0];
         legal_beams = -1;
     else
         evalin('base', 'hSI.startGrab()');
@@ -239,7 +241,8 @@ function set_up_params()
     STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
     STL.motors.rot.connected = false;
     STL.motors.rot.com_port = 'com4';
-    STL.motors.mom.origin = [12066 1.0896e+04 1.6890e+04];
+    STL.motors.mom.understage_centre = [12066 1.0896e+04 1.6890e+04];
+    STL.motors.hex.user_rotate_velocity = 50;
     
     STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
     
@@ -261,7 +264,7 @@ function set_up_params()
     STL.motors.hex.axis_signs = [ 1 1 -1 ];
     STL.motors.hex.axis_order = [ 1 2 3 ];
     STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
-    STL.logistics.stage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+    %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
     
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
@@ -677,7 +680,7 @@ function print_Callback(hObject, eventdata, handles)
                 newpos = newpos(motor.axis_order);
                 
                 % Add the motor origin from the start of this function
-                newpos = newpos + motor.origin(1:3);
+                newpos = newpos + motor.tmp_origin(1:3);
                 
                 move(STL.motors.stitching, newpos, 1);
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
@@ -763,8 +766,8 @@ function motorHold(handles, v);
         STL.print.motorHold = true;
         %warning('Disabled fastZ hold hack.');
         STL.print.motor_reset_needed = true;
-        STL.motors.mom.origin = move('mom');
-        STL.motors.hex.origin = move('hex');
+        STL.motors.mom.tmp_origin = move('mom');
+        STL.motors.hex.tmp_origin = hexapod_get_position();
     end
     
     if strcmp(v, 'off')
@@ -773,12 +776,12 @@ function motorHold(handles, v);
     end
     
     if strcmp(v, 'resetXY')
-        if isfield(STL.motors.mom, 'origin')
-            hSI.hMotors.motorPosition(1:2) = STL.motors.mom.origin(1:2);
+        if isfield(STL.motors.mom, 'tmp_origin')
+            hSI.hMotors.motorPosition(1:2) = STL.motors.mom.tmp_origin(1:2);
         end
-        if isfield(STL.motors.hex, 'origin')
+        if isfield(STL.motors.hex, 'tmp_origin')
             if STL.logistics.simulated
-                STL.logistics.simulated_pos(1:2) = STL.motors.hex.origin(1:2);
+                STL.logistics.simulated_pos(1:2) = STL.motors.hex.tmp_origin(1:2);
             elseif STL.motors.hex.connected
                 % If the hexapod is in 'rotation' coordinate system,
                 % wait for move to finish and then switch to 'ZERO'.
@@ -787,7 +790,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.origin(1:2));
+                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.tmp_origin(1:2));
             end
         end
         
@@ -803,12 +806,12 @@ function motorHold(handles, v);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
         % Don't use MOVE, since I haven't written MOVE to just move Z.
-        if isfield(STL.motors.mom, 'origin')
-            hSI.hMotors.motorPosition(3) = STL.motors.mom.origin(3);
+        if isfield(STL.motors.mom, 'tmp_origin')
+            hSI.hMotors.motorPosition(3) = STL.motors.mom.tmp_origin(3);
         end
-        if isfield(STL.motors.hex, 'origin')
+        if isfield(STL.motors.hex, 'tmp_origin')
             if STL.logistics.simulated
-                STL.logistics.simulated_pos(3) = STL.motors.hex.origin(3);
+                STL.logistics.simulated_pos(3) = STL.motors.hex.tmp_origin(3);
             elseif STL.motors.hex.connected
                 % If the hexapod is in 'rotation' coordinate system,
                 % wait for move to finish and then switch to 'ZERO'.
@@ -817,7 +820,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                STL.motors.hex.C887.MOV('Z', STL.motors.hex.origin(3));
+                STL.motors.hex.C887.MOV('Z', STL.motors.hex.tmp_origin(3));
             end
         end
         
@@ -1242,8 +1245,8 @@ function crushReset_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.motors.mom.origin = move('mom');
-    STL.motors.hex.origin = move('hex');
+    STL.motors.mom.tmp_origin = move('mom');
+    STL.motors.hex.tmp_origin = move('hex');
     STL.print.motor_reset_needed = false;
     set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
     set(handles.messages, 'String', '');
@@ -1318,8 +1321,8 @@ function test_linearity_Callback(varargin)
         set(handles.messages, 'String', '');
     end
 
-    STL.motors.mom.origin = move('mom');
-    STL.motors.hex.origin = move('hex');
+    STL.motors.mom.tmp_origin = move('mom');
+    STL.motors.hex.tmp_origin = move('hex');
     eval(sprintf('motor = STL.motors.%s', STL.motors.stitching));
     
     if STL.logistics.simulated
@@ -1422,7 +1425,7 @@ function test_linearity_Callback(varargin)
         
         
 
-        newpos = posns(xy, :) + motor.origin(1:2);
+        newpos = posns(xy, :) + motor.tmp_origin(1:2);
 
         move(STL.motors.stitching, newpos, 1);
         
@@ -1641,9 +1644,9 @@ function set_stage_true_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.logistics.stage_centre = hSI.hMotors.motorPosition;
-    set(handles.messages, 'String', sprintf('You can add ''STL.logistics.stage_centre = [%s ]'' to your config.', ...
-        sprintf(' %d', STL.logistics.stage_centre)));
+    STL.motors.mom.understage_centre = hSI.hMotors.motorPosition;
+    set(handles.messages, 'String', sprintf('Maybe add ''STL.motors.mom.understage_centre = [%s ]'' to your config.', ...
+        sprintf(' %d', STL.motors.mom.understage_centre)));
 end
 
 
@@ -1658,14 +1661,14 @@ function track_rotation(handles, angle_deg)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.logistics.stage_centre)
+    if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.motors.mom.understage_centre)
         set(handles.messages, 'String', 'No stage rotation centre set. Do that first.');
         return;
     end
     
     % Always rotate about the current position!
     pos = hSI.hMotors.motorPosition(1:2);
-    pos_relative = pos - STL.logistics.stage_centre(1:2);
+    pos_relative = pos - STL.motors.mom.understage_centre(1:2);
     
     r = pi*angle_deg/180;
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
@@ -1673,7 +1676,7 @@ function track_rotation(handles, angle_deg)
     try
         set(handles.messages, 'String','');
         set(handles.rotate_infinite_textbox, 'String', '');
-        move('mom', pos_relative + STL.logistics.stage_centre(1:2));
+        move('mom', pos_relative + STL.motors.mom.understage_centre(1:2));
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
@@ -1734,10 +1737,9 @@ function hexapod_reset_to_centre(varargin)
         STL.motors.hex.C887.KEN('ZERO');
     end
 
-    STL.motors.hex.C887.VLS(5);
+    STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
     STL.motors.hex.C887.MOV('x y z u v w', [0 0 0 0 0 0]);
     hexapod_wait(handles);
-    STL.motors.hex.C887.VLS(5);
     update_gui(handles);
 end
 
@@ -1760,12 +1762,13 @@ function hexapod_rotate_x_Callback(hObject, eventdata, handles)
     end
     
     try
-        STL.motors.hex.C887.VLS(5);
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
         STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
     end
+    hexapod_wait();
 end
 
 function hexapod_rotate_y_Callback(hObject, eventdata, handles)
@@ -1780,12 +1783,13 @@ function hexapod_rotate_y_Callback(hObject, eventdata, handles)
         if ~strcmpi(b(1:8), 'rotation')
             STL.motors.hex.C887.KEN('rotation');
         end
-        STL.motors.hex.C887.VLS(5);
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
         STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
     end
+    hexapod_wait();
 end
 
 function hexapod_rotate_z_Callback(hObject, eventdata, handles)
@@ -1801,12 +1805,13 @@ function hexapod_rotate_z_Callback(hObject, eventdata, handles)
             STL.motors.hex.C887.KEN('rotation');
         end
 
-        STL.motors.hex.C887.VLS(5);
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
         STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
     catch ME
         set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
         update_gui(handles);
     end
+    hexapod_wait();
 end
 
 function hexapod_rotate_x_CreateFcn(hObject, eventdata, handles)
@@ -1860,19 +1865,19 @@ function hexapod_zero_angles_Callback(hObject, eventdata, handles)
 end
 
 % Set the virtual rotation centre to the point under the microscope lens.
-% This is based on STL.logistics.stage_centre (MOM's coordinates when
+% This is based on STL.motors.mom.understage_centre (MOM's coordinates when
 % aligned to hexapod's true centre).
 function hexapod_set_rotation_centre_Callback(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    head_position_rel = hSI.hMotors.motorPosition - STL.logistics.stage_centre;
+    head_position_rel = hSI.hMotors.motorPosition - STL.motors.mom.understage_centre;
     head_position_rel = head_position_rel * STL.motors.mom.coords_to_hex;
-    head_position_rel(3) = STL.motors.hex.pivot_z_um
+    head_position_rel(3) = STL.motors.hex.pivot_z_um;
     new_pivot_mm = head_position_rel / 1e3;
     %new_pivot_mm = [0 0 0];
     
-    new_pivot_mm = new_pivot_mm .* [-1 -1 1]
+    new_pivot_mm = new_pivot_mm .* [-1 -1 1];
     
     [~, b] = STL.motors.hex.C887.qKEN('');
     if ~strcmpi(b(1:5), 'LEVEL')
