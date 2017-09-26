@@ -533,7 +533,9 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hFastZ.positionTarget = foo;
     hexapos = hexapod_get_position();
     if any(abs(hexapos(1:3)) > 0.001)
-        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first');
+        set(handles.messages, 'String', ...
+            sprintf('Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first', ...
+            sprintf(' %g', hexapos(1:3))));
         return;
     else
         set(handles.messages, 'String', '');
