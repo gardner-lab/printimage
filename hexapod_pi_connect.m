@@ -128,17 +128,17 @@ function hexapod_pi_connect()
         if hexapos(3) < 0
             % Move the hexapod up AFTER the lens makes room
             move('mom', mompos);
-            move('hex', [0 0 0]);
+            move('hex', [0 0 0], 5);
         else
             % Move the hexapod down BEFORE the lens follows
-            move('hex', [0 0 0]);
+            move('hex', [0 0 0], 5);
             move('mom', mompos);
         end
     else
         %set(handles.messages, 'String', '');
     end
 
-    STL.motors.hex.C887.VLS(20);
+    STL.motors.hex.C887.VLS(5);
     hexapod_set_leveling(STL.motors.hex.leveling);
     hexapod_reset_to_zero_rotation();
 end
