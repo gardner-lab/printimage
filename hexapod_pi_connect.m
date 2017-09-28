@@ -106,11 +106,11 @@ function hexapod_pi_connect()
     STL.motors.hex.C887.CCL(1, 'advanced');
     STL.motors.hex.C887.KEN('zero');
     STL.motors.hex.range = [STL.motors.hex.C887.qTMN(all_axes) STL.motors.hex.C887.qTMX(all_axes)];
-    STL.motors.hex.C887.KLD('level', 'x y z u v w', STL.motors.hex.leveling);
+    STL.motors.hex.C887.KLD('level', all_axes, STL.motors.hex.leveling);
     STL.motors.hex.C887.KEN('level');
     STL.motors.hex.C887.KEN('PI_Base');
     STL.motors.hex.C887.CCL(0, 'advanced');
-    
+
     fprintf('done.\n');
     
     % Looks like everything is in order:
