@@ -2,6 +2,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
+    POWER_COMPENSATION = 'christos';
+    
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
     
@@ -23,7 +25,14 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % boost low-power voxels, but not the zero-power voxels
     vnot = (v > 0.1);
     v = v * STL.print.power;
-    v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
+    
+    switch POWER_COMPENSATION
+        case 'christos'
+            v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
+        case 'ben'
+            v(vnot) = v(vnot) + something;
+        otherwise
+    end
     %disp(sprintf('=== Compensation took power down to %g', ...
     %    min(v(find(v~=0)))));
 
@@ -38,32 +47,6 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     ao_volts_out = STL.print.ao_volts_raw;
     
-    % Z will decrease (moving the fastZ stage towards 0 (highest position) and
-    % then reset. Delete the reset:
-    %    [val pos] = min(ao_volts_out.Z);
-    %n = length(ao_volts_out.Z) - pos;
-    %ao_volts_out.Z(pos+1:end) = ao_volts_out.Z(pos) * ones(1, n);
-    
-    if 0
-        figure(32);
-        colormap gray;
-        %img = hSI.hWaveformManager.scannerAO.ao_volts_raw.B;
-        img = ao_volts_raw.B;
-        framesize = prod(STL.print.resolution(1:2));
-        
-        for i = 1:STL.print.resolution(3)
-            startat = (i-1) * framesize + 1;
-            
-            % Need to give imagesc the positions of the pixels (voxels) or the
-            % aspect ratio will be wrong.
-            imagesc(STL.print.voxelpos.x, STL.print.voxelpos.y, ...
-                reshape(img(startat:startat+framesize-1), STL.print.resolution(1:2))');
-            colorbar;
-            axis square;
-            
-            pause(0.01);
-        end
-    end
     %figure(33);
     %plot(ao_volts_out.Z);
 end

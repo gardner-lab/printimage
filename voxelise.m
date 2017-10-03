@@ -111,6 +111,15 @@ function [] = voxelise(handles, target)
             STL.print.metavoxel_resolution = {};
             STL.print.metavoxels = {};
             STL.logistics.abort = false;
+            
+            % Compensate for lens vignetting, if we've done the fit.
+            if exist('vignetting_fit.mat', 'file')
+                warning('Using vignetting compensation from vignetting_fit.mat');
+                load('vignetting_fit.mat');
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = vignetting_fit(vig_x, vig_y);
+                STL.print.vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
+            end
 
 %             parfor mvx = 1:nmetavoxels(1) % parfor threw an error --
 %             can't use with an embedded return command
