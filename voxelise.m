@@ -190,8 +190,6 @@ function [] = voxelise(handles, target)
                         STL.print.metavoxels{mvx, mvy, mvz} = A;
                         STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* frame_power_adjustment;
                                                 
-                        warning('Limiting power to 1. Or should it be 100?');
-                        STL.print.metapower{mvx, mvy, mvz} = min(STL.print.metapower{mvx, mvy, mvz}, 1);
                         % Delete empty zstack slices if they are above
                         % something that is printed:
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);

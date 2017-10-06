@@ -17,6 +17,10 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
+    
+    % PrintImage.print() sets this up by moving the stitching stage and
+    % copying STL.print.metapower{xx,yy,zz} into STL.print.voxelpower. I
+    % know that that isn't so pretty. Might fix later.
     foo = size(STL.print.voxelpower);
     STL.print.voxelpower(end,:,:) = zeros(foo(2:3));
     v = STL.print.voxelpower(:);
@@ -29,10 +33,13 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     switch POWER_COMPENSATION
         case 'christos'
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
-        case 'ben'
-            v(vnot) = v(vnot) + something;
         otherwise
     end
+    warning('Limiting power to 1. Or should it be 100? See figure 1234.');
+    figure(1234);
+    plot(v);
+    v = min(v, 1);
+
     %disp(sprintf('=== Compensation took power down to %g', ...
     %    min(v(find(v~=0)))));
 
