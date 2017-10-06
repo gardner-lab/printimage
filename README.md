@@ -152,6 +152,20 @@ PrintImage's "Power Test" button will print a bunch of rectangular prisms at var
 - Unfortunately there is a nonlinear relationship between zoom level, Z step size, and polymerisation power required. If those parameters change, you should re-run the power test at that level.
 - Set the "Print Power" level to something that polymerises but doesn't bubble.
 
+## Understage zeroing
+
+### Aligning a rotation stage with the microscope stage
+
+Print something (e.g. a power test pattern). Use the rotation slider to rotate the stage, and see if it rotates about the centre of the screen (the "bullseye" can be used to facilitate this). Move the microscope stage toward what looks like the centre of rotation. Repeat until the image rotates about the centre of the field. This is the alignment point. You may add "STL.motors.mom.understage_centre = [12655 10857 16890];" to  your printimage_config, reading those numbers off the microscope stage's location (microns).
+
+### Leveling a hexapod
+
+Find the substrate, and then pull the lens just a little bit away from it so you can just see some light in the image centre. Scroll up and down on Y while adjusting the hexapod's X rotation control such that scrolling on Y doesn't affect the spot's brightness (closeness to substrate). Vice versa for X-Y.
+
+For Z, print something that involves stitching, such as a linearity test. Scrolling back and forth with the microscope's stage should produce motion parallel with the line of dots that the stitching procedure produced.
+
+The final numbers can be added to printimage_config; e.g., "STL.motors.hex.leveling = [0 0 0 0.9 -0.1 -1.1];"
+
 ## Controlling print dimensions
 
 - Your system probably has the worst resolution along the resonant scanner's axis, which we call X. If the object to be printed has finer features along one dimension than another, use PrintImage's dimension buttons to choose to place the coarser features along X
