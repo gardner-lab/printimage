@@ -2,7 +2,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'christos';
+    POWER_COMPENSATION = 'ben';
     
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
@@ -15,6 +15,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         error('Tried re-voxelising, but was unsuccessful.');
     end
     
+    disp(sprintf('Relative power is on [%g, %g]', ...
+        min(min(min(STL.print.voxelpower))), ...
+        max(max(max(STL.print.voxelpower)))));
+    
+
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
     
@@ -27,18 +32,29 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     %disp(sprintf('=== Cosine took power down to %g', ...
     %    min(v(find(v~=0)))));
     % boost low-power voxels, but not the zero-power voxels
-    vnot = (v > 0.1);
+    vnot = (v > 0.01);
     v = v * STL.print.power;
     
+    disp(sprintf('Adjusted power is on [%g, %g]', ...
+        min(v), ...
+        max(v)));
+
     switch POWER_COMPENSATION
         case 'christos'
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
         otherwise
     end
-    warning('Limiting power to 1. Or should it be 100? See figure 1234.');
-    figure(1234);
-    plot(v);
+    figure(12);
+    subplot(1,2,2);
+    v_vis = reshape(v, size(STL.print.voxelpower));
+    imagesc(squeeze(v_vis(:,:,end-1)));
+    colorbar;
+    % Do not ask for more than 100% power:
     v = min(v, 1);
+    
+    disp(sprintf('Adjusted power II is on [%g, %g]', ...
+        min(v), ...
+        max(v)));
 
     %disp(sprintf('=== Compensation took power down to %g', ...
     %    min(v(find(v~=0)))));

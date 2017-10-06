@@ -87,7 +87,12 @@ function [] = voxelise(handles, target)
             if exist('vignetting_fit.mat', 'file')
                 warning('Using vignetting compensation from vignetting_fit.mat');
                 load('vignetting_fit.mat');
-                [vig_x, vig_y] = meshgrid(xc, yc);
+                % Sadly, coordinates for the printed object are currently
+                % on [0,1], not real FOV coords. So this is an
+                % approximation for now. But it's pretty good.
+                xc_c = xc - xc(end)/2;
+                yc_c = yc - yc(end)/2;
+                [vig_x, vig_y] = meshgrid(xc_c, yc_c);
                 vignetting_falloff = vignetting_fit(vig_x, vig_y);
                 vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
             else
@@ -102,6 +107,16 @@ function [] = voxelise(handles, target)
             speed = repmat(speed', [1, size(yc,2), size(zc,2)]);
             %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
             frame_power_adjustment = speed ./ vignetting_falloff;
+            figure(12);
+            subplot(1,2,1);
+            plot(speed(:,256,10));
+            hold on;
+            plot(1./vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
+            hold off;
+            axis tight;
+            subplot(1,2,2);
+            imagesc(xc_c,yc_c,squeeze(vignetting_falloff(:,:,1)));
+
             
             % 6. Feed each metavoxel's centres to voxelise
             
@@ -282,7 +297,7 @@ function [] = voxelise(handles, target)
         set(handles.messages, 'String', '');
         drawnow;
     end
-    
+            
     % Save what we've done... just in case...
     disp('Saving voxelised file as LastVoxelised.mat');
     save('LastVoxelised_dont_remove_this_until_last_one_is_rescued', 'STL');
