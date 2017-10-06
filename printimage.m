@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 02-May-2017 16:45:12
+    % Last Modified by GUIDE v2.5 09-Aug-2017 15:23:01
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -60,107 +60,134 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
+    menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
+    menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_leveling);
+    menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
+    menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
+    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
+    
+    menu_test = uimenu(hObject, 'Label', 'Test');
+    menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
+    
     try
         hSI = evalin('base', 'hSI');
-        if isfield(STL, 'logistics') & isfield(STL.logistics, 'simulated') & STL.logistics.simulated
-            error('Catch me!');
+        fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
+        if isfield(hSI, 'simulated')
+            if hSI.simulated
+                error('Catch me!');
+            end
         end
         STL.logistics.simulated = false;
-        hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
     catch ME
+        % Run in simulated mode!
         STL.logistics.simulated = true;
+        STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
-        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 150;
-        hSI.hRoiManager.linesPerFrame = 256;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
+        hSI.hRoiManager.linesPerFrame = 512;
+        hSI.hRoiManager.scanZoomFactor = 2.2;
         hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
         hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
         assignin('base', 'hSI', hSI);
     end
     
-    % Some parameters are only computed on grab. So do one.
-    hSI.hStackManager.numSlices = 1;
-    hSI.hFastZ.enable = false;
-    hSI.hFastZ.actuatorLag = 13e-3; % Should calibrate with zstep = whatever you're going to use
+    set(gcf, 'CloseRequestFcn', @clean_shutdown);
     
-    STL.print.zstep = 1;     % microns per step in z (vertical)
-    STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
-    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc) 
-    STL.print.power = 1;
-    STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
-    STL.print.size = [360 360 360];
-%     STL.print.size = [380 380 410];
-    STL.print.zoom_min = 1.3;
-    STL.print.zoom = 1.3;
-    STL.print.zoom_best = 1.3;
-    STL.print.armed = false;
-    STL.preview.resolution = [120 120 120];
-    STL.print.metavoxel_overlap = [10 10 10]; % Microns of overlap (positive is more overlap) in order to get good bonding
-    STL.print.voxelise_needed = true;
-    STL.preview.voxelise_needed = true;
-    STL.print.invert_z = false;
-    STL.print.motor_reset_needed = false;
-    STL.preview.show_metavoxel_slice = NaN;
-    STL.print.fastZhomePos = 420;
-    % I'm going to drop the fastZ stage to 420. To make that safe, first
-    % I'll move the slow stage up in order to create sufficient clearance
-    % (with appropriate error checks).
-    if STL.logistics.simulated
-        STL.print.motorOrigin = [10000 10000 6000];
-    else
-        STL.print.motorOrigin = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)]; %[10000 9000 0];
-    end
-    STL.logistics.abort = false;
-    STL.logistics.stage_centre = [15836 9775]; % Until Yarden moves the thing?
-    foo = questdlg(sprintf('Stage rotation centre set to [%d, %d]. Ok?', ...
-        STL.logistics.stage_centre(1), STL.logistics.stage_centre(2)), ...
-        'Stage setup', 'Yes', 'No', 'No');
-    switch foo
-        case 'Yes'
-            ;
-        case 'No'
-            STL.logistics.stage_centre = [];
-    end
+    STL.logistics.wbar_pos = [.05 .85];
+    hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
 
-    % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
-    % 380um.
-    STL.logistics.lens_working_distance = 370;
-    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
-    STL.bounds_1 = [NaN NaN  zbound ];
-    STL.print.bounds_max = [NaN NaN  zbound ];
-    STL.print.bounds = [NaN NaN  zbound ];
+    
+    %% From this point onward, STL vars are not supposed to be user-configurable
+    
+    set_up_params();
+    %foo = questdlg(sprintf('Stage rotation centre set to [%s ]. Ok?', ...
+    %    sprintf(' %d', STL.motors.mom.understage_centre)), ...
+    %    'Stage setup', 'Yes', 'No', 'Yes');
+    %switch foo
+    %    case 'Yes'
+    %        ;
+    %    case 'No'
+    %        STL.motors.mom.understage_centre = [];
+    %end
+    
+    
+    if ~STL.logistics.simulated
+        switch STL.motors.special
+            case 'hex_pi'
+                hexapod_pi_connect();
+                set(handles.panel_rotation_hexapod, 'Visible', 'on');
+            case 'rot_esp301'
+                rot_esp301_connect();
+                set(handles.panel_rotation_infinite, 'Visible', 'on');
+            case 'none'
+                ;
+            otherwise
+                warning('STL.motors.special: I don''t know what a ''%s'' is.', STL.motors.special);
+        end
+    end
+    
     
     % ScanImage freaks out if we pass an illegal command to its motor stage
     % controller--and also if I can't move up the required amount, I
     % probably shouldn't drop the fastZ stage. Error out:
-    if any(STL.print.motorOrigin < 0)
-        error('Cannot initialise PrintImage: lower the slow Z stage just a little and restart PrintImage');
-        return;
+    zpos = hSI.hMotors.motorPosition(3);
+    while zpos < 500
+        foo = questdlg('Please safely drop the MOM''s Z axis to at least 500 microns.', ...
+            'Stage setup', 'I did it', 'Cancel');
+        switch foo
+            case 'I did it'
+                zpos = hSI.hMotors.motorPosition(3);
+            case 'Cancel'
+                hexapod_pi_disconnect()
+                return;
+        end
     end
     
+    % Disable this for PI...
+    warning('Disabling warning "MATLAB:subscripting:noSubscriptsSpecified" because there will be A LOT of them!');
+    evalin('base', 'warning(''off'', ''MATLAB:subscripting:noSubscriptsSpecified'');');
     
-    STL.logistics.wbar_pos = [.05 .85];
+    STL.logistics.abort = false; % Bookkeeping; not user-configurable
+    
+    
+    % Some parameters are only computed on grab. So do one.
+    hSI.hStackManager.numSlices = 1;
+    hSI.hFastZ.enable = false;
+    hSI.hFastZ.actuatorLag = 13e-3; % Should calibrate with zstep = whatever you're going to use
 
-    foo = {};
+    legal_beams = {};
     if STL.logistics.simulated
-        foo = -1;
+        STL.motors.mom.understage_centre = [10000 10000 6000];
+        %STL.motors.hex.tmp_origin = [0 0 0];
+        legal_beams = -1;
     else
         evalin('base', 'hSI.startGrab()');
         while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
         end
         
+        % Get the list of legal beam channels
         for i = 1:length(hSI.hChannels.channelName)
-            foo{i} = sprintf('%d', i);
+            legal_beams{i} = sprintf('%d', i);
         end
         
-        disp(sprintf('Servoing to [ %s]', sprintf('%g ', STL.print.motorOrigin)));
-        hSI.hMotors.motorPosition = STL.print.motorOrigin;
+        % I'm going to drop the fastZ stage to 420. To make that safe, first
+        % I'll move the slow stage up in order to create sufficient clearance
+        % (with appropriate error checks).
+        foo = hSI.hMotors.motorPosition - [0 0 (STL.print.fastZhomePos - hSI.hFastZ.positionTarget)];
+        if foo(3) < 0
+            foo(3) = 0;
+        end
+        move('mom', foo);
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     end
-    set(handles.whichBeam, 'String', foo);
+    set(handles.whichBeam, 'String', legal_beams);
+    
     
     addlistener(handles.zslider, 'Value', 'PreSet', @(~,~)zslider_Callback(hObject, [], handles));
+    addlistener(handles.rotate_infinite_slider, 'Value', 'PreSet', @(~,~)rotate_by_slider_show_Callback(hObject, [], handles));
     
     guidata(hObject, handles);
     
@@ -183,52 +210,78 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
 end
 
 
-function update_gui(handles);
+% This sets up default values for user-configurable STL parameters. Then,
+% if printimage_config.m exists, we load that, and replace all valid
+% parameters' default values with the user-configured versions. If a
+% default value doesn't exist, the user configuration parameter is ignored
+% and a warning issued.
+function set_up_params()
     global STL;
     
-    if isfield(STL, 'file')
-        set(gcf, 'Name', STL.file);
-    else
-        set(gcf, 'Name', 'PrintImage');
-    end
-    set(handles.build_x_axis, 'Value', STL.print.xaxis);
-    set(handles.build_z_axis, 'Value', STL.print.zaxis);
-    set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
-    set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))));
-    set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))));
-    set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))));
-    set(handles.fastZhomePos, 'String', sprintf('%d', round(STL.print.fastZhomePos)));
-    set(handles.powertest_start, 'String', sprintf('%g', 1));
-    set(handles.powertest_end, 'String', sprintf('%g', 100));
-    set(handles.invert_z, 'Value', STL.print.invert_z);
-    set(handles.whichBeam, 'Value', STL.print.whichBeam);
-    set(handles.show_metavoxel_slice, 'String', sprintf(['%d '], STL.preview.show_metavoxel_slice));
-    set(handles.PrinterBounds, 'String', sprintf('Max single: [ %s] um', ...
-        sprintf('%d ', round(STL.print.bounds))));
-    %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
-    nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
-    if STL.print.voxelise_needed
-        set(handles.autozoom, 'String', '');
-    else
-        set(handles.autozoom, 'String', sprintf('Auto: %g', STL.print.zoom_best));
-    end
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
-    set(handles.z_step, 'String', num2str(STL.print.zstep,2));
-    spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
-    spinnerSet(handles.printZoom, STL.print.zoom);
-    update_best_zoom(handles);
-end
+    STL.print.zstep = 1;     % microns per step in z (vertical)
+    STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
+    STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
+    STL.print.power = 0.6;
+    STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
+    STL.print.size = [360 360 360];
+    STL.print.zoom_min = 1.5;
+    STL.print.zoom = 1.5;
+    STL.print.zoom_best = 1.5;
+    STL.print.armed = false;
+    STL.preview.resolution = [120 120 120];
+    STL.print.metavoxel_overlap = [8 8 8]; % Microns of overlap (positive is more overlap) in order to get good bonding
+    STL.print.voxelise_needed = true;
+    STL.preview.voxelise_needed = true;
+    STL.print.invert_z = false;
+    STL.print.motor_reset_needed = false;
+    STL.preview.show_metavoxel_slice = NaN;
+    STL.print.fastZhomePos = 420;
 
-% Set the value of a spinner GUI component to the given number.
-function spinnerSet(h, val, format);
-    if ~exist('format', 'var')
-        format = '%g';
-    end
-    vals = get(h, 'String');
-    match = find(strcmp(vals, sprintf(format, val)));
-    set(h, 'Value', match);
-end
+    STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
+    STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
+    STL.motors.rot.connected = false;
+    STL.motors.rot.com_port = 'com4';
+    STL.motors.mom.understage_centre = [12066 1.0896e+04 1.6890e+04];
+    STL.motors.hex.user_rotate_velocity = 50;
+    
+    STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
+    
+    % MOM to image: [1 0 0] moves down
+    %               [0 1 0] moves left
+    %               [0 0 1] reduces height
+    % MOM to hex:
+    STL.motors.mom.coords_to_hex = [0 1 0; ...
+        -1 0 0; ...
+        0 0 -1];
+    STL.motors.mom.axis_signs = [ -1 1 -1 ];
+    STL.motors.mom.axis_order = [ 2 1 3 ];
 
+    STL.motors.hex.connected = false;
+    STL.motors.hex.ip_address = '0.0.0.0';
+    % Hexapod to image: [1 0 0] moves right
+    %                   [0 1 0] moves down
+    %                   [0 0 1] reduces height
+    STL.motors.hex.axis_signs = [ 1 1 -1 ];
+    STL.motors.hex.axis_order = [ 1 2 3 ];
+    STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
+    %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+    
+    % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
+    % 380um.
+    STL.logistics.lens_working_distance = 370;
+    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
+    STL.bounds_1 = [NaN NaN  zbound ];
+    STL.print.bounds_max = [NaN NaN  zbound ];
+    STL.print.bounds = [NaN NaN  zbound ];
+
+    
+    %%%%%
+    %% Finally, allow the user to override any of these:
+    %%%%%
+    
+    params_file = 'printimage_config'; 
+    load_params(params_file, 'STL');
+end
 
 % Sets STL.print.dims, and calls for reorientation of the model.
 function update_dimensions(handles, dim, val)
@@ -267,7 +320,7 @@ function update_dimensions(handles, dim, val)
             STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
         end
         aspect_ratio = STL.aspect_ratio(STL.print.dims);
-            
+        
         if nargin == 1
             % If we're not looking to change a particular dimension,
             % default to holding Z constant and adjusting X and Y.
@@ -305,7 +358,7 @@ function [] = rescale_object(handles);
     
     STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
     set(handles.messages, 'String', sprintf('New dims (2) are [ %s]', sprintf('%d ', STL.print.dims)));
-        
+    
     max_dim = max(STL.print.size);
     
     meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
@@ -478,14 +531,22 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hMotors.zprvResetHome();
     %hSI.hBeams.zprvResetHome();
     %hSI.hFastZ.positionTarget = foo;
+    hexapos = hexapod_get_position();
+    if any(abs(hexapos(1:3)) > 0.001)
+        set(handles.messages, 'String', ...
+            sprintf('Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first', ...
+            sprintf(' %g', hexapos(1:3))));
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
     
     if STL.print.rescale_needed
         rescale_object(handles);
     end
     
     UpdateBounds_Callback([], [], handles);
-    
-    
+        
     if ~STL.logistics.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
         set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
         return;
@@ -550,12 +611,11 @@ function print_Callback(hObject, eventdata, handles)
         drawnow;
     end
     
-    axis_signs = [ -1 1 -1 ];
-    axis_order = [ 2 1 3 ];
-    
     start_time = datetime('now');
     eta = 'next weekend';
     
+    eval(sprintf('motor = STL.motors.%s;', STL.motors.stitching));
+
     metavoxel_counter = 0;
     metavoxel_total = prod(STL.print.nmetavoxels);
     for mvz = 1:STL.print.nmetavoxels(3)
@@ -566,6 +626,8 @@ function print_Callback(hObject, eventdata, handles)
                     % The caller has to unset STL.logistics.abort
                     % (and presumably return).
                     disp('Aborting due to user.');
+                    motorHold(handles, 'resetXY');
+                    
                     if ishandle(wbar) & isvalid(wbar)
                         STL.logistics.wbar_pos = get(wbar, 'Position');
                         delete(wbar);
@@ -580,7 +642,6 @@ function print_Callback(hObject, eventdata, handles)
                     hSI.hStackManager.numSlices = 1;
                     hSI.hFastZ.enable = false;
                     
-                    motorHold(handles, 'off');
                     if ~STL.logistics.simulated
                         while ~strcmpi(hSI.acqState,'idle')
                             pause(0.1);
@@ -590,13 +651,13 @@ function print_Callback(hObject, eventdata, handles)
                     
                     return;
                 end
-
+                
                 disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
                 
                 % 0. Update the slice preview, because why the hell not?
                 set(handles.show_metavoxel_slice, 'String', sprintf('%d %d %d', mvx, mvy, mvz));
                 show_metavoxel_slice_Callback(hObject, eventdata, handles)
-
+                
                 % 1. Servo the slow stage to the correct starting position. This is convoluted
                 % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
                 % same side
@@ -614,21 +675,16 @@ function print_Callback(hObject, eventdata, handles)
                 
                 % Some of the axes may want the opposite sign. This should be done in Machine_Data_File but I don't see how; see
                 % below.
-                newpos = newpos .* axis_signs;
+                newpos = newpos .* motor.axis_signs;
                 
                 % My axes and the motor's may be at odds, so reshuffle the order. This should be done in Machine_Data_File but I
                 % don't see how; the docs are a little obsolete (or ahead of the free version?).
-                newpos = newpos(axis_order);
+                newpos = newpos(motor.axis_order);
                 
                 % Add the motor origin from the start of this function
-                newpos = newpos + STL.print.motorOrigin(1:3);
+                newpos = newpos + motor.tmp_origin(1:3);
                 
-                disp(sprintf(' ...servoing to [%g %g %g]...', newpos));
-                % Go to position-x on all dimensions in order to always
-                % complete the move in the same direction.
-                hSI.hMotors.motorPosition(1:3) = newpos + [1 1 1] * 3;
-                pause(0.1);
-                hSI.hMotors.motorPosition(1:3) = newpos;
+                move(STL.motors.stitching, newpos, 1);
                 hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
                 pause(0.1);
                 
@@ -681,7 +737,9 @@ function print_Callback(hObject, eventdata, handles)
     hSI.hStackManager.numSlices = 1;
     hSI.hFastZ.enable = false;
     
-    motorHold(handles, 'off');
+    % Reset just the XY plane to the starting point (NOT Z!)
+    motorHold(handles, 'resetXY');
+    
     if ~STL.logistics.simulated
         while ~strcmpi(hSI.acqState,'idle')
             pause(0.1);
@@ -698,7 +756,8 @@ end
 
 
 function motorHold(handles, v);
-    % Control motor position-hold-before-reset: 'on', 'off', 'reset'
+    % Control motor position-hold-before-reset: 'on', 'off', 'resetXY',
+    % 'resetZ'
     global STL;
     hSI = evalin('base', 'hSI');
     
@@ -709,7 +768,8 @@ function motorHold(handles, v);
         STL.print.motorHold = true;
         %warning('Disabled fastZ hold hack.');
         STL.print.motor_reset_needed = true;
-        STL.print.motorOrigin = hSI.hMotors.motorPosition;
+        STL.motors.mom.tmp_origin = move('mom');
+        STL.motors.hex.tmp_origin = hexapod_get_position();
     end
     
     if strcmp(v, 'off')
@@ -717,18 +777,58 @@ function motorHold(handles, v);
         STL.print.motor_reset_needed = true;
     end
     
-    if strcmp(v, 'reset')
+    if strcmp(v, 'resetXY')
+        if isfield(STL.motors.mom, 'tmp_origin')
+            hSI.hMotors.motorPosition(1:2) = STL.motors.mom.tmp_origin(1:2);
+        end
+        if isfield(STL.motors.hex, 'tmp_origin')
+            if STL.logistics.simulated
+                STL.logistics.simulated_pos(1:2) = STL.motors.hex.tmp_origin(1:2);
+            elseif STL.motors.hex.connected
+                % If the hexapod is in 'rotation' coordinate system,
+                % wait for move to finish and then switch to 'ZERO'.
+                [~, b] = STL.motors.hex.C887.qKEN('');
+                if ~strcmpi(b(1:5), 'LEVEL')
+                    hexapod_wait();
+                    STL.motors.hex.C887.KEN('ZERO');
+                end
+                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.tmp_origin(1:2));
+            end
+        end
+        
+        %STL.print.motorHold = false;
+        %STL.print.motor_reset_needed = false;
+        %set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
+        set(handles.messages, 'String', 'Restored XY position but not Z position. Crush the thing?');
+    end
+    
+    if strcmp(v, 'resetZ')
         %hSI.hFastZ.goHome; % This takes us to 0 (as I've set it up), which is not what we
         %want.
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
-        if isfield(STL.print, 'motorOrigin')
-            disp(sprintf('Servoing to z = [ %s ]',STL.print.motorOrigin(3)));
-            hSI.hMotors.motorPosition(3) = STL.print.motorOrigin(3);
+        % Don't use MOVE, since I haven't written MOVE to just move Z.
+        if isfield(STL.motors.mom, 'tmp_origin')
+            hSI.hMotors.motorPosition(3) = STL.motors.mom.tmp_origin(3);
+        end
+        if isfield(STL.motors.hex, 'tmp_origin')
+            if STL.logistics.simulated
+                STL.logistics.simulated_pos(3) = STL.motors.hex.tmp_origin(3);
+            elseif STL.motors.hex.connected
+                % If the hexapod is in 'rotation' coordinate system,
+                % wait for move to finish and then switch to 'ZERO'.
+                [~, b] = STL.motors.hex.C887.qKEN('');
+                if ~strcmpi(b(1:5), 'LEVEL')
+                    hexapod_wait();
+                    STL.motors.hex.C887.KEN('ZERO');
+                end
+                STL.motors.hex.C887.MOV('Z', STL.motors.hex.tmp_origin(3));
+            end
         end
         
         STL.print.motorHold = false;
         STL.print.motor_reset_needed = false;
+        set(handles.messages, 'String', '');
         set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
     end
 end
@@ -784,8 +884,8 @@ function powertest_Callback(hObject, eventdata, handles)
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
-
-
+    
+    
     gridx = 5;
     gridy = 6;
     gridn = gridx * gridy;
@@ -831,22 +931,23 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
     %hSI.hFastZ.flybackTime = 25; % SHOULD BE IN MACHINE_DATA_FILE?!?!
     hSI.hStackManager.stackReturnHome = false; % This seems useless.
-    motorHold(handles, 'on');
     hSI.hScan2D.bidirectional = false;
     hSI.hStackManager.numSlices = nframes;
     hSI.hBeams.powerLimits = 100;
     hSI.hBeams.enablePowerBox = true;
     
+    motorHold(handles, 'on');
+
     hSI.startLoop();
     
     % Clean up
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
     end
-
-    hSI.hBeams.enablePowerBox = false;  
+    
+    hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-    motorHold(handles, 'off');
+    motorHold(handles, 'resetZ');
     
     if get(handles.focusWhenDone, 'Value')
         hSI.startFocus();
@@ -951,7 +1052,7 @@ end
 
 %function fastZlower_Callback(hObject, eventdata, handles)
 %    global STL;
-%%    hSI = evalin('base', 'hSI');
+%    hSI = evalin('base', 'hSI');
 %    hSI.hFastZ.positionTarget = 420;
 %    motorHold(handles, 'reset');
 %end
@@ -972,7 +1073,7 @@ end
 
 function crushThing_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
-    motorHold(handles, 'reset');
+    motorHold(handles, 'resetZ');
 end
 
 
@@ -1083,7 +1184,7 @@ function minGoodZoom_Callback(hObject, eventdata, handles)
         STL.print.zoom = STL.print.zoom_min;
     end
     
-    possibleZooms = STL.print.zoom_min:0.1:5;
+    possibleZooms = STL.print.zoom_min:0.1:6;
     for i = 1:length(possibleZooms)
         foo{i} = sprintf('%g', possibleZooms(i));
         
@@ -1146,8 +1247,11 @@ function crushReset_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.print.motorOrigin = hSI.hMotors.motorPosition;
-    %STL.print.motor_reset_needed = false;
+    STL.motors.mom.tmp_origin = move('mom');
+    STL.motors.hex.tmp_origin = move('hex');
+    STL.print.motor_reset_needed = false;
+    set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
+    set(handles.messages, 'String', '');
 end
 
 
@@ -1160,7 +1264,7 @@ end
 
 function show_metavoxel_slice_Callback(hObject, eventdata, handles)
     global STL;
-        
+    
     STL.preview.show_metavoxel_slice = str2num(get(handles.show_metavoxel_slice, 'String'));
     zslider_Callback([], [], handles);
 end
@@ -1181,7 +1285,7 @@ function voxelise_print_button_Callback(hObject, eventdata, handles)
         STL.logistics.abort = false;
         set(handles.messages, 'String', 'Canceled.');
         set(handles.show_metavoxel_slice, 'String', 'NaN');
-
+        
         return;
     end
     set(handles.show_metavoxel_slice, 'String', '1 1 1');
@@ -1190,9 +1294,12 @@ function voxelise_print_button_Callback(hObject, eventdata, handles)
 end
 
 
-function test_button_Callback(hObject, eventdata, handles)
+function test_linearity_Callback(varargin)
     global STL;
+    global wbar;
     hSI = evalin('base', 'hSI');
+    
+    handles = guidata(gcbo);
     
     if ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents your test.');
@@ -1208,25 +1315,38 @@ function test_button_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
     
-    STL.print.motorOrigin = hSI.hMotors.motorPosition;
+    hexapos = hexapod_get_position();
+    if any(abs(hexapos(1:3)) > 0.001)
+        set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
 
+    STL.motors.mom.tmp_origin = move('mom');
+    STL.motors.hex.tmp_origin = move('hex');
+    eval(sprintf('motor = STL.motors.%s', STL.motors.stitching));
+    
     if STL.logistics.simulated
         userZoomFactor = 1;
     else
         userZoomFactor = hSI.hRoiManager.scanZoomFactor;
     end
-        
-    hSI.hRoiManager.scanZoomFactor = 1;
+    
+    hSI.hRoiManager.scanZoomFactor = 6;
+    userPower = hSI.hBeams.powers;
+    hSI.hBeams.powers = 1.3;
     
     % Number of slices at 1 micron per slice:
     hSI.hScan2D.bidirectional = false;
-        
+    
     % A bunch of stuff needs to be set up for this. Should undo it all later!
     oldBeams = hSI.hBeams;
     hSI.hBeams.powerBoxes = hSI.hBeams.powerBoxes([]);
     
     ind = 1;
-    pb.rect = [0.45 0.45 0.1 0.1];
+    %pb.rect = [0.46 0.46 0.08 0.08];
+    pb.rect = [0.9 0.46 0.08 0.08];
     pb.powers = STL.print.power * 100;
     pb.name = 'hi';
     pb.oddLines = 1;
@@ -1234,7 +1354,7 @@ function test_button_Callback(hObject, eventdata, handles)
     
     hSI.hBeams.powerBoxes(ind) = pb;
     
-    nframes = 100;
+    nframes = 36;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -1247,42 +1367,102 @@ function test_button_Callback(hObject, eventdata, handles)
     hSI.hBeams.enablePowerBox = true;
     drawnow;
     
-    [X Y] = meshgrid(0:100:500, 0:100:500);
+    [X Y] = meshgrid(0:1000:4000, 0:1000:4000);
     posns = [X(1:end) ; Y(1:end)];
     %rng(1234);
     
+    metavoxel_counter = 0;
+    metavoxel_total = prod(size(X));
+    start_time = datetime('now');
+    eta = 'next weekend';
+
+        
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        waitbar(0, wbar, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
+    else
+        wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
+        set(wbar, 'Units', 'Normalized');
+        wp = get(wbar, 'Position');
+        wp(1:2) = STL.logistics.wbar_pos(1:2);
+        set(wbar, 'Position', wp);
+        drawnow;
+    end
     
-    posns = posns(:, randperm(prod(size(X))))';
     
-    origin_pos = STL.print.motorOrigin(1:2) - [200 200];
+    %posns = posns(:, randperm(prod(size(X))));
+    posns = posns';
     
+    STL.motors.hex.C887.VLS(1);
+
     for xy = 1:size(posns, 1)
         if STL.logistics.abort
+            % The caller has to unset STL.logistics.abort
+            % (and presumably return).
+            disp('Aborting due to user.');
+            move('hex', [ 0 0 ], 20);
+            if ishandle(wbar) & isvalid(wbar)
+                STL.logistics.wbar_pos = get(wbar, 'Position');
+                delete(wbar);
+            end
+            if exist('handles', 'var');
+                set(handles.messages, 'String', 'Canceled.');
+                drawnow;
+            end
             STL.logistics.abort = false;
+            
+            STL.print.armed = false;
+            hSI.hStackManager.numSlices = 1;
+            hSI.hFastZ.enable = false;
             hSI.hBeams.enablePowerBox = false;
             hSI.hRoiManager.scanZoomFactor = 1;
-            motorHold(handles, 'off');
+            hSI.hBeams.powers = userPower;
+            if ~STL.logistics.simulated
+                while ~strcmpi(hSI.acqState,'idle')
+                    pause(0.1);
+                end
+            end
+                    
+            break;
         end
         
-        newpos = posns(xy, :) + STL.print.motorOrigin(1:2);
-        disp(sprintf(' ...servoing to [%g %g]...', posns(xy, 1), posns(xy, 2)));
-        % Go to position-x on all dimensions in order to always
-        % complete the move in the same direction.
-        hSI.hMotors.motorPosition(1:2) = origin_pos;
-        hSI.hMotors.motorPosition(1:2) = newpos;
+        
+
+        newpos = posns(xy, :) + motor.tmp_origin(1:2);
+
+        move(STL.motors.stitching, newpos, 1);
+        
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
         hSI.startLoop();
         while ~strcmpi(hSI.acqState, 'idle')
             pause(0.1);
         end
+        
+        metavoxel_counter = metavoxel_counter + 1;
+        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+            current_time = datetime('now');
+            eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
+            if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
+                eta = datestr(eta_date, 'HH:MM:SS');
+            else
+                eta = datestr(eta_date, 'dddd HH:MM');
+            end
+            
+            waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Printing. Done around %s.', eta));
+        end
+        
     end
     
     % Clean up
-    hSI.hBeams.enablePowerBox = false;  
+    hSI.hBeams.enablePowerBox = false;
     hSI.hRoiManager.scanZoomFactor = 1;
-    motorHold(handles, 'off');
+    hSI.hBeams.powers = userPower;
+    motorHold(handles, 'resetXYZ');
     
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        STL.logistics.wbar_pos = get(wbar, 'Position');
+        delete(wbar);
+    end
 end
 
 
@@ -1296,14 +1476,18 @@ end
 
 function LoadState_Callback(varargin)
     global STL;
+
+    simulated = STL.logistics.simulated; % This should be updated, at least!
     
     [FileName,PathName] = uigetfile('*.mat');
     
     if isequal(FileName, 0)
         return;
     end
-    
+        
     load(strcat(PathName, FileName));
+    
+    STL.logistics.simulated = simulated;
     
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
@@ -1333,12 +1517,12 @@ function z_step_Callback(hObject, eventdata, handles)
     STL.print.zstep = temp;
     STL.print.voxelise_needed = true;
     set(hObject, 'String', num2str(temp,2));
-        
+    
 end
 
 function z_step_CreateFcn(hObject, eventdata, handles)
     global STL;
-
+    
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
@@ -1351,7 +1535,7 @@ function search_Callback(hObject, eventdata, handles)
     global STL;
     global wbar;
     hSI = evalin('base', 'hSI');
-
+    
     % Save user zoom factor. But at the end, should we restore it? Perhaps
     % not...
     if STL.logistics.simulated
@@ -1364,7 +1548,7 @@ function search_Callback(hObject, eventdata, handles)
     if strcmpi(hSI.acqState, 'idle')
         hSI.startFocus();
     end
-
+    
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
         waitbar(0, wbar, 'Searching...', 'CreateCancelBtn', 'cancel_button_callback');
     else
@@ -1377,7 +1561,7 @@ function search_Callback(hObject, eventdata, handles)
     end
     
     positions = [];
-        
+    
     search_start_pos = hSI.hMotors.motorPosition;
     disp(sprintf('Search starting at [%d %d]', search_start_pos(1), search_start_pos(2)));
     
@@ -1405,7 +1589,7 @@ function search_Callback(hObject, eventdata, handles)
                 return;
             end
             
-            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_x;
+            move('mom', hSI.hMotors.motorPosition + direction * stepsize_x);
             radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
             if radius >= max_radius
                 break;
@@ -1426,8 +1610,8 @@ function search_Callback(hObject, eventdata, handles)
                 STL.logistics.abort = false;
                 return;
             end
-
-            hSI.hMotors.motorPosition = hSI.hMotors.motorPosition + direction * stepsize_y;
+            
+            move('mom', hSI.hMotors.motorPosition + direction * stepsize_y);
             radius = sqrt(sum((hSI.hMotors.motorPosition(1:2) - search_start_pos(1:2)).^2));
             if radius >= max_radius
                 break;
@@ -1440,7 +1624,7 @@ function search_Callback(hObject, eventdata, handles)
         %drawnow;
         
         pos = hSI.hMotors.motorPosition;
-
+        
         nsteps_needed = nsteps_needed + 1;
         direction = -direction;
     end
@@ -1454,42 +1638,51 @@ function search_Callback(hObject, eventdata, handles)
         STL.logistics.wbar_pos = get(wbar, 'Position');
         delete(wbar);
     end
-
+    
 end
 
-
-function set_stage_rotation_centre_Callback(hObject, eventdata, handles)
+% This is used to calibrate the MOM-understage positions at 0.
+function set_stage_true_rotation_centre_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    STL.logistics.stage_centre = hSI.hMotors.motorPosition(1:2);
-    set(handles.messages, 'String', '');
+    STL.motors.mom.understage_centre = hSI.hMotors.motorPosition;
+    set(handles.messages, 'String', sprintf('Maybe add ''STL.motors.mom.understage_centre = [%s ]'' to your config.', ...
+        sprintf(' %d', STL.motors.mom.understage_centre)));
 end
 
 
 % If the underlying object is rotated, we can servo to its new location (if
 % we know the centre of rotation (see set_stage_rotation_centre_Callback).
 function track_rotation_Callback(hObject, eventdata, handles)
+    angle_deg = str2double(get(hObject, 'String'));
+    track_rotation(handles, angle_deg);
+end
+
+function track_rotation(handles, angle_deg)
     global STL;
     hSI = evalin('base', 'hSI');
-
-    if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.logistics.stage_centre)
+    
+    if ~isfield(STL.logistics, 'stage_centre') | isempty(STL.motors.mom.understage_centre)
         set(handles.messages, 'String', 'No stage rotation centre set. Do that first.');
         return;
     end
     
+    % Always rotate about the current position!
     pos = hSI.hMotors.motorPosition(1:2);
-    pos_relative = pos - STL.logistics.stage_centre;
+    pos_relative = pos - STL.motors.mom.understage_centre(1:2);
     
-    r = pi*str2double(get(hObject, 'String'))/180;
+    r = pi*angle_deg/180;
     rm(1:2,1:2) = [cos(r) sin(r); -sin(r) cos(r)];
     pos_relative = pos_relative * rm;
     try
-        set(handles.messages, 'String', '');
-        hSI.hMotors.motorPosition(1:2) = pos_relative + STL.logistics.stage_centre;
+        set(handles.messages, 'String','');
+        set(handles.rotate_infinite_textbox, 'String', '');
+        move('mom', pos_relative + STL.motors.mom.understage_centre(1:2));
     catch ME
         ME
         set(handles.messages, 'String', 'The stage is not ready. Slow down!');
+        rethrow(ME);
     end
 end
 
@@ -1501,4 +1694,239 @@ end
 
 
 function focusWhenDone_Callback(hObject, eventdata, handles)
+end
+
+
+function clean_shutdown(varargin)
+    global STL;
+    global wbar;
+        
+    try
+        hSI = evalin('base', 'hSI');
+        hSI.hRoiManager.scanZoomFactor = 1;
+    end
+    
+    try
+        fclose(STL.motors.rot.esp301);
+    end
+    
+    try
+        hexapod_pi_disconnect();
+    end
+    
+    try
+        delete(wbar);
+    end
+    
+    clear -global STL;
+    
+    delete(gcf);
+end
+
+
+function hexapod_reset_to_centre(varargin)
+    global STL;
+    
+    if ~STL.motors.hex.connected
+        return;
+    end
+    
+    % If the hexapod is in 'rotation' coordinate system,
+    % wait for move to finish and then switch to 'ZERO'.
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:5), 'LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+
+    STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
+    STL.motors.hex.C887.MOV('x y z u v w', [0 0 0 0 0 0]);
+    hexapod_wait(handles);
+    update_gui(handles);
+end
+
+
+
+function hexapod_rotate_x_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    hexapod_wait();
+    %hexapod_set_rotation_centre_Callback();
+    try
+        %set(handles.messages, 'String', sprintf('Rotating U to %g', get(hObject, 'Value') * STL.motors.hex.range(4, 2)));
+        [~, b] = STL.motors.hex.C887.qKEN('');
+        if ~strcmpi(b(1:8), 'rotation')
+            STL.motors.hex.C887.KEN('rotation');
+        end
+    catch ME
+        set(handles.messages, 'String', 'Set the virtual rotation centre first.');
+        return;
+    end
+    
+    try
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
+        STL.motors.hex.C887.MOV('U', get(hObject, 'Value') * STL.motors.hex.range(4, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
+    hexapod_wait();
+end
+
+function hexapod_rotate_y_Callback(hObject, eventdata, handles)
+    global STL;
+
+    hexapod_wait();
+
+    %hexapod_set_rotation_centre_Callback();
+    try
+        %set(handles.messages, 'String', sprintf('Rotating V to %g', get(hObject, 'Value') * STL.motors.hex.range(5, 2)));
+        [~, b] = STL.motors.hex.C887.qKEN('');
+        if ~strcmpi(b(1:8), 'rotation')
+            STL.motors.hex.C887.KEN('rotation');
+        end
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
+        STL.motors.hex.C887.MOV('V', get(hObject, 'Value') * STL.motors.hex.range(5, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
+    hexapod_wait();
+end
+
+function hexapod_rotate_z_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    %hexapod_set_rotation_centre_Callback();
+    hexapod_wait();
+
+    try
+        %set(handles.messages, 'String', sprintf('Rotating W to %g', get(hObject, 'Value') * STL.motors.hex.range(6, 2)));
+        [~, b] = STL.motors.hex.C887.qKEN('');
+        if ~strcmpi(b(1:8), 'rotation')
+            STL.motors.hex.C887.KEN('rotation');
+        end
+
+        STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
+        STL.motors.hex.C887.MOV('W', get(hObject, 'Value') * STL.motors.hex.range(6, 2));
+    catch ME
+        set(handles.messages, 'String', 'Given the hexapod''s state, that position is unavailable.');
+        update_gui(handles);
+    end
+    hexapod_wait();
+end
+
+function hexapod_rotate_x_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function hexapod_rotate_y_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function hexapod_rotate_z_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+% During a drag of the slider, show the rotation angle that will be used if the drag ends now. This is for infinite-rotation
+% devices (e.g. the esp301).
+function rotate_by_slider_show_Callback(hObject, eventdata, handles)
+    spos = get(handles.rotate_infinite_slider, 'Value');
+    sscaled = sign(spos) * 90^abs(spos);
+    set(handles.rotate_infinite_textbox, 'String', sprintf('%.3g', sscaled));
+end
+
+% Do the actual rotation when the drag ends. For infinite-rotation devices (currently just the esp301).
+function rotate_infinite_slider_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    spos = get(hObject, 'Value');
+    rotangle = sign(spos) * 90^abs(spos);
+    set(handles.rotate_infinite_textbox, 'String', sprintf('Target: %.3g', rotangle));
+    set(handles.rotate_infinite_slider, 'Value', 0);
+    
+    moveto_rel(STL.motors.rot.esp301, 3, -rotangle);
+    track_rotation(handles, rotangle);
+end
+
+
+function rotate_infinite_slider_CreateFcn(hObject, eventdata, handles)
+    if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor',[.9 .9 .9]);
+    end
+end
+
+function hexapod_zero_angles_Callback(hObject, eventdata, handles)
+    hexapod_reset_to_zero_rotation(handles);
+end
+
+% Set the virtual rotation centre to the point under the microscope lens.
+% This is based on STL.motors.mom.understage_centre (MOM's coordinates when
+% aligned to hexapod's true centre).
+function hexapod_set_rotation_centre_Callback(varargin)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    head_position_rel = hSI.hMotors.motorPosition - STL.motors.mom.understage_centre;
+    head_position_rel = head_position_rel * STL.motors.mom.coords_to_hex;
+    head_position_rel(3) = STL.motors.hex.pivot_z_um;
+    new_pivot_mm = head_position_rel / 1e3;
+    %new_pivot_mm = [0 0 0];
+    
+    new_pivot_mm = new_pivot_mm .* [-1 -1 1];
+    
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:5), 'LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+    
+    try
+        STL.motors.hex.C887.KSD('rotation', 'x y z', new_pivot_mm);
+    catch ME
+        rethrow(ME);
+    end
+end
+
+
+function add_bullseye_Callback(hObject, eventdata, handles)
+    add_bullseye();
+end
+
+function align_stages(hObject, eventdata, handles);
+    global STL;
+    hSI = evalin('base', 'hSI');
+
+    [~, b] = STL.motors.hex.C887.qKEN('');
+    if ~strcmpi(b(1:5), 'LEVEL')
+        hexapod_wait();
+        STL.motors.hex.C887.KEN('ZERO');
+    end
+    
+    handles = guidata(gcbo);
+
+    add_bullseye();
+    
+    hexapos = hexapod_get_position();
+    STL.motors.hex.C887.KSD('rotation', 'X Y Z', [0 0 STL.motors.hex.pivot_z_um / 1e3]);
+    
+    hexapod_reset_to_zero_rotation(handles);
+
+    STL.motors.hex.C887.SPI('X Y Z', [0 0 0]);
+end
+
+
+function hexapod_zero_pos_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    foo = hexapod_get_position;
+    hexapod_wait();
+    STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
 end

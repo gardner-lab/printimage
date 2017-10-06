@@ -43,7 +43,11 @@ function [] = voxelise(handles, target)
             
             update_best_zoom(handles);
             
-            user_zoom = hSI.hRoiManager.scanZoomFactor;
+            if STL.logistics.simulated
+                user_zoom = 1;
+            else
+                user_zoom = hSI.hRoiManager.scanZoomFactor;
+            end
             hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
             fov = hSI.hRoiManager.imagingFovUm;
             hSI.hRoiManager.scanZoomFactor = user_zoom;
@@ -57,8 +61,13 @@ function [] = voxelise(handles, target)
                 hSI.hRoiManager.linesPerFrame ...
                 round(STL.print.size(3) / STL.print.zstep)];
             
-            % X (resonant scanner) centres. Correct for sinusoidal velocity. This computes the locations of
-            % pixel centres given an origin at 0.
+            % X (resonant scanner) centres. Correct for sinusoidal
+            % velocity. This computes the locations of pixel centres given
+            % an origin at 0.
+            
+            % FIXME We should really compute pixel left-edges for 0-1
+            % transitions and right-edges for 1-0. Maybe in the next
+            % version.
             xc = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
             xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
             xc = sin(xc);
@@ -67,22 +76,32 @@ function [] = voxelise(handles, target)
             xc = (xc + 1) / 2;  % Now on [0 1].
             xc = xc * STL.print.bounds_best(1);
             
-            % Y (galvo) centres.
+            % Y (galvo) centres. FIXME as above
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             
-            % Z centres aren't defined by zoom, but by zstep. THIS IS WHAT
-            % IT SHOULD BE IF THORLABS FastZ STAGE WORKED PROPERLY:
+            % Z centres aren't defined by zoom, but by zstep.
             zc = STL.print.zstep : STL.print.zstep : min([STL.print.bounds(3) STL.print.size(3)]);
             
-            % Compensate for ThorLabs error: it's giving 30% less motion
-            % than requested at z=450, and about correct at z=0. And I've
-            % inverted those coordinates, so...
-            %zc = STL.params.zc;
             
-            % 5. Calculate power compensation for sinusoidal speed
+            % Compensate for lens vignetting, if we've done the fit.
+            if exist('vignetting_fit.mat', 'file')
+                warning('Using vignetting compensation from vignetting_fit.mat');
+                load('vignetting_fit.mat');
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = vignetting_fit(vig_x, vig_y);
+                vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
+            else
+                vignetting_falloff = ones(STL.print.resolution(1:2));
+            end
+            % Transpose: xc is the first index of the matrix (row #)
+            warning('Transposing vignetting_falloff. Correct?');
+            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(zc, 2)]);
+
+            % Calculate power compensation for sinusoidal speed
             speed = cos(asin(temp_speed));
+            speed = repmat(speed', [1, size(yc,2), size(zc,2)]);
             %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
-            metapower = repmat(speed',[1,size(yc,2),size(zc,2)]);
+            frame_power_adjustment = speed ./ vignetting_falloff;
             
             % 6. Feed each metavoxel's centres to voxelise
             
@@ -107,8 +126,9 @@ function [] = voxelise(handles, target)
             STL.print.metavoxel_resolution = {};
             STL.print.metavoxels = {};
             STL.logistics.abort = false;
-
             
+%             parfor mvx = 1:nmetavoxels(1) % parfor threw an error --
+%             can't use with an embedded return command
             for mvx = 1:nmetavoxels(1)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
@@ -168,8 +188,8 @@ function [] = voxelise(handles, target)
                         end
                         
                         STL.print.metavoxels{mvx, mvy, mvz} = A;
-                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}).*metapower;
-                        
+                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* frame_power_adjustment;
+                                                
                         % Delete empty zstack slices if they are above
                         % something that is printed:
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
@@ -178,6 +198,10 @@ function [] = voxelise(handles, target)
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
                         STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:cow);
+                        
+                        % The voxel powers for each metavoxel are stored in
+                        % metapower. During print(), the appropriate
+                        % metapower becomes the new voxelpower. Yuck :(
                         STL.print.metapower{mvx, mvy, mvz} = STL.print.metapower{mvx, mvy, mvz}(:,:,1:cow);
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
@@ -258,7 +282,10 @@ function [] = voxelise(handles, target)
         set(handles.messages, 'String', '');
         drawnow;
     end
-
+    
+    % Save what we've done... just in case...
+    disp('Saving voxelised file as LastVoxelised.mat');
+    save('LastVoxelised_dont_remove_this_until_last_one_is_rescued', 'STL');
 end
 
 % was used instead of the parfor after parVOXELISE, keeping it as backup    
