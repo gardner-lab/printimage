@@ -20,11 +20,9 @@ for i = 1:size(bg, 1)
 end
 
 % These are, ideally, approximately centred (fit is more likely to converge), but it's not important. We won't assume centering later.
-x = (x - min(x));
-x = x - 0.5*(max(x)-min(x)) * PixelSize;
-y = (y - min(y));
-y = y - 0.5*(max(y)-min(y)) * PixelSize;
-z = (z - min(z)) / max(z - min(z));
+x = (x - (max(x)+min(x))/2) * PixelSize;
+y = (y - (max(y)+min(y))/2) * PixelSize;
+z = (z - min(z)) / (max(z) - min(z));
 
 
 [xData, yData, zData] = prepareSurfaceData( x, y, z );
