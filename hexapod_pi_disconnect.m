@@ -3,15 +3,15 @@ function hexapod_pi_disconnect()
     
     STL.motors.hex.connected = false;
     
-    try
+    %try
         STL.motors.hex.C887.CloseConnection;
-    end
+    %end
     
-    try
+    %try
         STL.motors.hex.Controller.Destroy;
-    end
+    %end
     
-    try
-        STL.motors.hex = rmfield(STL.motors.hex, {'Controller', 'C887'});
-    end
+    %try
+        %STL.motors.hex = rmfield(STL.motors.hex, {'Controller', 'C887'});
+    %end
 end

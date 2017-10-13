@@ -65,7 +65,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    
+    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting falloff', 'Callback', @calibrate_vignetting_Callback);
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
@@ -1710,9 +1710,9 @@ function clean_shutdown(varargin)
         fclose(STL.motors.rot.esp301);
     end
     
-    try
+    %try
         hexapod_pi_disconnect();
-    end
+    %end
     
     try
         delete(wbar);
@@ -1929,4 +1929,37 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     foo = hexapod_get_position;
     hexapod_wait();
     STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
+end
+
+
+function calibrate_vignetting_Callback(hObject)
+        hSI = evalin('base', 'hSI');
+        global STL;
+        
+        %set(handles.messages, 'String', 'Taking snapshot of current view...');
+        
+        hSI.hStackManager.framesPerSlice = 100;
+        hSI.hChannels.loggingEnable = true;
+        hSI.hScan2D.logFramesPerFileLock = true;
+        hSI.hScan2D.logFileStem = 'vignetting_cal';
+        hSI.hScan2D.logFileCounter = 1;
+        hSI.hScan2D.logAverageFactor = 100;
+        hSI.hRoiManager.scanZoomFactor = 1;
+        
+        if ~STL.logistics.simulated
+            hSI.startGrab();
+            
+            while ~strcmpi(hSI.acqState,'idle')
+                pause(0.1);
+            end
+        end
+
+        hSI.hStackManager.framesPerSlice = 1;
+        hSI.hChannels.loggingEnable = false;
+        
+        %set(handles.messages, 'String', 'Computing fit...');
+
+        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', STL.bounds_1(1));
+        
+        %set(handles.messages, 'String', '');
 end

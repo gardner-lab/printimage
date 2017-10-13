@@ -1,7 +1,7 @@
 function [] = voxelise(handles, target)
 
     global STL;
-    hSI = evalin('base', 'hSI');    
+    hSI = evalin('base', 'hSI');
     %warning('Voxelising again (for %s)', target);
     
     global wbar;
@@ -82,24 +82,29 @@ function [] = voxelise(handles, target)
             % Z centres aren't defined by zoom, but by zstep.
             zc = STL.print.zstep : STL.print.zstep : min([STL.print.bounds(3) STL.print.size(3)]);
             
-            
+            % FIXME This should be moved to printimage_modify_beam, so we
+            % don't need to re-voxelise whenever we recalibrate vignetting!
             % Compensate for lens vignetting, if we've done the fit.
-            if exist('vignetting_fit.mat', 'file')
-                warning('Using vignetting compensation from vignetting_fit.mat');
-                load('vignetting_fit.mat');
+            if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit')
+                if exist('vignetting_fit.mat', 'file')
+                    STL.calibration.vignetting_fit = load('vignetting_fit.mat');
+                end
+            end
+            
+            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
                 % Sadly, coordinates for the printed object are currently
                 % on [0,1], not real FOV coords. So this is an
                 % approximation for now. But it's pretty good.
                 xc_c = xc - xc(end)/2;
                 yc_c = yc - yc(end)/2;
                 [vig_x, vig_y] = meshgrid(xc_c, yc_c);
-                vignetting_falloff = vignetting_fit(vig_x, vig_y);
+                vignetting_falloff = STL.calibration.vignetting_fit(vig_x, vig_y);
                 vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
             else
+                disp('No vignetting fit available. Using ones...');
                 vignetting_falloff = ones(STL.print.resolution(1:2));
             end
             % Transpose: xc is the first index of the matrix (row #)
-            warning('Transposing vignetting_falloff. Correct?');
             vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(zc, 2)]);
 
             % Calculate power compensation for sinusoidal speed
@@ -109,13 +114,22 @@ function [] = voxelise(handles, target)
             frame_power_adjustment = speed ./ vignetting_falloff;
             figure(12);
             subplot(1,2,1);
+            cla;
             plot(speed(:,256,10));
             hold on;
             plot(1./vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
+            plot(speed(:,256,10) ./ vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
             hold off;
+            legend('Pure cos', 'Vignetting', 'Combined');%, 'Ad-hoc');
             axis tight;
+            xlabel('voxel');
+            ylabel('relative power');
             subplot(1,2,2);
-            imagesc(xc_c,yc_c,squeeze(vignetting_falloff(:,:,1)));
+            imagesc(yc_c, xc_c, squeeze(speed(:,:,10) ./ vignetting_falloff(:,:,10))');
+            title('XY compensation, z=10');
+            colorbar;
+            xlabel('microns');
+            ylabel('microns');
 
             
             % 6. Feed each metavoxel's centres to voxelise
@@ -240,6 +254,16 @@ function [] = voxelise(handles, target)
                 end
             end
 
+            figure(12);
+            subplot(1,2,1);
+            hold on;
+            v = STL.print.metavoxels{1,1,1} .* speed(:,:,1:size(STL.print.metavoxels{1,1,1}, 3));
+            vnot = (v > 0.01);
+            v(vnot) = v(vnot) + 0.5*(1 - v(vnot));
+            plot(v(:,256,10));
+            hold off;
+            legend('Pure cos', 'Vignetting', 'Combined', 'Ad-hoc');
+            ylim([0.8 1.2]);
             
             if STL.logistics.abort
                 STL.logistics.abort = false;
