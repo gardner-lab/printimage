@@ -56,7 +56,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     % Add a menubar
     %hObject.MenuBar = 'none';
     menu_file = uimenu(hObject, 'Label', 'File');
-    menu__file_OpenSTL = uimenu(menu_file, 'Label', 'Open STL', 'Callback', @chooseSTL_Callback);
+    menu__file_OpenSTL = uimenu(menu_file, 'Label', 'Load STL', 'Callback', @chooseSTL_Callback);
     menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
     menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
@@ -1930,12 +1930,25 @@ end
 function align_stages(hObject, eventdata, handles);
     global STL;
     hSI = evalin('base', 'hSI');
+    
+    % FIXME (1) make sure the hexapod is in the right coordinate system:
+    % should be in the Leveling system, (2) reset rotation coordinate
+    % system to 0, (3) centre/zero it.
 
     [~, b] = STL.motors.hex.C887.qKEN('');
     if ~strcmpi(b(1:5), 'LEVEL')
         hexapod_wait();
         STL.motors.hex.C887.KEN('ZERO');
     end
+    hexapod_wait();
+    try
+        STL.motors.hex.C887.KSD('rotation', 'x y z', new_pivot_mm);
+    catch ME
+        rethrow(ME);
+    end
+    hexapod_wait();
+    move('hex', [0 0 0 0 0 0], 10);
+    hexapod_wait();
     
     handles = guidata(gcbo);
 
