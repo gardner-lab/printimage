@@ -691,8 +691,12 @@ function print_Callback(hObject, eventdata, handles)
                 % 2. Set up printimage_modify_beam with the appropriate
                 % voxels and their power
                 
-                STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
-                STL.print.voxelpower = STL.print.metapower{mvx, mvy, mvz};
+                STL.print.mvx_now = mvx;
+                STL.print.mvy_now = mvy;
+                STL.print.mvz_now = mvz;
+                
+                %STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
+                %STL.print.voxelpower = STL.print.metapower{mvx, mvy, mvz};
                 
                 % 3. Set resolution appropriately
                 hSI.hStackManager.numSlices = STL.print.metavoxel_resolution{mvx, mvy, mvz}(3);
@@ -1932,11 +1936,13 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
 end
 
 
-function calibrate_vignetting_Callback(hObject)
+function calibrate_vignetting_Callback(hObject, eventdata)
         hSI = evalin('base', 'hSI');
         global STL;
         
-        %set(handles.messages, 'String', 'Taking snapshot of current view...');
+        handles = guihandles(hObject);
+        
+        set(handles.messages, 'String', 'Taking snapshot of current view...'); drawnow;
         
         hSI.hStackManager.framesPerSlice = 100;
         hSI.hChannels.loggingEnable = true;
@@ -1957,9 +1963,9 @@ function calibrate_vignetting_Callback(hObject)
         hSI.hStackManager.framesPerSlice = 1;
         hSI.hChannels.loggingEnable = false;
         
-        %set(handles.messages, 'String', 'Computing fit...');
+        set(handles.messages, 'String', 'Computing fit...'); drawnow;
 
-        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', STL.bounds_1(1));
+        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', STL.bounds_1(1), handles);
         
-        %set(handles.messages, 'String', '');
+        set(handles.messages, 'String', '');
 end

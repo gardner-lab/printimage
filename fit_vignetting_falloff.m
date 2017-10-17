@@ -1,4 +1,4 @@
-function [vignetting_fit] = fit_vignetting_falloff(filename, FOV);
+function [vignetting_fit] = fit_vignetting_falloff(filename, FOV, handles);
     
     % FOV = 666; % microns
     
@@ -10,7 +10,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV);
     PixelSize = FOV / size(bg, 1);
     
     % Use some centre portion of the image...
-    CROPX = 40;
+    CROPX = 10;
     CROPY = 40;
     bg = bg(1+CROPY:end-CROPY, 1+CROPX:end-CROPX);
     
@@ -30,14 +30,13 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV);
     end
     
 
-    % These are, ideally, approximately centred (fit is more likely to converge), but it's not important. We won't assume centering later.
     x = (x - (max(x)+min(x))/2) * PixelSize;
-    y = -(y - (max(y)+min(y))/2) * PixelSize; % Greater Y index in matrix = lower Y value on FOV
+    y = -(y - (max(y)+min(y))/2) * PixelSize; % Greater Y index in matrix = more negative Y value in FOV's coordinate system
     z = (z - min(z)) / (max(z) - min(z));
         
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
     
-    FITMETHOD = 'cos4free';
+    FITMETHOD = 'interp';
     
     switch FITMETHOD
         
@@ -83,21 +82,16 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV);
     % Fit model to data.
     [vignetting_fit, gof] = fit( [xData, yData], zData, ft, opts );
     
-    if false
+    if nargin == 3 & false
         % Plot fit with data.
-        figure(12);
-        %subplot(2,1,2);
-        h = plot( vignetting_fit, [xData, yData], zData );
-        legend( h, 'untitled fit 1', 'z vs. x, y', 'Location', 'NorthEast' );
+        h = plot(handles.axes2, vignetting_fit, [xData, yData], zData );
         % Label axes
         xlabel x
         ylabel y
         zlabel z
-        grid on
+        grid off
+        colormap jet;
     end
     
     vignetting_fit
     gof
-    save vignetting_fit vignetting_fit
-    
-    %cftool(x, y, z);
