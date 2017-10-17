@@ -39,7 +39,8 @@ function [] = voxelise(handles, target)
             % automatic?
                         
             % 1. Compute metavoxels based on user-selected print zoom:
-            nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
+            overlap_needed = (STL.print.size > STL.print.bounds);
+            nmetavoxels = ceil((STL.print.size - STL.print.metavoxel_overlap) ./ (STL.print.bounds - STL.print.metavoxel_overlap.*overlap_needed));
             
             update_best_zoom(handles);
             
@@ -53,7 +54,10 @@ function [] = voxelise(handles, target)
             hSI.hRoiManager.scanZoomFactor = user_zoom;
             STL.print.bounds_best = STL.print.bounds;
             STL.print.bounds_best([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-            
+            if STL.logistics.simulated
+                STL.print.bounds_best([1 2]) = ceil(STL.print.bounds_best([1 2])/STL.print.zoom_best);
+            end            
+
             STL.print.metavoxel_shift = STL.print.bounds_best - STL.print.metavoxel_overlap;
             % 4. Get voxel centres for metavoxel 0,0,0
             

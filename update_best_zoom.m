@@ -1,8 +1,11 @@
 function update_best_zoom(handles);
     global STL;
     
-    nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
-
+    %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
+    overlap_needed = (STL.print.size > STL.print.bounds);
+    nmetavoxels = ceil((STL.print.size - STL.print.metavoxel_overlap) ./ (STL.print.bounds - STL.print.metavoxel_overlap.*overlap_needed));
+    
+    
     if STL.logistics.simulated
         STL.print.zoom_best = 2.2;
     else
