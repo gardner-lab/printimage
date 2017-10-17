@@ -1931,9 +1931,11 @@ function align_stages(hObject, eventdata, handles);
     global STL;
     hSI = evalin('base', 'hSI');
     
-    % FIXME (1) make sure the hexapod is in the right coordinate system:
-    % should be in the Leveling system, (2) reset rotation coordinate
+    % FIXME (2) make sure the hexapod is in the right coordinate system:
+    % should be in the Leveling system, (1) reset rotation coordinate
     % system to 0, (3) centre/zero it.
+
+    STL.motors.hex.C887.KSD('rotation', 'X Y Z', [0 0 STL.motors.hex.pivot_z_um / 1e3]);
 
     [~, b] = STL.motors.hex.C887.qKEN('');
     if ~strcmpi(b(1:5), 'LEVEL')
@@ -1941,21 +1943,11 @@ function align_stages(hObject, eventdata, handles);
         STL.motors.hex.C887.KEN('ZERO');
     end
     hexapod_wait();
-    try
-        STL.motors.hex.C887.KSD('rotation', 'x y z', new_pivot_mm);
-    catch ME
-        rethrow(ME);
-    end
-    hexapod_wait();
     move('hex', [0 0 0 0 0 0], 10);
     hexapod_wait();
     
     handles = guidata(gcbo);
-
     add_bullseye();
-    
-    hexapos = hexapod_get_position();
-    STL.motors.hex.C887.KSD('rotation', 'X Y Z', [0 0 STL.motors.hex.pivot_z_um / 1e3]);
     
     hexapod_reset_to_zero_rotation(handles);
 
