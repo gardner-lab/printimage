@@ -3,7 +3,7 @@ STL.print.power = 0.6;
 
 STL.motors.hex.ip_address = '128.197.37.84';
 STL.motors.hex.pivot_z_um = 36700;
-STL.motors.hex.leveling = [0 0 0 0.9 -0.1 -1.2];
+STL.motors.hex.leveling = [0 0 0 0.9 -0.1 -1.4];
 STL.motors.hex.user_rotate_velocity = 20;
 
 %STL.motors.rot.com_port = 'com4';
