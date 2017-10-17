@@ -79,26 +79,28 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         end
         STL.logistics.simulated = false;
     catch ME
-        % Run in simulated mode. To voxelise offline (e.g. big stitching
-        % jobs on a fast cluster), the marked parameters should all be
-        % grabbed from the hSI structure created by ScanImage on the r3D2
-        % machine, or defined here as you wish and copied manually to the
-        % r3D2 machine. FIXME easy to copy to target
+        % Run in simulated mode.
+        
+        % To voxelise offline (e.g. big stitching jobs on a fast cluster),
+        % the marked parameters should all be grabbed from the hSI
+        % structure created by ScanImage on the r3D2 machine, or defined
+        % here as you wish and copied manually to the r3D2 machine. FIXME
+        % easy to copy to target
         
         % FIXME scanZoomFactor will probably only remain the same with
         % stitched items, for which the auto-zoom doesn't happen. If it
         % does auto-zoom, PrintImage will probably recalculate and
         % revoxelise, but if you're not doing stitching, then voxelising
-        % one metavoxel is fast anyway, so there's probably no need to
-        % voxelise on a faster computer.
+        % one metavoxel is fast anyway, so there's probably no major need
+        % to voxelise on a faster computer.
         STL.logistics.simulated = true;
         STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
-        hSI.hRoiManager.linesPerFrame = 512; % define
-        hSI.hRoiManager.scanZoomFactor = 2.2; % define
-        hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333]; % copy
-        hSI.hScan_ResScanner.fillFractionSpatial = 0.9; % copy
-        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152; % copy (available after a Focus)
+        hSI.hRoiManager.linesPerFrame = 512; % define here as desired
+        hSI.hRoiManager.scanZoomFactor = 2.3; % define here as desired
+        hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333]; % copy from hSI
+        hSI.hScan_ResScanner.fillFractionSpatial = 0.9; % copy from hSI
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152; % copy from hSI (available after a Focus)
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
         assignin('base', 'hSI', hSI);
     end
@@ -432,7 +434,7 @@ function updateSTLfile(handles, STLfile)
     STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
     % again.
-    STL.patchobj1 = stlread(STL.file);
+    STL.patchobj1 = stlRead(STL.file);
     
     % Reset one or two things...
     STL.print.invert_z = 0;
