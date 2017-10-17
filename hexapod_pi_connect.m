@@ -57,19 +57,18 @@ function hexapod_pi_connect()
     end
     
     
-    % Open connection
-    STL.motors.hex.boolC887connected = false;
-    try
-        hexapod_pi_disconnect();
-    catch ME
-    end
+    %if ~isfield(STL.motors.hex, 'connected') | ~STL.motors.hex.connected
+    %try
+    %    hexapod_pi_disconnect();
+    %catch ME
+    %end
     
     if (isfield(STL.motors.hex, 'C887')) & STL.motors.hex.C887.IsConnected
-        STL.motors.hex.boolC887connected = true;
+        STL.motors.hex.connected = true;
     end
     
     
-    if (~STL.motors.hex.boolC887connected)
+    if (~STL.motors.hex.connected)
         if (STL.motors.hex.use_RS232_Connection)
             STL.motors.hex.C887 = STL.motors.hex.Controller.ConnectRS232(STL.motors.hex.comPort, STL.motors.hex.baudRate);
         end
