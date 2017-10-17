@@ -84,8 +84,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         figure(12);
         subplot(1,2,2);
         v_vis = reshape(v, size(voxelpower));
-        imagesc(squeeze(v_vis(:,:,end-1))');
+        image(squeeze(v_vis(:,:,end-1))');
         colorbar;
+        colormap jet;
     end
     
    %disp(sprintf('=== Compensation took power down to %g', ...
