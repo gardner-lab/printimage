@@ -1480,18 +1480,23 @@ end
 
 function LoadState_Callback(varargin)
     global STL;
-
-    simulated = STL.logistics.simulated; % This should be updated, at least!
+    
+    % Some things should not be overwritten by the restored state:
+    simulated = STL.logistics.simulated;
+    STLmotors = STL.motors;
+    
     
     [FileName,PathName] = uigetfile('*.mat');
     
     if isequal(FileName, 0)
         return;
     end
-        
+    
     load(strcat(PathName, FileName));
     
+    % Restore the current stuff:
     STL.logistics.simulated = simulated;
+    STL.motors = STLmotors;
     
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
