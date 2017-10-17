@@ -1098,8 +1098,10 @@ function size1_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
     
-    % Should the dim here really be 1? Or 2?
-    update_dimensions(handles, 1, str2double(get(hObject, 'String')));
+    foo = str2double(get(hObject, 'String'));
+    if foo > 0
+        update_dimensions(handles, 1, foo);
+    end
 end
 
 function size1_CreateFcn(hObject, eventdata, handles)
@@ -1114,7 +1116,10 @@ function size2_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
     
-    update_dimensions(handles, 2, str2double(get(hObject, 'String')));
+    foo = str2double(get(hObject, 'String'));
+    if foo > 0
+        update_dimensions(handles, 2, foo);
+    end
 end
 
 function size2_CreateFcn(hObject, eventdata, handles)
@@ -1130,7 +1135,10 @@ function size3_Callback(hObject, eventdata, handles)
     global STL;
     STL.print.rescale_needed = true;
     
-    update_dimensions(handles, 3, str2double(get(hObject, 'String')));
+    foo = str2double(get(hObject, 'String'));
+    if foo > 0
+        update_dimensions(handles, 3, foo);
+    end
 end
 
 function size3_CreateFcn(hObject, eventdata, handles)
