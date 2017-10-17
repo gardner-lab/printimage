@@ -79,16 +79,26 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         end
         STL.logistics.simulated = false;
     catch ME
-        % Run in simulated mode!
+        % Run in simulated mode. To voxelise offline (e.g. big stitching
+        % jobs on a fast cluster), the marked parameters should all be
+        % grabbed from the hSI structure created by ScanImage on the r3D2
+        % machine, or defined here as you wish and copied manually to the
+        % r3D2 machine. FIXME easy to copy to target
+        
+        % FIXME scanZoomFactor will probably only remain the same with
+        % stitched items, for which the auto-zoom doesn't happen. If it
+        % does auto-zoom, PrintImage will probably recalculate and
+        % revoxelise, but if you're not doing stitching, then voxelising
+        % one metavoxel is fast anyway, so there's probably no need to
+        % voxelise on a faster computer.
         STL.logistics.simulated = true;
         STL.logistics.simulated_pos = [ 0 0 0 0 0 0 ];
         hSI.simulated = true;
-        hSI.hRoiManager.scanZoomFactor = 2.2;
-        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152;
-        hSI.hRoiManager.linesPerFrame = 512;
-        hSI.hRoiManager.scanZoomFactor = 2.2;
-        hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333];
-        hSI.hScan_ResScanner.fillFractionSpatial = 0.7;
+        hSI.hRoiManager.linesPerFrame = 512; % define
+        hSI.hRoiManager.scanZoomFactor = 2.2; % define
+        hSI.hRoiManager.imagingFovUm = [-333 -333; 0 0; 333 333]; % copy
+        hSI.hScan_ResScanner.fillFractionSpatial = 0.9; % copy
+        hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152; % copy (available after a Focus)
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
         assignin('base', 'hSI', hSI);
     end
@@ -212,9 +222,9 @@ end
 
 % This sets up default values for user-configurable STL parameters. Then,
 % if printimage_config.m exists, we load that, and replace all valid
-% parameters' default values with the user-configured versions. If a
-% default value doesn't exist, the user configuration parameter is ignored
-% and a warning issued.
+% parameters' default values with the user-configured versions. If the user
+% tries to configure a parameter for which there is no default defined
+% here, the user configuration parameter is ignored and a warning issued.
 function set_up_params()
     global STL;
     
@@ -1489,6 +1499,13 @@ function LoadState_Callback(varargin)
     
     STL.logistics.simulated = simulated;
     
+    % Pull Y axis voxels from loaded file:
+    hSI.hRoiManager.linesPerFrame = STL.print.resolution(2);
+    % No need to pull zoom from loaded file, since the selected zoom is
+    % stored in the STL, and ScanImage will be informed of it when printing
+    % starts... I hope... (?)
+    % hSI.hRoiManager.scanZoomFactor = 2.2; % define
+
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
     update_gui(handles);
