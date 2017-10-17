@@ -82,55 +82,31 @@ function [] = voxelise(handles, target)
             % Z centres aren't defined by zoom, but by zstep.
             zc = STL.print.zstep : STL.print.zstep : min([STL.print.bounds(3) STL.print.size(3)]);
             
-            % FIXME This should be moved to printimage_modify_beam, so we
-            % don't need to re-voxelise whenever we recalibrate vignetting!
-            % Compensate for lens vignetting, if we've done the fit.
-            if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit')
-                if exist('vignetting_fit.mat', 'file')
-                    STL.calibration.vignetting_fit = load('vignetting_fit.mat');
-                end
-            end
-            
-            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
-                % Sadly, coordinates for the printed object are currently
-                % on [0,1], not real FOV coords. So this is an
-                % approximation for now. But it's pretty good.
-                xc_c = xc - xc(end)/2;
-                yc_c = yc - yc(end)/2;
-                [vig_x, vig_y] = meshgrid(xc_c, yc_c);
-                vignetting_falloff = STL.calibration.vignetting_fit(vig_x, vig_y);
-                vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
-            else
-                disp('No vignetting fit available. Using ones...');
-                vignetting_falloff = ones(STL.print.resolution(1:2));
-            end
-            % Transpose: xc is the first index of the matrix (row #)
-            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(zc, 2)]);
-
             % Calculate power compensation for sinusoidal speed
             speed = cos(asin(temp_speed));
             speed = repmat(speed', [1, size(yc,2), size(zc,2)]);
             %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
-            frame_power_adjustment = speed ./ vignetting_falloff;
-            figure(12);
-            subplot(1,2,1);
-            cla;
-            plot(speed(:,256,10));
-            hold on;
-            plot(1./vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
-            plot(speed(:,256,10) ./ vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
-            hold off;
-            legend('Pure cos', 'Vignetting', 'Combined');%, 'Ad-hoc');
-            axis tight;
-            xlabel('voxel');
-            ylabel('relative power');
-            subplot(1,2,2);
-            imagesc(yc_c, xc_c, squeeze(speed(:,:,10) ./ vignetting_falloff(:,:,10))');
-            title('XY compensation, z=10');
-            colorbar;
-            xlabel('microns');
-            ylabel('microns');
-
+            
+            if false
+                figure(12);
+                subplot(1,2,1);
+                cla;
+                plot(speed(:,256,10));
+                hold on;
+                plot(1./vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
+                plot(speed(:,256,10) ./ vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
+                hold off;
+                legend('Pure cos', 'Vignetting', 'Combined');%, 'Ad-hoc');
+                axis tight;
+                xlabel('voxel');
+                ylabel('relative power');
+                subplot(1,2,2);
+                imagesc(yc_c, xc_c, squeeze(speed(:,:,10) ./ vignetting_falloff(:,:,10))');
+                title('XY compensation, z=10');
+                colorbar;
+                xlabel('microns');
+                ylabel('microns');
+            end
             
             % 6. Feed each metavoxel's centres to voxelise
             
@@ -179,9 +155,19 @@ function [] = voxelise(handles, target)
                         end
                         
                         % Voxels for each metavoxel:
+                        
+                        % Sadly, coordinates for the printed object are currently
+                        % on [0,1], not real FOV coords. So this trasform is an
+                        % approximation for now. But it's pretty good.
+                        STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x = xc - xc(end)/2;
+                        STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y = yc - yc(end)/2;
+                        
+                        % Positions for the voxels relative to the first
+                        % metavoxel
                         STL.print.voxelpos{mvx, mvy, mvz}.x = xc + (mvx - 1) * STL.print.metavoxel_shift(1);
                         STL.print.voxelpos{mvx, mvy, mvz}.y = yc + (mvy - 1) * STL.print.metavoxel_shift(2);
                         STL.print.voxelpos{mvx, mvy, mvz}.z = zc + (mvz - 1) * STL.print.metavoxel_shift(3);
+                        
                         xlength = numel(STL.print.voxelpos{mvx, mvy, mvz}.x);
                         ylength = numel(STL.print.voxelpos{mvx, mvy, mvz}.y);
                         zlength = numel(STL.print.voxelpos{mvx, mvy, mvz}.z);
@@ -217,21 +203,21 @@ function [] = voxelise(handles, target)
                         end
                         
                         STL.print.metavoxels{mvx, mvy, mvz} = A;
-                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* frame_power_adjustment;
+                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* speed;
                                                 
                         % Delete empty zstack slices if they are above
                         % something that is printed:
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
-                        cow = find(foo, 1, 'last');
+                        last_nonzero_slice = find(foo, 1, 'last');
                         %warning('Keeping zstack positions from 1-%d.', cow);
                         STL.print.metavoxels{mvx, mvy, mvz} ...
-                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:cow);
-                        STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:cow);
+                            = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:last_nonzero_slice);
+                        STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:last_nonzero_slice);
                         
                         % The voxel powers for each metavoxel are stored in
                         % metapower. During print(), the appropriate
                         % metapower becomes the new voxelpower. Yuck :(
-                        STL.print.metapower{mvx, mvy, mvz} = STL.print.metapower{mvx, mvy, mvz}(:,:,1:cow);
+                        STL.print.metapower{mvx, mvy, mvz} = STL.print.metapower{mvx, mvy, mvz}(:,:,1:last_nonzero_slice);
                         
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.
@@ -254,16 +240,18 @@ function [] = voxelise(handles, target)
                 end
             end
 
-            figure(12);
-            subplot(1,2,1);
-            hold on;
-            v = STL.print.metavoxels{1,1,1} .* speed(:,:,1:size(STL.print.metavoxels{1,1,1}, 3));
-            vnot = (v > 0.01);
-            v(vnot) = v(vnot) + 0.5*(1 - v(vnot));
-            plot(v(:,256,10));
-            hold off;
-            legend('Pure cos', 'Vignetting', 'Combined', 'Ad-hoc');
-            ylim([0.8 1.2]);
+            if false
+                figure(12);
+                subplot(1,2,1);
+                hold on;
+                v = STL.print.metavoxels{1,1,1} .* speed(:,:,1:size(STL.print.metavoxels{1,1,1}, 3));
+                vnot = (v > 0.01);
+                v(vnot) = v(vnot) + 0.5*(1 - v(vnot));
+                plot(v(:,256,10));
+                hold off;
+                legend('Pure cos', 'Vignetting', 'Combined', 'Ad-hoc');
+                ylim([0.8 1.2]);
+            end
             
             if STL.logistics.abort
                 STL.logistics.abort = false;

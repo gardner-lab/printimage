@@ -15,20 +15,24 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         error('Tried re-voxelising, but was unsuccessful.');
     end
     
+    % Pull down which metavoxel we're working on:
+    mvx = STL.print.mvx_now;
+    mvy = STL.print.mvy_now;
+    mvz = STL.print.mvz_now;
+
+    voxelpower = STL.print.metapower{mvx, mvy, mvz};
+
     disp(sprintf('Relative power is on [%g, %g]', ...
-        min(min(min(STL.print.voxelpower))), ...
-        max(max(max(STL.print.voxelpower)))));
+        min(min(min(voxelpower))), ...
+        max(max(max(voxelpower)))));
     
 
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
     
-    % PrintImage.print() sets this up by moving the stitching stage and
-    % copying STL.print.metapower{xx,yy,zz} into STL.print.voxelpower. I
-    % know that that isn't so pretty. Might fix later.
-    foo = size(STL.print.voxelpower);
-    STL.print.voxelpower(end,:,:) = zeros(foo(2:3));
-    v = STL.print.voxelpower(:);
+    foo = size(voxelpower);
+    voxelpower(end,:,:) = zeros(foo(2:3));
+    v = voxelpower(:);
     %disp(sprintf('=== Cosine took power down to %g', ...
     %    min(v(find(v~=0)))));
     % boost low-power voxels, but not the zero-power voxels
@@ -42,21 +46,50 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     switch POWER_COMPENSATION
         case 'christos'
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
-        otherwise
+            
+        case 'ben'
+            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
+                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
+                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = STL.calibration.vignetting_fit(vig_x, vig_y);
+                vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
+            else
+                disp('No vignetting fit available.');
+                vignetting_falloff = ones(STL.print.resolution(1:2));
+            end
+            % Transpose: xc is the first index of the matrix (row #)
+            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+
+            v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
     end
-    figure(12);
-    subplot(1,2,2);
-    v_vis = reshape(v, size(STL.print.voxelpower));
-    imagesc(squeeze(v_vis(:,:,end-1)));
-    colorbar;
+    
     % Do not ask for more than 100% power:
-    v = min(v, 1);
+    if max(v) > 1
+        warning('Vignetting compensation is requesting power > 100%');
+    end
     
     disp(sprintf('Adjusted power II is on [%g, %g]', ...
         min(v), ...
         max(v)));
+    
+    v = min(v, 1);
+    v = max(v, 0);
+    
+    disp(sprintf('Adjusted power III is on [%g, %g]', ...
+        min(v), ...
+        max(v)));
 
-    %disp(sprintf('=== Compensation took power down to %g', ...
+     if true
+        figure(12);
+        subplot(1,2,2);
+        v_vis = reshape(v, size(voxelpower));
+        image(squeeze(v_vis(:,:,end-1))');
+        colorbar;
+        colormap jet;
+    end
+    
+   %disp(sprintf('=== Compensation took power down to %g', ...
     %    min(v(find(v~=0)))));
 
     STL.print.ao_volts_raw = ao_volts_raw;
