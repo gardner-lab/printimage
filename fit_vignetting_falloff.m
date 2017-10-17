@@ -10,7 +10,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV, handles);
     PixelSize = FOV / size(bg, 1);
     
     % Use some centre portion of the image...
-    CROPX = 10;
+    CROPX = 0;
     CROPY = 40;
     bg = bg(1+CROPY:end-CROPY, 1+CROPX:end-CROPX);
     

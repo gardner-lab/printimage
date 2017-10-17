@@ -48,7 +48,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
             
         case 'ben'
-            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
+            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
+                    & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
                 yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
                 [vig_x, vig_y] = meshgrid(xc, yc);

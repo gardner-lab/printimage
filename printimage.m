@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 09-Aug-2017 15:23:01
+    % Last Modified by GUIDE v2.5 17-Oct-2017 16:39:46
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -1995,6 +1995,14 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         set(handles.messages, 'String', 'Computing fit...'); drawnow;
 
         STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', STL.bounds_1(1), handles);
-        
+        set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [1 1 1], ...
+            'Enable', 'on');
         set(handles.messages, 'String', '');
+end
+
+
+function vignetting_compensation_Callback(hObject, eventdata, handles)
+    global STL;
+    
+    STL.print.vignetting_compensation = get(hObject, 'Value');
 end
