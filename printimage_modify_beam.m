@@ -2,12 +2,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'ben';
+    POWER_COMPENSATION = 'fit';
     
     if ~(isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
             & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation)
-        POWER_COMPENSATION = 'christos'; % ad-hoc
-        %POWER_COMPENSATION = 'none'; % sinusoid only
+        POWER_COMPENSATION = 'ad-hoc';
     end
 
     hSI = evalin('base', 'hSI');
@@ -50,12 +49,13 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         max(v)));
 
     switch POWER_COMPENSATION
-        case 'christos'
+        case 'ad-hoc'
+            % Christos's ad-hoc compensation is very good on the development r3D2 unit at zoom = 2.2!
             disp('Using Christos''s ad-hoc curve...');
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
             
-        case 'ben'
-            disp(sprintf('Using Ben''s vignetting compensator with fit model %s.', POWER_COMPENSATION));
+        case 'fit'
+            disp('Using Ben''s vignetting compensator.');
             if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
                     & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
@@ -92,7 +92,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         min(v), ...
         max(v)));
 
-     if true
+     if false
         figure(12);
         subplot(1,2,2);
         v_vis = reshape(v, size(voxelpower));

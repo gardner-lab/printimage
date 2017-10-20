@@ -299,7 +299,7 @@ end
 function update_dimensions(handles, dim, val)
     global STL;
     % Recompute all dimensions based on aspect ratio and build axes
-    
+        
     yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
     
     if isfield(STL.print, 'dims')
@@ -429,7 +429,7 @@ end
 
 function updateSTLfile(handles, STLfile)
     global STL;
-    
+        
     STL.file = STLfile;
     STL.mesh1 = READ_stl(STL.file);
     % This is stupid, but patch() likes this format, so easiest to just read it
@@ -462,7 +462,7 @@ end
 
 
 
-function [] = update_3d_preview(handles);
+function update_3d_preview(handles);
     global STL;
     
     if STL.print.rescale_needed

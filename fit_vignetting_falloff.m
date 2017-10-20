@@ -96,7 +96,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
         zlabel z
         grid off
         colormap jet;
-    elseif true
+    elseif false
         figure(11);
         h = plot(vignetting_fit);
         hold on;
