@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 17-Oct-2017 16:39:46
+    % Last Modified by GUIDE v2.5 19-Oct-2017 19:00:18
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -1979,6 +1979,13 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         
         handles = guihandles(hObject);
         
+        if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
+            set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents calibrating.');
+            return;
+        else
+            set(handles.messages, 'String', '');
+        end
+        
         set(handles.messages, 'String', 'Taking snapshot of current view...'); drawnow;
         
         hSI.hStackManager.framesPerSlice = 100;
@@ -2001,10 +2008,15 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         hSI.hChannels.loggingEnable = false;
         
         set(handles.messages, 'String', 'Computing fit...'); drawnow;
+        
+        methods = cellstr(get(handles.vignetting_fit_method, 'String'));
+        method = methods{get(handles.vignetting_fit_method, 'Value')};
 
-        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', STL.bounds_1(1), handles);
-        set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [1 1 1], ...
+        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
+        set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
             'Enable', 'on');
+        STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
+
         set(handles.messages, 'String', '');
 end
 
@@ -2014,3 +2026,15 @@ function vignetting_compensation_Callback(hObject, eventdata, handles)
     
     STL.print.vignetting_compensation = get(hObject, 'Value');
 end
+
+
+function vignetting_fit_method_Callback(hObject, eventdata, handles)
+    
+end
+
+function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+end
+

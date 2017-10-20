@@ -1,4 +1,4 @@
-function [vignetting_fit] = fit_vignetting_falloff(filename, FOV, handles);
+function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handles);
     
     % FOV = 666; % microns
     
@@ -36,10 +36,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV, handles);
         
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
     
-    FITMETHOD = 'interp';
-    
-    switch FITMETHOD
-        
+    switch method
         case 'cos4free'
             % Set up fittype and options.
             ft = fittype( 'a + b*cos(m*pi*((x-xc)^2+(y-yc)^2)^(1/2))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
@@ -73,25 +70,44 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, FOV, handles);
             opts.StartPoint = [0 1 0.01 0 0 0.001];
             opts.Upper = [0.1 1 1 300 300 0.01];
             
-        case 'interp'
+        case 'interpolant'
             ft = 'linearinterp';
             opts = fitoptions('Method', 'linearinterpolant');
+            
+        otherwise
+            error('Invalid fit method');
             
     end
 
     % Fit model to data.
     [vignetting_fit, gof] = fit( [xData, yData], zData, ft, opts );
     
-    if nargin == 3 & false
+    if nargin == 4 & isfield(handles, 'axes2')
         % Plot fit with data.
-        h = plot(handles.axes2, vignetting_fit, [xData, yData], zData );
+        cla(handles.axes2);
+        set(handles.axes2, 'XLim', [min(xData) max(xData)], 'YLim', [min(yData) max(yData)]);
+        h = plot(vignetting_fit, 'Parent', handles.axes2);
+        hold on;
+        scatter3(xData(1:50:end), yData(1:50:end), zData(1:50:end), 1, 'Parent', handles.axes2);
+        hold off;
         % Label axes
         xlabel x
         ylabel y
         zlabel z
         grid off
         colormap jet;
-    end
+    elseif true
+        figure(11);
+        h = plot(vignetting_fit);
+        hold on;
+        scatter3(xData, yData, zData, 1);
+        hold off;
+        xlabel x
+        ylabel y
+        zlabel z
+        grid off
+        colormap jet;
+   end
     
     vignetting_fit
     gof

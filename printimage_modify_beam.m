@@ -4,6 +4,12 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     POWER_COMPENSATION = 'ben';
     
+    if ~(isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
+            & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation)
+        POWER_COMPENSATION = 'christos'; % ad-hoc
+        %POWER_COMPENSATION = 'none'; % sinusoid only
+    end
+
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
     
@@ -45,9 +51,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 
     switch POWER_COMPENSATION
         case 'christos'
+            disp('Using Christos''s ad-hoc curve...');
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
             
         case 'ben'
+            disp(sprintf('Using Ben''s vignetting compensator with fit model %s.', POWER_COMPENSATION));
             if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
                     & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
@@ -63,6 +71,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
 
             v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
+            
+        otherwise
+            disp('Using pure sinusoid power compensation.');
     end
     
     % Do not ask for more than 100% power:
