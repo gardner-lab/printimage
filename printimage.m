@@ -236,9 +236,9 @@ function set_up_params()
     STL.print.power = 0.6;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
     STL.print.size = [360 360 360];
-    STL.print.zoom_min = 1.5;
-    STL.print.zoom = 1.5;
-    STL.print.zoom_best = 1.5;
+    STL.print.zoom_min = 1.2;
+    STL.print.zoom = 1.2;
+    STL.print.zoom_best = 1.2;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
     STL.print.metavoxel_overlap = [8 8 8]; % Microns of overlap (positive is more overlap) in order to get good bonding
