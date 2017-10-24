@@ -59,6 +59,9 @@ if true
     imgs{c}.desc = 'cos4';
     imgs{c}.size = sz;
     imgs{c}.pos_adj = 0; % microns, after reversing
+    if series == 610
+        imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
+    end
     
     c = c + 1;
     imgs{c}.file = sprintf('vignetting_cos4_00%d_00001.tif', series+1);
@@ -66,22 +69,10 @@ if true
     imgs{c}.size = sz;
     imgs{c}.rotated = true;
     imgs{c}.pos_adj = 0; % microns, after reversing
-
-    c = c + 1;
-    imgs{c}.file = sprintf('vignetting_cos4a_00%d_00001.tif', series);
-    imgs{c}.desc = 'cos4a';
-    imgs{c}.size = sz;
-    imgs{c}.pos_adj = 0; % microns, after reversing
-    imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
+    if series == 610
+        imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
+    end
     
-    c = c + 1;
-    imgs{c}.file = sprintf('vignetting_cos4a_00%d_00001.tif', series+1);
-    imgs{c}.desc = 'cos4a R';
-    imgs{c}.size = sz;
-    imgs{c}.rotated = true;
-    imgs{c}.pos_adj = 0; % microns, after reversing
-    imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
-
     c = c + 1;
     imgs{c}.file = sprintf('vignetting_interp_00%d_00001.tif', series);
     imgs{c}.desc = 'interp';
@@ -292,7 +283,7 @@ end
 
 sp1 = length(imgs);
 sp2 = 4;
-figure(12);
+hFig = figure(12);
 
 
 for i = 1:length(imgs)
@@ -312,25 +303,20 @@ for i = 1:length(imgs)
     
         subplot(sp1, sp2, (i-1)*sp2+2);
         imagesc(imgs{i}.data);
-        axis off xy;
+        axis off xy equal;
         % colorbar;
-        title(imgs{i}.desc);
-        
-        subplot(sp1, sp2, (i-1)*sp2+3);
-        %imagesc(imgs{i}.vignetting_falloff);
-        imagesc(imgs{i}.data(end:-1:1,end:-1:1));
-        axis off xy;
-        % colorbar;
-        %title(strcat(imgs{i}.desc, ' model'));
-        
+        xlabel(imgs{i}.desc);
     else
         % Raw data / calibration images
         subplot(sp1, sp2, (i-1)*sp2+1);
         imagesc(imgs{i}.data);
-        title(imgs{i}.desc);
+        if ~mod(i, 2)
+            ylabel(imgs{i}.desc);
+        end
         % colorbar;
-        axis xy;
-        axis off;
+        axis xy equal;
+
+        set(gca, 'xtick', [], 'ytick', [], 'box', 'off');
 
         % Save baseline luminance for zero-power region
         imgs{i}.zeropowerX_i = find((pixelposX < -imgs{i}.size/2 - 10 & pixelposX > -imgs{i}.size/2 - 20) ...
@@ -341,9 +327,8 @@ for i = 1:length(imgs)
         % Plotting
         subplot(sp1, sp2, (i-1)*sp2+2);
         imagesc(imgs{i}.data_normed);
-        axis off xy;
+        axis xy equal off;
         % colorbar;
-        title(strcat(imgs{i}.desc, ' /  ', imgs{1}.desc));
     end
 end
 
@@ -352,7 +337,7 @@ h = [];
 l = {};
 ylimits = [Inf -Inf];
 for i = 2:length(imgs)    
-    samplesY = round(0.8*(imgs{i}.size/2)/MicronsPerPixel);
+    samplesY = round(0.9*(imgs{i}.size/2)/MicronsPerPixel);
     
     middleX = round(size(imgs{i}.data_normed, 2) ./ 2);
     middleY = round(size(imgs{i}.data_normed, 1) ./ 2);
@@ -399,8 +384,8 @@ for i = n_real_imgs+1:length(imgs)
 end
 hold off;
 grid on;
-legend(h, l);
-title('Brightness / Ref');
+legend(h, l, 'Location', 'North');
+title('Brightness vs. X');
 axis tight;
 xlabel('X position (\mu{}m)');
 ylabel('Normalised brightness');
@@ -414,7 +399,7 @@ h = [];
 l = {};
 ylimits = [Inf -Inf];
 for i = 2:length(imgs)    
-    samplesX = round(0.8*(imgs{i}.size/2)/MicronsPerPixel);
+    samplesX = round(0.9*(imgs{i}.size/2)/MicronsPerPixel);
     
     middleX = round(size(imgs{i}.data_normed, 2) ./ 2);
     middleY = round(size(imgs{i}.data_normed, 1) ./ 2);
@@ -460,8 +445,8 @@ for i = n_real_imgs+1:length(imgs)
 end
 hold off;
 grid on;
-legend(h, l);
-title('Brightness / Ref');
+legend(h, l, 'Location', 'North');
+title('Brightness vs. Y');
 axis tight;
 xlabel('Y position (\mu{}m)');
 ylabel('Normalised brightness');
