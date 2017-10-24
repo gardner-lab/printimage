@@ -10,7 +10,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
     PixelSize = FOV / size(bg, 1);
     
     % Use some centre portion of the image...
-    CROPX = 0;
+    CROPX = 5;
     CROPY = 40;
     bg = bg(1+CROPY:end-CROPY, 1+CROPX:end-CROPX);
     
@@ -46,29 +46,15 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
             opts.StartPoint = [0 1 0.0007 0 0];
             
         case 'cos4'
-            ft = fittype( 'a + b*cos(m*pi*(x^2+y^2)^(1/2))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
+            % This one actually gets the model right: cos^4(arctan(r/z)),
+            % but leaves the lens's true focal length free since it may
+            % differ slightly from the published working distance (380 um
+            % in our case).
+            ft = fittype( 'cos(atan(((x^2+y^2)^(1/2))/m))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
             opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
             opts.Display = 'Off';
             opts.Robust = 'LAR';
-            opts.StartPoint = [0 1 0.001];
-            
-        case 'cos4+cos'
-            ft = fittype( 'a + b*cos(m*pi*(x^2+y^2)^(1/2))^4 + c*cos(n*pi*((x-xc)^2+(y-yc)^2)^(1/2))', 'independent', {'x', 'y'}, 'dependent', 'z' );
-            opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
-            %opts.Display = 'Off';
-            opts.Robust = 'LAR';
-            opts.Lower = [0 0 0 0.00001 0.00001 -300 -300];
-            opts.StartPoint = [0 0.5 0.5 0.001 0.001 0 0];
-            opts.Upper = [0.1 1 1 0.01 0.01 300 300];
-            
-        case 'cos4+gauss'
-            ft = fittype( 'a + b*cos(m*pi*(x^2+y^2)^(1/2))^4 + c*exp(-((x-c1)^2+(y-c2)^2)/c^2)', 'independent', {'x', 'y'}, 'dependent', 'z' );
-            opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
-            %opts.Display = 'Off';
-            opts.Robust = 'LAR';
-            opts.Lower = [0 0 0 -300 -300 0.0001];
-            opts.StartPoint = [0 1 0.01 0 0 0.001];
-            opts.Upper = [0.1 1 1 300 300 0.01];
+            opts.StartPoint = [380];
             
         case 'interpolant'
             ft = 'linearinterp';
@@ -96,7 +82,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
         zlabel z
         grid off
         colormap jet;
-    elseif false
+    elseif true
         figure(11);
         h = plot(vignetting_fit);
         hold on;
