@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 19-Oct-2017 19:00:18
+    % Last Modified by GUIDE v2.5 23-Oct-2017 20:55:04
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -2037,4 +2037,3 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
         set(hObject,'BackgroundColor','white');
     end
 end
-
