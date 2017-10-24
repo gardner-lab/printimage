@@ -8,8 +8,94 @@ function falloff
 %imgs{2}.desc = 'Cube a (500 \mu{}m)';
 %imgs{2}.size = 500;
 
-% 400: left-to-right: cos4+gauss, cos4, cos4free
+% 400: left-to-right in original rotation: interpolant, cos4, ad-hoc, sine
+
+% 600: left-to-right in original rotation: interpolant, cos4, ad-hoc, sine
+% a+b*cos...
+
+% 610: same order
+% cos(ax^2+b^2...)
+series = 610;
+sz = 400;
+% Pixels
+CROPX = 40;
+CROPY = 40;
+
 if true
+    c = 1;
+    imgs{c}.file = sprintf('vignetting_cal_00%d_00001.tif', series);
+    imgs{c}.desc = 'Ref';
+    imgs{c}.method = 'cos4';
+    imgs{c}.size = sz;
+    
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_sin_00%d_00001.tif', series);
+    imgs{c}.desc = 'sine';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_sin_00%d_00001.tif', series+1);
+    imgs{c}.desc = 'sine R';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+    imgs{c}.rotated = true;
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_adhoc_00%d_00001.tif', series);
+    imgs{c}.desc = 'adhoc';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_adhoc_00%d_00001.tif', series+1);
+    imgs{c}.desc = 'adhoc R';
+    imgs{c}.size = sz;
+    imgs{c}.rotated = true;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_cos4_00%d_00001.tif', series);
+    imgs{c}.desc = 'cos4';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+    
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_cos4_00%d_00001.tif', series+1);
+    imgs{c}.desc = 'cos4 R';
+    imgs{c}.size = sz;
+    imgs{c}.rotated = true;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_cos4a_00%d_00001.tif', series);
+    imgs{c}.desc = 'cos4a';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+    imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
+    
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_cos4a_00%d_00001.tif', series+1);
+    imgs{c}.desc = 'cos4a R';
+    imgs{c}.size = sz;
+    imgs{c}.rotated = true;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+    imgs{c}.cal = 'vignetting_cal_a_00610_00001.tif';
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_interp_00%d_00001.tif', series);
+    imgs{c}.desc = 'interp';
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+    c = c + 1;
+    imgs{c}.file = sprintf('vignetting_interp_00%d_00001.tif', series+1);
+    imgs{c}.desc = 'interp R';
+    imgs{c}.rotated = true;
+    imgs{c}.size = sz;
+    imgs{c}.pos_adj = 0; % microns, after reversing
+
+elseif false
     c = 1;
     imgs{c}.file = 'vignetting_empty_00300_00001.tif';
     imgs{c}.desc = 'Ref';
@@ -150,13 +236,17 @@ FOV = 666; % microns
 for i = 1:length(imgs)
     imgs{i}.data = double(imread(imgs{i}.file));
     
+    if isfield(imgs{i}, 'cal')
+        cal_for_this_one = double(imread(imgs{i}.cal));
+        imgs{i}.data_normed = imgs{i}.data ./ cal_for_this_one;
+    else
+        imgs{i}.data_normed = imgs{i}.data ./ imgs{1}.data;
+    end
+    
     if isfield(imgs{i}, 'rotated') & imgs{i}.rotated
         % Unrotate
         imgs{i}.data = imgs{i}.data(end:-1:1, end:-1:1);
-        % Normalise by the rotated baseline
-        imgs{i}.data_normed = imgs{i}.data ./ imgs{1}.data(end:-1:1, end:-1:1);
-    else
-        imgs{i}.data_normed = imgs{i}.data ./ imgs{1}.data;
+        imgs{i}.data_normed = imgs{i}.data_normed(end:-1:1, end:-1:1);
     end
 
     if any(i == calibration_imgs)
@@ -168,9 +258,6 @@ MicronsPerPixel = FOV / size(imgs{1}.data, 2);
 
 pixelpos = linspace(-333, 333, size(imgs{1}.data, 1));
 
-% Pixels
-CROPX = 40;
-CROPY = 40;
 for i = 1:length(imgs)
     % left/right shift: microns -> pixels
     if isfield(imgs{i}, 'pos_adj')
@@ -194,7 +281,7 @@ n_real_imgs = length(imgs);
 % Combine images and their flipped counterparts
 for i = 2:2:n_real_imgs
     c = c + 1;
-    imgs{c}.desc = sprintf('%s comb', imgs{i}.desc);
+    imgs{c}.desc = sprintf('%s + rev', imgs{i}.desc);
     imgs{c}.size = imgs{i}.size;
     imgs{c}.data = (imgs{i}.data + imgs{i+1}.data)/2;
     imgs{c}.data_normed = (imgs{i}.data_normed + imgs{i+1}.data_normed)/2;
@@ -203,8 +290,8 @@ end
 
 [px, py] = meshgrid(pixelposX, pixelposY);
 
-sp1=length(imgs);
-sp2=3;
+sp1 = length(imgs);
+sp2 = 4;
 figure(12);
 
 
@@ -246,8 +333,10 @@ for i = 1:length(imgs)
         axis off;
 
         % Save baseline luminance for zero-power region
-        imgs{i}.zeropower_i = find((pixelposX < -imgs{i}.size/2 - 10 & pixelposX > -imgs{i}.size/2 - 20) ...
+        imgs{i}.zeropowerX_i = find((pixelposX < -imgs{i}.size/2 - 10 & pixelposX > -imgs{i}.size/2 - 20) ...
             | (pixelposX > imgs{i}.size/2 + 10 & pixelposX < imgs{i}.size/2 + 20));
+        imgs{i}.zeropowerY_i = find((pixelposY < -imgs{i}.size/2 - 10 & pixelposY > -imgs{i}.size/2 - 20) ...
+            | (pixelposY > imgs{i}.size/2 + 10 & pixelposY < imgs{i}.size/2 + 20));
 
         % Plotting
         subplot(sp1, sp2, (i-1)*sp2+2);
@@ -263,7 +352,7 @@ h = [];
 l = {};
 ylimits = [Inf -Inf];
 for i = 2:length(imgs)    
-    samplesY = round(0.95*(imgs{i}.size/2)/MicronsPerPixel);
+    samplesY = round(0.8*(imgs{i}.size/2)/MicronsPerPixel);
     
     middleX = round(size(imgs{i}.data_normed, 2) ./ 2);
     middleY = round(size(imgs{i}.data_normed, 1) ./ 2);
@@ -271,11 +360,11 @@ for i = 2:length(imgs)
     % Bring object down to baseline of 0
     AVG{i} = AVG{i} - mean(AVG{i}(middleX-2:middleX+2));
     % Bring unprinted background up to 1
-    AVG{i} = AVG{i} / mean(AVG{i}(imgs{i}.zeropower_i));
+    AVG{i} = AVG{i} / mean(AVG{i}(imgs{i}.zeropowerX_i));
     STD{i} = std(imgs{i}.data_normed(middleY-samplesY:middleY+samplesY, :), [], 1);
     
     subplot(sp1, sp2, (i-1)*sp2+3);
-    H = shadedErrorBar(pixelposX, AVG{i}, 1.96*STD{i}/sqrt(length(samplesY)));
+    H = shadedErrorBar(pixelposX, AVG{i}, 1.96*STD{i}/sqrt(sqrt(2*samplesY+1)));
     axis tight;
     a = get(gca, 'YLim');
     ylimits = [min(a(1), ylimits(1)) max(a(2), ylimits(2))];
@@ -288,19 +377,21 @@ end
 ylimits(2) = 1.2;
 for i = 2:length(imgs)
     subplot(sp1, sp2, (i-1)*sp2+3);
-    set(gca, 'YLim', ylimits);
+    set(gca, 'YLim', ylimits, 'XLim', [pixelposX(1) pixelposX(end)]);
 end
+xlabel('X position');
 
 
 % A separate plot of the combined fits.
 figure(14);
+subplot(1,2,1);
 cla;
 hold on;
 colours = distinguishable_colors(length(imgs)-n_real_imgs);
 h = [];
 l = {};
 for i = n_real_imgs+1:length(imgs)
-    H = shadedErrorBar(pixelposX, AVG{i}, 1.96*STD{i}/sqrt(length(samplesY)), ...
+    H = shadedErrorBar(pixelposX, AVG{i}, 1.96*STD{i}/sqrt(2*samplesY+1), ...
         'lineprops', {'Color', colours(i-n_real_imgs,:)}, 'transparent', 1);
     grid on;
     h(end+1) = H.mainLine;
@@ -311,8 +402,70 @@ grid on;
 legend(h, l);
 title('Brightness / Ref');
 axis tight;
-xlabel('\mu{}m');
+xlabel('X position (\mu{}m)');
 ylabel('Normalised brightness');
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Now, do the same thing over the Y axis
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+figure(12);
+h = [];
+l = {};
+ylimits = [Inf -Inf];
+for i = 2:length(imgs)    
+    samplesX = round(0.8*(imgs{i}.size/2)/MicronsPerPixel);
+    
+    middleX = round(size(imgs{i}.data_normed, 2) ./ 2);
+    middleY = round(size(imgs{i}.data_normed, 1) ./ 2);
+    AVG{i} = mean(imgs{i}.data_normed(:, middleX-samplesX:middleX+samplesX), 2);
+    % Bring object down to baseline of 0
+    AVG{i} = AVG{i} - mean(AVG{i}(middleY-2:middleY+2));
+    % Bring unprinted background up to 1
+    AVG{i} = AVG{i} / mean(AVG{i}(imgs{i}.zeropowerY_i));
+    STD{i} = std(imgs{i}.data_normed(:, middleX-samplesX:middleX+samplesX), [], 2);
+    
+    subplot(sp1, sp2, (i-1)*sp2+4);
+    H = shadedErrorBar(pixelposY, AVG{i}, 1.96*STD{i}/sqrt(2*samplesX+1));
+    axis tight;
+    a = get(gca, 'YLim');
+    ylimits = [min(a(1), ylimits(1)) max(a(2), ylimits(2))];
+    grid on;
+    h(end+1) = H.mainLine;
+    l{end+1} = imgs{i}.desc;
+end
+
+% All the plots should have the same scale.
+ylimits(2) = 1.2;
+for i = 2:length(imgs)
+    subplot(sp1, sp2, (i-1)*sp2+4);
+    set(gca, 'YLim', ylimits, 'XLim', [pixelposX(1) pixelposX(end)]);
+end
+xlabel('Y position');
+
+% A separate plot of the combined fits.
+figure(14);
+subplot(1,2,2);
+cla;
+hold on;
+colours = distinguishable_colors(length(imgs)-n_real_imgs);
+h = [];
+l = {};
+for i = n_real_imgs+1:length(imgs)
+    H = shadedErrorBar(pixelposY, AVG{i}, 1.96*STD{i}/sqrt(2*samplesX+1), ...
+        'lineprops', {'Color', colours(i-n_real_imgs,:)}, 'transparent', 1);
+    grid on;
+    h(end+1) = H.mainLine;
+    l{end+1} = imgs{i}.desc;
+end
+hold off;
+grid on;
+legend(h, l);
+title('Brightness / Ref');
+axis tight;
+xlabel('Y position (\mu{}m)');
+ylabel('Normalised brightness');
+
 
 
 
