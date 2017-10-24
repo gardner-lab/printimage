@@ -39,18 +39,18 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
     switch method
         case 'cos4free'
             % Set up fittype and options.
-            ft = fittype( 'a + b*cos(m*pi*((x-xc)^2+(y-yc)^2)^(1/2))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
+            ft = fittype( 'cos(m*pi*((x-xc)^2+(y-yc)^2)^(1/2))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
             opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
             opts.Display = 'Off';
             opts.Robust = 'LAR';
-            opts.StartPoint = [0 1 0.0007 0 0];
+            opts.StartPoint = [0.0007 0 0];
             
         case 'cos4'
             % This one actually gets the model right: cos^4(arctan(r/z)),
             % but leaves the lens's true focal length free since it may
             % differ slightly from the published working distance (380 um
             % in our case).
-            ft = fittype( 'cos(atan(((x^2+y^2)^(1/2))/m))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
+            ft = fittype( '0*m + cos(atan(((x^2+y^2)^(1/2))/380))^4', 'independent', {'x', 'y'}, 'dependent', 'z' );
             opts = fitoptions( 'Method', 'NonlinearLeastSquares' );
             opts.Display = 'Off';
             opts.Robust = 'LAR';
