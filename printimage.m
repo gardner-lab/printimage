@@ -2051,12 +2051,12 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     end
     
     pos = hexapod_get_position_um();
-    left = pos; left(1) = left(1) - 333;
-    right = pos; right(1) = right(1) + 333;
-    bottom = pos; bottom(2) = bottom(2) - 333;
-    top = pos; top(2) = top(2) + 333;
+    left = pos; left(1) = left(1) - 500;
+    right = pos; right(1) = right(1) + 500;
+    bottom = pos; bottom(2) = bottom(2) - 500;
+    top = pos; top(2) = top(2) + 500;
     
-    move('hex', left, 2);
+    move('hex', left, 5);
     set(handles.messages, 'String', 'Taking snapshots of current view...'); drawnow;
     
     desc = get(handles.slide_filename, 'String');
@@ -2065,14 +2065,14 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     % Time taken for the scan will be 666 um / 100 um/s; frame rate is
     % 15.21 Hz (can't figure out where that is in hSI, but somewhere...)
     scantime = STL.bounds_1(1) / (scanspeed * 1000);
-    scanframes = ceil(scantime * 15.21);
+    scanframes = ceil(scantime * 25);
     hSI.hStackManager.framesPerSlice = scanframes;
     hSI.hChannels.loggingEnable = true;
     hSI.hScan2D.logFramesPerFileLock = true;
-    hSI.hScan2D.logFileCounter = 1;
     hSI.hScan2D.logAverageFactor = 1;
     hSI.hRoiManager.scanZoomFactor = 1;
     hSI.hScan2D.logFileStem = sprintf('slide_%s_x', desc);
+    hSI.hScan2D.logFileCounter = 1;
 
     if ~STL.logistics.simulated
         hSI.startGrab();
@@ -2084,20 +2084,21 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         pause(0.1);
     end
     
-    move('hex', bottom, 2);
+    move('hex', top, 5);
     
     hSI.hScan2D.logFileStem = sprintf('slide_%s_y', desc);
+    hSI.hScan2D.logFileCounter = 1;
     if ~STL.logistics.simulated
         hSI.startGrab();
     end
     
-    move('hex', top, scanspeed);
+    move('hex', bottom, scanspeed);
 
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
     end
     
-    move('hex', pos, 2);
+    move('hex', pos, 5);
 
 
     hSI.hStackManager.framesPerSlice = 1;
@@ -2113,16 +2114,19 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         end
     catch ME
     end
+    tiffx = double(tiffx);
     middle = round(size(tiffx, 3)/2);
     n = 100;
     if ~isempty(tiffx)
         figure(16);
         subplot(1,2,1);
         plot(mean(tiffx(:, middle-n:middle+n, middle), 2));
+        title('X axis brightness');
+        set(gca, 'XLim', [0 size(tiffx, 1)]);
     end
     
     tiffy = [];
-    i = 0;    
+    i = 0;
     try
         while true
             i = i + 1;
@@ -2130,9 +2134,12 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         end
     catch ME
     end
+    tiffy = double(tiffy);
     if ~isempty(tiffy)
         subplot(1,2,2);
         plot(mean(tiffy(:, middle, middle-n:middle+n), 3));
+        title('Y axis brightness');
+        set(gca, 'XLim', [0 size(tiffy, 1)]);
     end
     
     set(handles.messages, 'String', ''); drawnow;

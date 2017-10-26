@@ -7,6 +7,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit') ...
             | ~isfield(STL.print, 'vignetting_compensation') | ~STL.print.vignetting_compensation
         POWER_COMPENSATION = 'ad-hoc';
+        %POWER_COMPENSATION = 'sin';
     end
 
     hSI = evalin('base', 'hSI');
