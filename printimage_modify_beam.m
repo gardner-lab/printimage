@@ -4,8 +4,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     POWER_COMPENSATION = 'fit';
     
-    if ~(isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
-            & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation)
+    if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit') ...
+            | ~isfield(STL.print, 'vignetting_compensation') | ~STL.print.vignetting_compensation
         POWER_COMPENSATION = 'ad-hoc';
     end
 

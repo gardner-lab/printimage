@@ -115,8 +115,8 @@ function hexapod_pi_connect()
     % Looks like everything is in order:
     STL.motors.hex.connected = true;
     
-    hexapos = hexapod_get_position();
-    if any(abs(hexapos(1:3)) > 0.001)
+    hexapos = hexapod_get_position_um();
+    if any(abs(hexapos(1:3)) > 1)
         %set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ].');
         mompos = move('mom');
         

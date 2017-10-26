@@ -15,7 +15,7 @@ function [pos] = move(motor, target_um, velocity)
             case 'mom'
                 pos = hSI.hMotors.motorPosition;
             case 'hex'
-                pos = hexapod_get_position();
+                pos = hexapod_get_position_um();
         end
         return;
     end
