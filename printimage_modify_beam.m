@@ -2,10 +2,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'fit';
+    POWER_COMPENSATION = 'cos4';
     
     if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit') ...
             | ~isfield(STL.print, 'vignetting_compensation') | ~STL.print.vignetting_compensation
+        POWER_COMPENSATION = 'cos4';
         POWER_COMPENSATION = 'ad-hoc';
         %POWER_COMPENSATION = 'sin';
     end
@@ -55,8 +56,17 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             disp('Using Christos''s ad-hoc curve...');
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
             
+        case 'cos4'
+            disp('Using cos^4 vignetting compensation (hardcoded).');
+                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
+                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
+                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
+
         case 'fit'
-            disp('Using Ben''s vignetting compensator.');
+            disp('Using the current curvefit vignetting compensator.');
             if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
                     & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
