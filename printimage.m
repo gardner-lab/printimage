@@ -1453,7 +1453,7 @@ function test_linearity_Callback(varargin)
 
         newpos = posns(xy, :) + motor.tmp_origin(1:2);
 
-        move(STL.motors.stitching, newpos, 1);
+        move(STL.motors.stitching, newpos, 2);
         
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
@@ -2056,7 +2056,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     bottom = pos; bottom(2) = bottom(2) - 500;
     top = pos; top(2) = top(2) + 500;
     
-    move('hex', left, 5);
+    move('hex', left, 2);
     set(handles.messages, 'String', 'Taking snapshots of current view...'); drawnow;
     
     desc = get(handles.slide_filename, 'String');
@@ -2084,7 +2084,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         pause(0.1);
     end
     
-    move('hex', top, 5);
+    move('hex', top, 2);
     
     hSI.hScan2D.logFileStem = sprintf('slide_%s_y', desc);
     hSI.hScan2D.logFileCounter = 1;
@@ -2098,52 +2098,53 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         pause(0.1);
     end
     
-    move('hex', pos, 5);
+    move('hex', pos, 1);
 
 
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
     
-    set(handles.messages, 'String', 'Processing...'); drawnow;
-    tiffx = [];
-    i = 0;    
-    try
-        while true
-            i = i + 1;
-            tiffx(i,:,:) = imread(sprintf('slide_%s_x_00001_00001.tif', desc), i);
+    if true
+        set(handles.messages, 'String', 'Processing...'); drawnow;
+        tiffx = [];
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                tiffx(i,:,:) = imread(sprintf('slide_%s_x_00001_00001.tif', desc), i);
+            end
+        catch ME
         end
-    catch ME
-    end
-    tiffx = double(tiffx);
-    middle = round(size(tiffx, 3)/2);
-    n = 100;
-    if ~isempty(tiffx)
-        figure(16);
-        subplot(1,2,1);
-        plot(mean(tiffx(:, middle-n:middle+n, middle), 2));
-        title('X axis brightness');
-        set(gca, 'XLim', [0 size(tiffx, 1)]);
-    end
-    
-    tiffy = [];
-    i = 0;
-    try
-        while true
-            i = i + 1;
-            tiffy(i,:,:) = imread(sprintf('slide_%s_y_00001_00001.tif', desc), i);
+        tiffx = double(tiffx);
+        middle = round(size(tiffx, 3)/2);
+        n = 100;
+        if ~isempty(tiffx)
+            figure(16);
+            subplot(1,2,1);
+            plot(mean(tiffx(:, middle-n:middle+n, middle), 2));
+            title('X axis brightness');
+            set(gca, 'XLim', [0 size(tiffx, 1)]);
         end
-    catch ME
+        
+        tiffy = [];
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                tiffy(i,:,:) = imread(sprintf('slide_%s_y_00001_00001.tif', desc), i);
+            end
+        catch ME
+        end
+        tiffy = double(tiffy);
+        if ~isempty(tiffy)
+            subplot(1,2,2);
+            plot(mean(tiffy(:, middle, middle-n:middle+n), 3));
+            title('Y axis brightness');
+            set(gca, 'XLim', [0 size(tiffy, 1)]);
+        end
     end
-    tiffy = double(tiffy);
-    if ~isempty(tiffy)
-        subplot(1,2,2);
-        plot(mean(tiffy(:, middle, middle-n:middle+n), 3));
-        title('Y axis brightness');
-        set(gca, 'XLim', [0 size(tiffy, 1)]);
-    end
-    
     set(handles.messages, 'String', ''); drawnow;
-
+    
 end
 
 
