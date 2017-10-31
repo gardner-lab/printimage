@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 26-Oct-2017 16:41:36
+    % Last Modified by GUIDE v2.5 31-Oct-2017 12:49:48
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -2050,18 +2050,48 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     else
         set(handles.messages, 'String', '');
     end
+        
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 190;
+
+    desc = get(handles.slide_filename, 'String');
     
+    
+    if true
+        %% First: take a snapshot.
+        set(handles.messages, 'String', 'Taking snapshot of current view...');
+        
+        hSI.hStackManager.framesPerSlice = 100;
+        hSI.hChannels.loggingEnable = true;
+        hSI.hScan2D.logFramesPerFileLock = true;
+        hSI.hScan2D.logFileStem = sprintf('slide_%s_image', desc);
+        hSI.hScan2D.logFileCounter = 1;
+        hSI.hScan2D.logAverageFactor = 100;
+        hSI.hRoiManager.scanZoomFactor = 1;
+        
+        if ~STL.logistics.simulated
+            hSI.startGrab();
+            
+            while ~strcmpi(hSI.acqState,'idle')
+                pause(0.1);
+            end
+        end
+        
+        hSI.hStackManager.framesPerSlice = 1;
+        hSI.hChannels.loggingEnable = false;
+    end
+    
+    % Positions for the sliding measurements:
     pos = hexapod_get_position_um();
     left = pos; left(1) = left(1) - 500;
     right = pos; right(1) = right(1) + 500;
     bottom = pos; bottom(2) = bottom(2) - 500;
     top = pos; top(2) = top(2) + 500;
-    
-    move('hex', left, 2);
-    set(handles.messages, 'String', 'Taking snapshots of current view...'); drawnow;
-    
-    desc = get(handles.slide_filename, 'String');
-    
+
+    %% Measure brightness along X axis
+
+    move('hex', left, 1);
+    set(handles.messages, 'String', 'Sliding along current view...');
+
     scanspeed = 0.1; % mm/s
     % Time taken for the scan will be 666 um / 100 um/s; frame rate is
     % 15.21 Hz (can't figure out where that is in hSI, but somewhere...)
@@ -2085,7 +2115,10 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         pause(0.1);
     end
     
-    move('hex', top, 2);
+    
+    %% Measure brightness along y axis
+        
+    move('hex', top, 1);
     
     hSI.hScan2D.logFileStem = sprintf('slide_%s_y', desc);
     hSI.hScan2D.logFileCounter = 1;
@@ -2105,8 +2138,8 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
     
-    if true
-        set(handles.messages, 'String', 'Processing...'); drawnow;
+    if false
+        set(handles.messages, 'String', 'Processing...');
         tiffx = [];
         i = 0;
         try
@@ -2144,8 +2177,9 @@ function measure_brightness_Callback(hObject, eventdata, handles)
             set(gca, 'XLim', [0 size(tiffy, 1)]);
         end
     end
-    set(handles.messages, 'String', ''); drawnow;
+    set(handles.messages, 'String', '');
     
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
 end
 
 
@@ -2157,4 +2191,13 @@ function slide_filename_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+% --- Executes on button press in centre_mom.
+function centre_mom_Callback(hObject, eventdata, handles)
+    global STL;
+    set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
+        'Enable', 'on');
+    move('mom', STL.motors.mom.understage_centre(1:2));
 end
