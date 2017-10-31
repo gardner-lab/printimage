@@ -2,15 +2,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'cos4';
+    POWER_COMPENSATION = 'cos3';
     
-    if ~isfield(STL, 'calibration') | ~isfield(STL.calibration, 'vignetting_fit') ...
-            | ~isfield(STL.print, 'vignetting_compensation') | ~STL.print.vignetting_compensation
-        POWER_COMPENSATION = 'cos4';
-        POWER_COMPENSATION = 'ad-hoc';
-        %POWER_COMPENSATION = 'sin';
-    end
-
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
     
@@ -51,17 +44,26 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         max(v)));
 
     switch POWER_COMPENSATION
-        case 'ad-hoc'
+        case 'adhoc'
             % Christos's ad-hoc compensation is very good on the development r3D2 unit at zoom = 2.2!
             disp('Using Christos''s ad-hoc curve...');
             v(vnot) = v(vnot) + 0.5*(STL.print.power - v(vnot));
             
         case 'cos4'
-            disp('Using cos^4 vignetting compensation (hardcoded).');
+            disp('Using hardcoded cos^4 vignetting compensation.');
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
                 yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
                 [vig_x, vig_y] = meshgrid(xc, yc);
                 vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
+                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
+
+        case 'cos3'
+            disp('Using hardcoded cos^3 vignetting compensation.');
+                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
+                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
                 vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
                 v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
 
@@ -83,8 +85,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 
             v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
             
-        otherwise
+        case 'sin'
             disp('Using pure sinusoid power compensation.');
+            
+        otherwise
+            warning('Illegal value specified. Regressing to pure sinusoid power compensation.');
     end
     
     % Do not ask for more than 100% power:
