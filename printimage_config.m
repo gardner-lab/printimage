@@ -4,7 +4,7 @@ STL.calibration.lens_optical_working_distance = 380;
 
 STL.motors.hex.ip_address = '128.197.37.84';
 STL.motors.hex.pivot_z_um = 36700;
-STL.motors.hex.leveling = [0 0 0 -0.3 -0.14 -1.4];
+STL.motors.hex.leveling = [0 0 0 0.12 -0.38 -1.4];
 STL.motors.hex.user_rotate_velocity = 20;
 
 %STL.motors.rot.com_port = 'com4';
