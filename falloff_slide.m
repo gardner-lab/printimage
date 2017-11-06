@@ -19,20 +19,27 @@ clear
 % cos(ax^2+b^2...)
 sz = 500;
 
+collection = '6';
 
-methods = {'sin_6', 'interp_6', 'cos^4_6', 'cos^3_6'};
+methods = {'sin', 'interp', 'cos^4', 'cos^3'};
+methods_long = {'Sinusoidal only', 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
 FOV = 666; % microns
 how_much_to_include = .95;
 speed = 100; % um/s of the sliding stage
 frame_rate = 15.21; % Hz
 frame_spacing = speed / frame_rate;
 
+colours = [0 0 0; ...
+    0 0.5 0; ...
+    1 0 0; ...
+    0 0 1];
+
 letter = 'c';
 for i = 1:length(methods)
     letter = char(letter+1);
-    methods2{i} = sprintf('(%c) %s', letter, strtok(methods{i}, '_'));
+    methods2{i} = sprintf('(%c) %s', letter, methods_long{i});
 end
-image_crop_x = 20;
+image_crop_x = 10;
 image_crop_y = 40;
 
 figure(19);
@@ -44,10 +51,9 @@ p.pack(3, 1);
 p(1,1).marginbottom = 100;
 make_sine_plot_3(p(1,1));
 
-tiffCal = double(imread('vignetting_cal_00001_00001.tif'));
-
+tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
 for f = 1:length(methods)
-    tiffS{f} = double(imread(sprintf('slide_%s_image_00001_00001.tif', methods{f})));
+    tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
     tiffS{f} = tiffS{f} ./ tiffCal;
     tiffS{f} = tiffS{f}(1+image_crop_y:end-image_crop_y, 1+image_crop_x:end-image_crop_x);
     
@@ -56,11 +62,11 @@ for f = 1:length(methods)
     try
         while true
             i = i + 1;
-            tiffX{f}(i,:,:) = imread(sprintf('slide_%s_x_00001_00001.tif', methods{f}), i);
+            t = imread(sprintf('slide_%s_%s_x_00001_00001.tif', methods{f}, collection), i);
+            tiffX{f}(i,:,:) = double(t) ./ tiffCal;
         end
     catch ME
     end
-    tiffX{f} = double(tiffX{f});
     
     
     middle = round(size(tiffX{f}, 3)/2);
@@ -80,11 +86,11 @@ for f = 1:length(methods)
     try
         while true
             i = i + 1;
-            tiffY{f}(i,:,:) = imread(sprintf('slide_%s_y_00001_00001.tif', methods{f}), i);
+            t = imread(sprintf('slide_%s_%s_y_00001_00001.tif', methods{f}, collection), i);
+            tiffY{f}(i,:,:) = double(t) ./ tiffCal;
         end
     catch ME
     end
-    tiffY{f} = double(tiffY{f});
     
     % Normalise brightness
     baselineY = mean(mean(tiffY{f}(1:30,middle,indices), 3), 1);
@@ -95,15 +101,14 @@ for f = 1:length(methods)
     bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
 end
 
-colours = distinguishable_colors(length(methods));
-
 
 p(2,1).pack(1, length(methods));
 
 for f = 1:length(methods)
     p(2,1, 1,f).select();
     cla;
-    foo = min((tiffS{f} - min(min(tiffS{f}))), 2);
+    foo = min((tiffS{f} - min(min(tiffS{f}))), 0.9);
+    foo = min(tiffS{f}, 1.2);
     
     imagesc(foo);
     title(methods2{f});
@@ -130,7 +135,7 @@ hold off;
 axis tight;
 ylimits = get(gca, 'YLim');
 set(gca, 'XLim', [-400 400]);
-legend(h, strtok(methods, '_'), 'Location', 'North');
+legend(h, methods_long, 'Location', 'North');
 letter = letter + 1;
 title(sprintf('(%c) X brightness', letter));
 xlabel('\mu{}m');
@@ -152,7 +157,7 @@ end
 hold off;
 axis tight;
 set(gca, 'XLim', [-400 400]);
-legend(h, strtok(methods, '_'), 'Location', 'North');
+legend(h, methods_long, 'Location', 'North');
 letter = letter + 1;
 title(sprintf('(%c) Y brightness', letter));
 xlabel('\mu{}m');
@@ -167,4 +172,4 @@ set(gca, 'YLim', ylimits);
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-p.export('beamgraph.eps', '-w250', '-a1.2');
+p.export('BeamGraph.eps', '-w240', '-a1.2');

@@ -81,25 +81,26 @@ function make_sine_plot_3(p)
     
     convert_phase_dist_to_microns = fov/(D*zoomlevel*2);
     positions_um = sin(t) * convert_phase_dist_to_microns;
-    disp(sprintf('Working FOV is %g um', D*(max(positions_um)-min(positions_um))));
+    %disp(sprintf('Working FOV is %g um', D*(max(positions_um)-min(positions_um))));
     %= lens_working_distance * convert_microns_to_phase_dist;
     % Divide p by predicted vignetting compensation
     cos3 = cos(atan(positions_um./lens_working_distance)).^2;
     cos4 = cos(atan(positions_um./lens_working_distance)).^4;
     
-    plot(t(ti), p(ti), 'r', ...
-        t(ti), cos3(ti), 'g', ...
-        t(ti), p(ti)./cos4(ti), 'k', ...
+    plot(t(ti), p(ti), 'k', ...
+        t(ti), cos3(ti), 'c', ...
+        t(ti), p(ti)./cos4(ti), 'r', ...
         t(ti), p(ti)./cos3(ti), 'b');
     %    t(ti), pstar(ti), 'c', ... % Ad-hoc
     ylabel('Power');
     xlabel('Time (phase)');
     % xlim([-pi,pi]);
     % ylim([0 1.1]);
-    legend({'Beam speed (cos(t))', 'Vignetting falloff (cos^3(x))', 'Compensation (cos(t)/cos^4(x))', 'Compensation (cos(t)/cos^3(x))' }, ...
+    legend({'Beam speed: cos(t)', 'Vignetting falloff: cos^3(x)', 'Compensation: cos(t)/cos^4(x)', 'Compensation: cos(t)/cos^3(x)' }, ...
         'Location', 'South', 'box', 'off');
     %title('(B) Relative voxel size');
-    title(sprintf('(c) Power compensation at FOV = 512 \\mu{}m'));
+    title(sprintf('(c) X power compensation, FOV = %d \\mu{}m', ...
+        round(D*(max(positions_um)-min(positions_um)))));
     %Format
     xlim([-1.8, 1.8]);
     yl = get(gca, 'YLim');
