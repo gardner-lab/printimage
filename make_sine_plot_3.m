@@ -84,7 +84,7 @@ function make_sine_plot_3(p)
     %disp(sprintf('Working FOV is %g um', D*(max(positions_um)-min(positions_um))));
     %= lens_working_distance * convert_microns_to_phase_dist;
     % Divide p by predicted vignetting compensation
-    cos3 = cos(atan(positions_um./lens_working_distance)).^2;
+    cos3 = cos(atan(positions_um./lens_working_distance)).^3;
     cos4 = cos(atan(positions_um./lens_working_distance)).^4;
     
     plot(t(ti), p(ti), 'k', ...
