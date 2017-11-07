@@ -76,6 +76,7 @@ function [] = voxelise(handles, target)
             xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
             xc = sin(xc);
             temp_speed = xc;
+            
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
             xc = (xc + 1) / 2;  % Now on [0 1].
             xc = xc * STL.print.bounds_best(1);
@@ -90,28 +91,9 @@ function [] = voxelise(handles, target)
             speed = cos(asin(temp_speed));
             speed = repmat(speed', [1, size(yc,2), size(zc,2)]);
             %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
-            
-            if false
-                figure(12);
-                subplot(1,2,1);
-                cla;
-                plot(speed(:,256,10));
-                hold on;
-                plot(1./vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
-                plot(speed(:,256,10) ./ vignetting_falloff(:,round(size(vignetting_falloff,2)/2),10));
-                hold off;
-                legend('Pure cos', 'Vignetting', 'Combined');%, 'Ad-hoc');
-                axis tight;
-                xlabel('voxel');
-                ylabel('relative power');
-                subplot(1,2,2);
-                imagesc(yc_c, xc_c, squeeze(speed(:,:,10) ./ vignetting_falloff(:,:,10))');
-                title('XY compensation, z=10');
-                colorbar;
-                xlabel('microns');
-                ylabel('microns');
-            end
-            
+            warning('Turning off sinusoidal power compensation!');
+            speed = ones(size(speed));
+
             % 6. Feed each metavoxel's centres to voxelise
             
             STL.print.nmetavoxels = nmetavoxels;
