@@ -809,7 +809,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.tmp_origin(1:2));
+                move('hex', STL.motors.hex.tmp_origin(1:2));
             end
         end
         
@@ -903,8 +903,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     
-    gridx = 5;
-    gridy = 6;
+    gridx = 1;
+    gridy = 1;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -942,7 +942,7 @@ function powertest_Callback(hObject, eventdata, handles)
     end
     
     % 100 microns high
-    nframes = 100 / STL.print.zstep;
+    nframes = 200 / STL.print.zstep;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -2055,7 +2055,9 @@ function measure_brightness_Callback(hObject, eventdata, handles)
 
     desc = get(handles.slide_filename, 'String');
     
-    
+    hSI.hFastZ.enable = 0;
+    hSI.hStackManager.numSlices = 1;
+
     if true
         %% First: take a snapshot.
         set(handles.messages, 'String', 'Taking snapshot of current view...');
@@ -2081,7 +2083,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     end
     
     % Positions for the sliding measurements:
-    pos = hexapod_get_position_um()
+    pos = hexapod_get_position_um();
     left = pos; left(1) = left(1) - 500;
     right = pos; right(1) = right(1) + 500;
     bottom = pos; bottom(2) = bottom(2) - 500;
