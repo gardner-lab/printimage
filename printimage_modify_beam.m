@@ -2,7 +2,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'sin';
+    VIGNETTING_COMPENSATION = 'cos3';
     
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
@@ -25,6 +25,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     disp(sprintf('Relative power is on [%g, %g]', ...
         min(min(min(voxelpower))), ...
         max(max(max(voxelpower)))));
+    figure(34);
+    hist(voxelpower(:), 100);
     
 
     % Flyback blanking workaround KLUDGE!!! This means that metavoxel_overlap will need to be bigger than it would otherwise need
@@ -44,7 +46,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         max(v)));
 
     % Vignetting power compensation lives here.
-    switch POWER_COMPENSATION
+    switch VIGNETTING_COMPENSATION
         case 'adhoc'
             % Christos's ad-hoc compensation is very good on the development r3D2 unit at zoom = 2.2!
             disp('Using Christos''s ad-hoc curve...');
@@ -86,11 +88,15 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 
             v(vnot) = v(vnot) ./ vignetting_falloff(vnot);
             
-        case 'sin'
-            disp('Using pure sinusoid power compensation.');
+        case 'none'
+            if any(voxelpower(:) ~= 0 & voxelpower(:) ~= 1)
+                disp('Turning off vignetting power compensation. Speed compensation appears to be ON.');
+            else
+                disp('Turning off vignetting power compensation. Speed compensation is OFF.');
+            end
             
         otherwise
-            warning('Illegal value specified. Regressing to pure sinusoid power compensation.');
+            warning('Illegal value specified. Turning off vignetting power compensation.');
     end
     
     % Do not ask for more than 100% power:
@@ -109,7 +115,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         min(v), ...
         max(v)));
 
-     if false
+     if true
         figure(12);
         subplot(1,2,2);
         v_vis = reshape(v, size(voxelpower));
