@@ -1,5 +1,5 @@
-%function falloff
-clear
+function falloff_slide
+
 %addpath('~/Downloads');
 
 %imgs{1}.file = 'picture_00006_00001.tif';
@@ -17,14 +17,14 @@ clear
 
 % 610: same order
 % cos(ax^2+b^2...)
+
+collection = '523';
 sz = 500;
 
-collection = '6';
-
-methods = {'sin', 'interp', 'cos^4', 'cos^3'};
-methods_long = {'Sinusoidal only', 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
+methods = {'none', 'sin', 'cos3', 'cos3s', 'power'}%, 'interp', 'cos^4', 'cos^3'};
+methods_long = {'None', 'Speed only', 'cos^3', 'cos^3+s', 'Power test'}%, 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
 FOV = 666; % microns
-how_much_to_include = .95;
+how_much_to_include = .2;
 speed = 100; % um/s of the sliding stage
 frame_rate = 15.21; % Hz
 frame_spacing = speed / frame_rate;
@@ -32,7 +32,8 @@ frame_spacing = speed / frame_rate;
 colours = [0 0 0; ...
     0 0.5 0; ...
     1 0 0; ...
-    0 0 1];
+    0 0 1; ...
+    1 0 1];
 
 letter = 'c';
 for i = 1:length(methods)
@@ -42,7 +43,7 @@ end
 image_crop_x = 10;
 image_crop_y = 40;
 
-figure(19);
+figure(23);
 if exist('p', 'var')
     delete(p);
 end
@@ -53,7 +54,13 @@ make_sine_plot_3(p(1,1));
 
 tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
 for f = 1:length(methods)
-    tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
+    try
+        tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
+        methodsValid(f) = 1;
+    catch ME
+        methodsValid(f) = 0;
+        continue;
+    end
     tiffS{f} = tiffS{f} ./ tiffCal;
     tiffS{f} = tiffS{f}(1+image_crop_y:end-image_crop_y, 1+image_crop_x:end-image_crop_x);
     
@@ -105,6 +112,9 @@ end
 p(2,1).pack(1, length(methods));
 
 for f = 1:length(methods)
+    if ~methodsValid(f)
+        continue;
+    end
     p(2,1, 1,f).select();
     cla;
     foo = min((tiffS{f} - min(min(tiffS{f}))), 0.9);
@@ -124,6 +134,10 @@ hold on;
 scanposX = (1:size(bright_x, 2)) * frame_spacing - 500;
 
 for f = 1:length(methods)
+    if ~methodsValid(f)
+        continue;
+    end
+
     H = shadedErrorBar(scanposX, ...
         bright_x(f,:), ...
         1.96*bright_x_std(f,:)/sqrt(length(indices)), ...
@@ -135,7 +149,7 @@ hold off;
 axis tight;
 ylimits = get(gca, 'YLim');
 set(gca, 'XLim', [-400 400]);
-legend(h, methods_long, 'Location', 'North');
+legend(h, methods_long(find(methodsValid)), 'Location', 'North');
 letter = letter + 1;
 title(sprintf('(%c) X brightness', letter));
 xlabel('\mu{}m');
@@ -147,6 +161,10 @@ h = [];
 hold on;
 scanposY = (1:size(bright_y, 2)) * frame_spacing - 500;
 for f = 1:length(methods)
+    if ~methodsValid(f)
+        continue;
+    end
+
     H = shadedErrorBar(scanposY, ...
         bright_y(f,:), ...
         1.96*bright_y_std(f,:)/sqrt(length(indices)), ...
@@ -157,7 +175,7 @@ end
 hold off;
 axis tight;
 set(gca, 'XLim', [-400 400]);
-legend(h, methods_long, 'Location', 'North');
+legend(h, methods_long(find(methodsValid)), 'Location', 'North');
 letter = letter + 1;
 title(sprintf('(%c) Y brightness', letter));
 xlabel('\mu{}m');
@@ -173,3 +191,4 @@ set(gca, 'YLim', ylimits);
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
 p.export('BeamGraph.eps', '-w240', '-a1.2');
+p.export('BeamGraph.png', '-w240', '-a1.2');
