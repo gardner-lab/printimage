@@ -2051,7 +2051,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
         
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 190;
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 195;
 
     desc = get(handles.slide_filename, 'String');
     
@@ -2081,7 +2081,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     end
     
     % Positions for the sliding measurements:
-    pos = hexapod_get_position_um();
+    pos = hexapod_get_position_um()
     left = pos; left(1) = left(1) - 500;
     right = pos; right(1) = right(1) + 500;
     bottom = pos; bottom(2) = bottom(2) - 500;
@@ -2133,6 +2133,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     end
     
     move('hex', pos, 1);
+    move('hex', pos, 0.1);
 
 
     hSI.hStackManager.framesPerSlice = 1;

@@ -2,7 +2,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     global STL;
     global ao_volts_out; % Expose this for easier debugging
     
-    POWER_COMPENSATION = 'cos3';
+    POWER_COMPENSATION = 'sin';
     
     hSI = evalin('base', 'hSI');
     %hSI.hChannels.loggingEnable = false;
@@ -43,6 +43,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         min(v), ...
         max(v)));
 
+    % Vignetting power compensation lives here.
     switch POWER_COMPENSATION
         case 'adhoc'
             % Christos's ad-hoc compensation is very good on the development r3D2 unit at zoom = 2.2!
