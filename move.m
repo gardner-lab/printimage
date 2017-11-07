@@ -61,7 +61,7 @@ function [pos] = move(motor, target_um, velocity)
             % If the hexapod is in 'rotation' coordinate system,
             % wait for move to finish and then switch to 'ZERO'.
             [~, b] = STL.motors.hex.C887.qKEN('');
-            if ~strcmpi(b(1:8), 'PI_LEVEL')
+            if ~strcmpi(b(1:5), 'LEVEL')
                 hexapod_wait();
                 STL.motors.hex.C887.KEN('ZERO');
             end
@@ -80,6 +80,9 @@ function [pos] = move(motor, target_um, velocity)
             %end
             %hexapod_wait();
             
+            if ~exist('velocity', 'var')
+                velocity = 1;
+            end
             STL.motors.hex.C887.VLS(velocity);
 
             if length(target_mm) == 2
