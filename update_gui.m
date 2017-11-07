@@ -31,7 +31,7 @@ function update_gui(handles);
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
     spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
     spinnerSet(handles.printZoom, STL.print.zoom);
-    hexapod_pos = hexapod_get_position();
+    hexapod_pos = hexapod_get_position_frac();
     set(handles.hexapod_rotate_x, 'Value', hexapod_pos(4));
     set(handles.hexapod_rotate_y, 'Value', hexapod_pos(5));
     set(handles.hexapod_rotate_z, 'Value', hexapod_pos(6));

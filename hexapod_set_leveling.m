@@ -2,16 +2,16 @@ function hexapod_set_leveling(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
         
-    foo = hexapod_get_position();
-    while all(abs(foo(1:3)) > 0.0001)
+    foo = hexapod_get_position_um();
+    while any(abs(foo(1:3)) > 1)
         foo = questdlg('Please safely move the hexapod to [0 0 0].', ...
             'Stage setup', 'Cancel', 'I did it', 'Do it for me', 'Cancel');
         switch foo
             case 'I did it'
-                foo = hexapod_get_position();
+                foo = hexapod_get_position_um();
             case 'Do it for me'
                 move('hex', [0 0 0]);
-                foo = hexapod_get_position();
+                foo = hexapod_get_position_um();
             case 'Cancel'
                 return;
         end

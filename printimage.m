@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 23-Oct-2017 20:55:04
+    % Last Modified by GUIDE v2.5 31-Oct-2017 12:49:48
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -248,6 +248,7 @@ function set_up_params()
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
+    STL.calibration.lens_optical_working_distance = 380; % microns, for optical computations
 
     STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
     STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
@@ -543,8 +544,8 @@ function print_Callback(hObject, eventdata, handles)
     %hSI.hMotors.zprvResetHome();
     %hSI.hBeams.zprvResetHome();
     %hSI.hFastZ.positionTarget = foo;
-    hexapos = hexapod_get_position();
-    if any(abs(hexapos(1:3)) > 0.001)
+    hexapos = hexapod_get_position_um();
+    if any(abs(hexapos(1:3)) > 1)
         set(handles.messages, 'String', ...
             sprintf('Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first', ...
             sprintf(' %g', hexapos(1:3))));
@@ -785,7 +786,7 @@ function motorHold(handles, v);
         %warning('Disabled fastZ hold hack.');
         STL.print.motor_reset_needed = true;
         STL.motors.mom.tmp_origin = move('mom');
-        STL.motors.hex.tmp_origin = hexapod_get_position();
+        STL.motors.hex.tmp_origin = hexapod_get_position_um();
     end
     
     if strcmp(v, 'off')
@@ -1339,7 +1340,7 @@ function test_linearity_Callback(varargin)
         set(handles.messages, 'String', '');
     end
     
-    hexapos = hexapod_get_position();
+    hexapos = hexapod_get_position_um();
     if any(abs(hexapos(1:3)) > 0.001)
         set(handles.messages, 'String', 'Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first');
         return;
@@ -1453,7 +1454,7 @@ function test_linearity_Callback(varargin)
 
         newpos = posns(xy, :) + motor.tmp_origin(1:2);
 
-        move(STL.motors.stitching, newpos, 1);
+        move(STL.motors.stitching, newpos, 2);
         
         hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
         
@@ -1967,7 +1968,6 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    foo = hexapod_get_position;
     hexapod_wait();
     STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
 end
@@ -2036,4 +2036,169 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+function measure_brightness_Callback(hObject, eventdata, handles)
+    global STL;
+    hSI = evalin('base', 'hSI');
+    
+    
+    if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
+        set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents calibrating.');
+        return;
+    else
+        set(handles.messages, 'String', '');
+    end
+        
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 195;
+
+    desc = get(handles.slide_filename, 'String');
+    
+    
+    if true
+        %% First: take a snapshot.
+        set(handles.messages, 'String', 'Taking snapshot of current view...');
+        
+        hSI.hStackManager.framesPerSlice = 100;
+        hSI.hChannels.loggingEnable = true;
+        hSI.hScan2D.logFramesPerFileLock = true;
+        hSI.hScan2D.logFileStem = sprintf('slide_%s_image', desc);
+        hSI.hScan2D.logFileCounter = 1;
+        hSI.hScan2D.logAverageFactor = 100;
+        hSI.hRoiManager.scanZoomFactor = 1;
+        
+        if ~STL.logistics.simulated
+            hSI.startGrab();
+            
+            while ~strcmpi(hSI.acqState,'idle')
+                pause(0.1);
+            end
+        end
+        
+        hSI.hStackManager.framesPerSlice = 1;
+        hSI.hChannels.loggingEnable = false;
+    end
+    
+    % Positions for the sliding measurements:
+    pos = hexapod_get_position_um()
+    left = pos; left(1) = left(1) - 500;
+    right = pos; right(1) = right(1) + 500;
+    bottom = pos; bottom(2) = bottom(2) - 500;
+    top = pos; top(2) = top(2) + 500;
+
+    %% Measure brightness along X axis
+
+    move('hex', left, 1);
+    set(handles.messages, 'String', 'Sliding along current view...');
+
+    scanspeed = 0.1; % mm/s
+    % Time taken for the scan will be 666 um / 100 um/s; frame rate is
+    % 15.21 Hz (can't figure out where that is in hSI, but somewhere...)
+    scantime = STL.bounds_1(1) / (scanspeed * 1000);
+    scanframes = ceil(scantime * 25);
+    hSI.hStackManager.framesPerSlice = scanframes;
+    hSI.hChannels.loggingEnable = true;
+    hSI.hScan2D.logFramesPerFileLock = true;
+    hSI.hScan2D.logAverageFactor = 1;
+    hSI.hRoiManager.scanZoomFactor = 1;
+    hSI.hScan2D.logFileStem = sprintf('slide_%s_x', desc);
+    hSI.hScan2D.logFileCounter = 1;
+
+    if ~STL.logistics.simulated
+        hSI.startGrab();
+    end
+    
+    move('hex', right, scanspeed);
+    
+    while ~strcmpi(hSI.acqState,'idle')
+        pause(0.1);
+    end
+    
+    
+    %% Measure brightness along y axis
+        
+    move('hex', top, 1);
+    
+    hSI.hScan2D.logFileStem = sprintf('slide_%s_y', desc);
+    hSI.hScan2D.logFileCounter = 1;
+    if ~STL.logistics.simulated
+        hSI.startGrab();
+    end
+    
+    move('hex', bottom, scanspeed);
+
+    while ~strcmpi(hSI.acqState,'idle')
+        pause(0.1);
+    end
+    
+    move('hex', pos, 1);
+    move('hex', pos, 0.1);
+
+
+    hSI.hStackManager.framesPerSlice = 1;
+    hSI.hChannels.loggingEnable = false;
+    
+    if false
+        set(handles.messages, 'String', 'Processing...');
+        tiffx = [];
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                tiffx(i,:,:) = imread(sprintf('slide_%s_x_00001_00001.tif', desc), i);
+            end
+        catch ME
+        end
+        tiffx = double(tiffx);
+        middle = round(size(tiffx, 3)/2);
+        n = 100;
+        if ~isempty(tiffx)
+            figure(16);
+            subplot(1,2,1);
+            plot(mean(tiffx(:, middle-n:middle+n, middle), 2));
+            title('X axis brightness');
+            set(gca, 'XLim', [0 size(tiffx, 1)]);
+        end
+        
+        tiffy = [];
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                tiffy(i,:,:) = imread(sprintf('slide_%s_y_00001_00001.tif', desc), i);
+            end
+        catch ME
+        end
+        tiffy = double(tiffy);
+        if ~isempty(tiffy)
+            subplot(1,2,2);
+            plot(mean(tiffy(:, middle, middle-n:middle+n), 3));
+            title('Y axis brightness');
+            set(gca, 'XLim', [0 size(tiffy, 1)]);
+        end
+    end
+    set(handles.messages, 'String', '');
+    
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+end
+
+
+
+function slide_filename_Callback(hObject, eventdata, handles)
+end
+
+function slide_filename_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+end
+
+
+% --- Executes on button press in centre_mom.
+function centre_mom_Callback(hObject, eventdata, handles)
+    global STL;
+    set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
+        'Enable', 'on');
+    move('mom', STL.motors.mom.understage_centre(1:2));
 end
