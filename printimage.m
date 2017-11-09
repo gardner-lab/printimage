@@ -102,6 +102,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
         hSI.hScan_ResScanner.fillFractionSpatial = 0.9; % copy from hSI
         hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B = 152; % copy from hSI (available after a Focus)
         hSI.hMotors.motorPosition = 10000 * [ 1 1 1 ];
+        STL.motors.hex.range = repmat([-10 10], 6, 1);
+
         assignin('base', 'hSI', hSI);
     end
     
@@ -2199,7 +2201,6 @@ function slide_filename_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% --- Executes on button press in centre_mom.
 function centre_mom_Callback(hObject, eventdata, handles)
     global STL;
     set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
@@ -2208,24 +2209,11 @@ function centre_mom_Callback(hObject, eventdata, handles)
 end
 
 
-
 function slide_filename_series_Callback(hObject, eventdata, handles)
-% hObject    handle to slide_filename_series (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+end
 
-% Hints: get(hObject,'String') returns contents of slide_filename_series as text
-%        str2double(get(hObject,'String')) returns contents of slide_filename_series as a double
-
-
-% --- Executes during object creation, after setting all properties.
 function slide_filename_series_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to slide_filename_series (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
 end
