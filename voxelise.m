@@ -75,7 +75,7 @@ function [] = voxelise(handles, target)
             xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
             xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative "times" for pixel centres
             xc = sin(xc_t); % Locations x = sin(t), on [-fillFractionSpatial...fillFractionSpatial]
-            STL.print.beamspeed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
+            STL.print.beam_speed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Back to [-1,1]
             xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
             xc = xc * STL.print.bounds_best(1); % Now spans actual printing workspace
