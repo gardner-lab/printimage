@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 31-Oct-2017 12:49:48
+    % Last Modified by GUIDE v2.5 09-Nov-2017 11:54:32
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -809,7 +809,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                move('hex', STL.motors.hex.tmp_origin(1:2));
+                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.tmp_origin(1:2));
             end
         end
         
@@ -903,8 +903,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     
-    gridx = 1;
-    gridy = 1;
+    gridx = 5;
+    gridy = 6;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -942,7 +942,7 @@ function powertest_Callback(hObject, eventdata, handles)
     end
     
     % 100 microns high
-    nframes = 200 / STL.print.zstep;
+    nframes = 100 / STL.print.zstep;
     
     hSI.hFastZ.enable = 1;
     hSI.hStackManager.stackZStepSize = -STL.print.zstep;
@@ -2017,7 +2017,13 @@ function calibrate_vignetting_Callback(hObject, eventdata)
             'Enable', 'on');
         STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
 
+        s = get(handles.slide_filename_series, 'String');
+        if ~strcmp(s, 'Series')
+            copyfile('vignetting_cal_00001_00001.tif', sprintf('vignetting_cal_%s.tif', s));
+        end
+        
         set(handles.messages, 'String', '');
+        
 end
 
 
@@ -2051,13 +2057,10 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
         
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 195;
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 190;
 
-    desc = get(handles.slide_filename, 'String');
+    desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
-    hSI.hFastZ.enable = 0;
-    hSI.hStackManager.numSlices = 1;
-
     if true
         %% First: take a snapshot.
         set(handles.messages, 'String', 'Taking snapshot of current view...');
@@ -2135,7 +2138,6 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     end
     
     move('hex', pos, 1);
-    move('hex', pos, 0.1);
 
 
     hSI.hStackManager.framesPerSlice = 1;
@@ -2203,4 +2205,27 @@ function centre_mom_Callback(hObject, eventdata, handles)
     set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
         'Enable', 'on');
     move('mom', STL.motors.mom.understage_centre(1:2));
+end
+
+
+
+function slide_filename_series_Callback(hObject, eventdata, handles)
+% hObject    handle to slide_filename_series (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of slide_filename_series as text
+%        str2double(get(hObject,'String')) returns contents of slide_filename_series as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function slide_filename_series_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to slide_filename_series (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end

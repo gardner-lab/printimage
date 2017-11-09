@@ -18,7 +18,7 @@ function falloff_slide
 % 610: same order
 % cos(ax^2+b^2...)
 
-collection = '523';
+collection = '523'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
 methods = {'none', 'sin', 'cos3', 'cos3s', 'power'}%, 'interp', 'cos^4', 'cos^3'};
@@ -52,7 +52,15 @@ p.pack(3, 1);
 p(1,1).marginbottom = 100;
 make_sine_plot_3(p(1,1));
 
-tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
+if exist(sprintf('vignetting_cal_%s.tif', collection), 'file')
+    tiffCal = double(imread(sprintf('vignetting_cal_%s.tif', collection)));
+elseif exist(sprintf('vignetting_cal_%s_00001_00001.tif', collection), 'file')
+    tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
+else
+    warning('No baseline calibration file ''%s'' found.', ...
+        sprintf('vignetting_cal_%s.tif', collection));
+end
+
 for f = 1:length(methods)
     try
         tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
