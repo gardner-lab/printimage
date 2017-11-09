@@ -81,6 +81,7 @@ function make_sine_plot_3(p)
     
     convert_phase_dist_to_microns = fov/(D*zoomlevel*2);
     positions_um = sin(t) * convert_phase_dist_to_microns;
+    positions_um(2,:) = sqrt(positions_um(1,:).^2 + 200^2);
     %disp(sprintf('Working FOV is %g um', D*(max(positions_um)-min(positions_um))));
     %= lens_working_distance * convert_microns_to_phase_dist;
     % Divide p by predicted vignetting compensation
@@ -88,9 +89,9 @@ function make_sine_plot_3(p)
     cos4 = cos(atan(positions_um./lens_working_distance)).^4;
     
     plot(t(ti), p(ti), 'k', ...
-        t(ti), cos3(ti), 'c', ...
-        t(ti), p(ti)./cos4(ti), 'r', ...
-        t(ti), p(ti)./cos3(ti), 'b');
+        t(ti), cos3(1,ti), 'c', ...
+        t(ti), p(ti)./cos4(1,ti), 'r', ...
+        t(ti), p(ti)./cos3(1,ti), 'b');
     %    t(ti), pstar(ti), 'c', ... % Ad-hoc
     ylabel('Power');
     xlabel('Time (phase)');

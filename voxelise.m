@@ -72,12 +72,12 @@ function [] = voxelise(handles, target)
             % FIXME We should really compute pixel left-edges for 0-1
             % transitions and right-edges for 1-0. Maybe in the next
             % version.
-            xc = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
-            xc = xc * asin(hSI.hScan_ResScanner.fillFractionSpatial);
-            xc = sin(xc);
+            xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
+            xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative "times" for pixel centres
+            xc = sin(xc_t); % Locations x = sin(t), on [-fillFractionSpatial...fillFractionSpatial]
             temp_speed = xc;
-            xc = xc / hSI.hScan_ResScanner.fillFractionSpatial;
-            xc = (xc + 1) / 2;  % Now on [0 1].
+            xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Back to [-1,1]
+            xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
             xc = xc * STL.print.bounds_best(1);
             
             % Y (galvo) centres. FIXME as above
