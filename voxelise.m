@@ -75,10 +75,10 @@ function [] = voxelise(handles, target)
             xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
             xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative "times" for pixel centres
             xc = sin(xc_t); % Locations x = sin(t), on [-fillFractionSpatial...fillFractionSpatial]
-            temp_speed = xc;
+            STL.print.beamspeed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Back to [-1,1]
             xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
-            xc = xc * STL.print.bounds_best(1);
+            xc = xc * STL.print.bounds_best(1); % Now spans actual printing workspace
             
             % Y (galvo) centres. FIXME as above
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
@@ -86,13 +86,6 @@ function [] = voxelise(handles, target)
             % Z centres aren't defined by zoom, but by zstep.
             zc = STL.print.zstep : STL.print.zstep : min([STL.print.bounds(3) STL.print.size(3)]);
             
-            % Calculate power compensation for sinusoidal speed
-            speed = cos(asin(temp_speed));
-            speed = repmat(speed', [1, size(yc,2), size(zc,2)]);
-            %speed = cos(asin(foo)) * asin(hSI.hScan_ResScanner.fillFractionSpatial)/hSI.hScan_ResScanner.fillFractionSpatial;
-            warning('Turning off sinusoidal power compensation!');
-            speed = ones(size(speed));
-
             % 6. Feed each metavoxel's centres to voxelise
             
             STL.print.nmetavoxels = nmetavoxels;
@@ -187,23 +180,17 @@ function [] = voxelise(handles, target)
                             A(vx,:,:) = zvector;
                         end
                         
-                        STL.print.metavoxels{mvx, mvy, mvz} = A;
-                        STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* speed;
+                        STL.print.metavoxels{mvx, mvy, mvz} = double(A);
+                        %STL.print.metapower{mvx,mvy,mvz} = double(STL.print.metavoxels{mvx, mvy, mvz}) .* speed;
                                                 
                         % Delete empty zstack slices if they are above
-                        % something that is printed:
+                        % something that is printed.
                         foo = sum(sum(STL.print.metavoxels{mvx, mvy, mvz}, 1), 2);
                         last_nonzero_slice = find(foo, 1, 'last');
-                        %warning('Keeping zstack positions from 1-%d.', cow);
                         STL.print.metavoxels{mvx, mvy, mvz} ...
                             = STL.print.metavoxels{mvx, mvy, mvz}(:, :, 1:last_nonzero_slice);
                         STL.print.voxelpos{mvx, mvy, mvz}.z = STL.print.voxelpos{mvx, mvy, mvz}.z(1:last_nonzero_slice);
-                        
-                        % The voxel powers for each metavoxel are stored in
-                        % metapower. During print(), the appropriate
-                        % metapower becomes the new voxelpower. Yuck :(
-                        STL.print.metapower{mvx, mvy, mvz} = STL.print.metapower{mvx, mvy, mvz}(:,:,1:last_nonzero_slice);
-                        
+                                                
                         % Printing happens at this resolution--we need to set up zstack height etc so printimage_modify_beam()
                         % produces a beam control vector of the right length.
                         STL.print.metavoxel_resolution{mvx, mvy, mvz} = size(STL.print.metavoxels{mvx, mvy, mvz});
