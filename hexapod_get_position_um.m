@@ -21,5 +21,5 @@ function [pos] = hexapod_get_position_um()
     end
     
     pos = STL.motors.hex.C887.qPOS('x y z u v w');
-    pos = 1000 * pos';
+    pos = pos' * diag([1000 1000 1000 1 1 1]);
 end
