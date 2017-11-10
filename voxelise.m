@@ -6,7 +6,7 @@ function [] = voxelise(handles, target)
     
     global wbar;
 
-    if exist('handles', 'var');
+    if exist('handles', 'var') & ~isempty(handles)
         set(handles.messages, 'String', sprintf('Re-voxelising %s...', target));
         drawnow;
     end
@@ -73,10 +73,10 @@ function [] = voxelise(handles, target)
             % transitions and right-edges for 1-0. Maybe in the next
             % version.
             xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
-            xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative "times" for pixel centres
-            xc = sin(xc_t); % Locations x = sin(t), on [-fillFractionSpatial...fillFractionSpatial]
+            xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative times (as phase) for pixel centres
+            xc = sin(xc_t); % Locations x = sin(t), t in [-pi/2...pi/2] --> x in [ -1...1], but zoomed in above so x in [-D...D]
             STL.print.beam_speed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
-            xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Back to [-1,1]
+            xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Scale to workspace size: step 1 is back to [-1,1]
             xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
             xc = xc * STL.print.bounds_best(1); % Now spans actual printing workspace
             
@@ -232,7 +232,7 @@ function [] = voxelise(handles, target)
                 STL.print.valid = true;
             end
             
-            if exist('handles', 'var')
+            if exist('handles', 'var') & ~isempty(handles)
                 set(handles.messages, 'String', '');
                 draw_slice(handles, 1);
                 drawnow;
@@ -245,7 +245,7 @@ function [] = voxelise(handles, target)
 
             
         else
-            if exist('handles', 'var')
+            if exist('handles', 'var') & ~isempty(handles)
                 set(handles.messages, 'String', 'Could not voxelise for printing: run an acquire first.');
             else
                 warning('Could not voxelise for printing: run an acquire first.');
@@ -277,7 +277,7 @@ function [] = voxelise(handles, target)
         STL.preview.resolution(3) = size(STL.preview.voxels, 3);
     end
     
-    if exist('handles', 'var');
+    if exist('handles', 'var') & ~isempty(handles)
         set(handles.messages, 'String', '');
         drawnow;
     end
