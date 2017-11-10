@@ -18,11 +18,13 @@ function falloff_slide
 % 610: same order
 % cos(ax^2+b^2...)
 
-collection = '523'; % Or "series" in the UI, but that's a MATLAB function
+collection = '15'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
-methods = {'none', 'sin', 'cos3', 'cos3s', 'power'}%, 'interp', 'cos^4', 'cos^3'};
-methods_long = {'None', 'Speed only', 'cos^3', 'cos^3+s', 'Power test'}%, 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
+methods = {'none', 'speed', 'vignetting', 'both'};%, 'interp', 'cos^4', 'cos^3'};
+methods_long = {'None', 'Speed only', 'Vignetting only', 'Both'};%, 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
+%methods = {'300', '380', '400'};
+%methods_long = methods;
 FOV = 666; % microns
 how_much_to_include = .2;
 speed = 100; % um/s of the sliding stage
@@ -59,6 +61,7 @@ elseif exist(sprintf('vignetting_cal_%s_00001_00001.tif', collection), 'file')
 else
     warning('No baseline calibration file ''%s'' found.', ...
         sprintf('vignetting_cal_%s.tif', collection));
+    tiffCal = ones(512, 512);
 end
 
 for f = 1:length(methods)
@@ -125,12 +128,15 @@ for f = 1:length(methods)
     end
     p(2,1, 1,f).select();
     cla;
-    foo = min((tiffS{f} - min(min(tiffS{f}))), 0.9);
+    
+    foo = tiffS{f};
+    % Manual gain control :)
+    foo = min((foo - min(min(tiffS{f}))), 0.7);
     foo = min(tiffS{f}, 1.2);
     
     imagesc(foo);
     title(methods2{f});
-    axis equal off;
+    axis equal ij off;
     colormap gray;
 end
 
@@ -155,6 +161,7 @@ for f = 1:length(methods)
 end
 hold off;
 axis tight;
+grid on;
 ylimits = get(gca, 'YLim');
 set(gca, 'XLim', [-400 400]);
 legend(h, methods_long(find(methodsValid)), 'Location', 'North');
@@ -183,6 +190,7 @@ end
 hold off;
 axis tight;
 set(gca, 'XLim', [-400 400]);
+grid on;
 legend(h, methods_long(find(methodsValid)), 'Location', 'North');
 letter = letter + 1;
 title(sprintf('(%c) Y brightness', letter));
@@ -193,10 +201,10 @@ ylimits2 = get(gca, 'YLim');
 ylimits = [min(ylimits(1), ylimits2(1)) max(ylimits(2), ylimits2(2))];
 set(gca, 'YLim', ylimits);
 p(3,1,1,1).select();
-set(gca, 'YLim', ylimits);
+%set(gca, 'YLim', ylimits);
 
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-p.export('BeamGraph.eps', '-w240', '-a1.2');
-p.export('BeamGraph.png', '-w240', '-a1.2');
+%p.export('BeamGraph.eps', '-w240', '-a1.2');
+%p.export('BeamGraph.png', '-w240', '-a1.2');
