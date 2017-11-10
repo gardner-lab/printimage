@@ -7,11 +7,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % and readability, but it's okay, since any change that affects it
     % (besides tweaking parameters) depends on zoom and thus requires
     % re-voxelising anyway.
-    VIGNETTING_POWER_COMPENSATION = 'cos3';
+    VIGNETTING_POWER_COMPENSATION = 'none';
     
     % Beam speed compensation was computed with voxelise(), but has not
     % been applied yet.
-    BEAM_SPEED_POWER_COMPENSATION = 1;
+    BEAM_SPEED_POWER_COMPENSATION = 0;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -38,7 +38,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % Flyback blanking workaround KLUDGE!!! This means that
     % metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
-    foo = size(voxelpower)
+    foo = size(voxelpower);
     voxelpower(end,:,:) = zeros(foo(2:3));
     
 
@@ -91,6 +91,17 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                     xlim(xc([1 end]));
                     yl = get(gca, 'YLim');
                     ylim([0 yl(2)]);
+                    
+                    subplot(1,2,2);
+                    imagesc(STL.print.voxelpos_wrt_fov{1,1,1}.x, ...
+                        STL.print.voxelpos_wrt_fov{1,1,1}.y, ...
+                        squeeze(voxelpower(:,:,end))');                    
+                    axis square;
+                    colorbar;
+                    colormap(jet);
+                    title('Power compensation');
+                    xlabel('X (\mu{}m)');
+                    ylabel('Y (\mu{}m)');
                 end
                 
 
@@ -133,21 +144,12 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         min(voxelpower(:)), ...
         max(voxelpower(:))));
 
-     if true
-        figure(34);
-        subplot(1,2,2);
-        image(squeeze(voxelpower(:,:,end-1))');
-        colorbar;
-        colormap jet;
-    end
-    
-
     % Put it in STL, which facilitates debugging:
     STL.print.ao_volts_out = ao_volts_raw;
-    if ~STL.logistics.simulated
-        STL.print.ao_volts_out.B(:, STL.print.whichBeam) = hSI.hBeams.zprpBeamsPowerFractionToVoltage(STL.print.whichBeam, voxelpower(:));
-    else
+    if STL.logistics.simulated
         STL.print.ao_volts_out.B(:, STL.print.whichBeam) = voxelpower(:);
+    else
+        STL.print.ao_volts_out.B(:, STL.print.whichBeam) = hSI.hBeams.zprpBeamsPowerFractionToVoltage(STL.print.whichBeam, voxelpower(:));
     end
     
     % Decrease power as appropriate for current zoom level. Empirically, this
