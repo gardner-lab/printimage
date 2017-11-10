@@ -24,8 +24,9 @@ function hexapod_set_leveling(varargin)
     elseif nargin == 1
         disp(sprintf('Setting leveling coords to [ %s]', sprintf('%g ', varargin{1})));
         STL.motors.hex.C887.KLD('level', 'x y z u v w', varargin{1});
-        %[a,b]=STL.motors.hex.C887.qKLS('level', 'pos', 'W');
-        %disp(sprintf('Leveling %s', b)); % Doesn't work
+    elseif nargin == 0
+        disp(sprintf('Setting leveling coords to [ %s]', sprintf('%g ', STL.motors.hex.leveling)));
+        STL.motors.hex.C887.KLD('level', 'x y z u v w', STL.motors.hex.leveling);
     end
     %[~,b] = STL.motors.hex.C887.qKEN('')
     %STL.motors.hex.leveling = hexapod_get_position;
