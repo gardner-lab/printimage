@@ -35,14 +35,14 @@ function make_sine_plot_3(p)
     ti = find(t >= -pi/2 & t <= pi/2);
     plot(t(ti), x(ti), 'LineWidth', 2);
     hold on;
-    tt = asin(0.9);
+    
     
     % Imaging fraction of beam. Show voxel positions for slower control system for clarity...
+    D = 0.9;
     nsteps_show = 1000000 / 7980;
     t_show = linspace(-pi, pi, nsteps_show);
     x_show = sin(t_show);
-    D = 0.9;
-    tt = asin(0.9);
+    tt = asin(D);
     ti = find(t > -tt & t < tt);
     ti_show = find(t_show > -tt & t_show < tt);
     %plot(t_show(ti_show),x_show(ti_show), 'k.', 'MarkerSize', 10);
