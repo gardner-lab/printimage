@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 09-Nov-2017 11:54:32
+    % Last Modified by GUIDE v2.5 10-Nov-2017 18:05:05
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -174,7 +174,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     legal_beams = {};
     if STL.logistics.simulated
         STL.motors.mom.understage_centre = [10000 10000 6000];
-        %STL.motors.hex.tmp_origin = [0 0 0];
+        STL.motors.hex.tmp_origin = [0 0 0];
         legal_beams = -1;
     else
         evalin('base', 'hSI.startGrab()');
@@ -216,7 +216,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     %warning('Setting pixelsPerLine to 64 for faster testing.');
     %hSI.hRoiManager.pixelsPerLine = 64;
     hSI.hScan2D.bidirectional = false;
-    hSI.hScan2D.linePhase = -6e-6;
+    hSI.hScan2D.linePhase = STL.calibration.ScanImage.ScanPhase;
+    hSI.hScanner.linePhase = STL.calibration.ScanImage.ScanPhase;
     
     colormap(handles.axes2, 'gray');
     
@@ -280,6 +281,7 @@ function set_up_params()
     STL.motors.hex.axis_order = [ 1 2 3 ];
     STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
     %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+    STL.motors.hex.slide_level = [ 0 0 0 0 0 0 ]; % Slide is mounted parallel to optical axis
     
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
@@ -289,7 +291,8 @@ function set_up_params()
     STL.print.bounds_max = [NaN NaN  zbound ];
     STL.print.bounds = [NaN NaN  zbound ];
 
-    
+    % ScanImage's LinePhase adjustment. Save it here, just for good measure.
+    STL.calibration.ScanImage.ScanPhase = 0;
     %%%%%
     %% Finally, allow the user to override any of these:
     %%%%%
@@ -788,6 +791,12 @@ function motorHold(handles, v);
         %warning('Disabled fastZ hold hack.');
         STL.print.motor_reset_needed = true;
         STL.motors.mom.tmp_origin = move('mom');
+        
+        [~, b] = STL.motors.hex.C887.qKEN('');
+        if ~strcmpi(b(1:5), 'LEVEL')
+            hexapod_wait();
+            STL.motors.hex.C887.KEN('ZERO');
+        end
         STL.motors.hex.tmp_origin = hexapod_get_position_um();
     end
     
@@ -811,7 +820,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                STL.motors.hex.C887.MOV('X Y', STL.motors.hex.tmp_origin(1:2));
+                move('hex', STL.motors.hex.tmp_origin(1:2));
             end
         end
         
@@ -841,7 +850,7 @@ function motorHold(handles, v);
                     hexapod_wait();
                     STL.motors.hex.C887.KEN('ZERO');
                 end
-                STL.motors.hex.C887.MOV('Z', STL.motors.hex.tmp_origin(3));
+                STL.motors.hex.C887.MOV('Z', STL.motors.hex.tmp_origin(3)/1e3);
             end
         end
         
@@ -1275,7 +1284,7 @@ function crushReset_Callback(hObject, eventdata, handles)
     hSI = evalin('base', 'hSI');
     
     STL.motors.mom.tmp_origin = move('mom');
-    STL.motors.hex.tmp_origin = move('hex');
+    STL.motors.hex.tmp_origin = hexapod_get_position_um();
     STL.print.motor_reset_needed = false;
     set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
     set(handles.messages, 'String', '');
@@ -1351,7 +1360,7 @@ function test_linearity_Callback(varargin)
     end
 
     STL.motors.mom.tmp_origin = move('mom');
-    STL.motors.hex.tmp_origin = move('hex');
+    STL.motors.hex.tmp_origin = hexapod_get_position_um();
     eval(sprintf('motor = STL.motors.%s', STL.motors.stitching));
     
     if STL.logistics.simulated
@@ -2011,13 +2020,16 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         
         set(handles.messages, 'String', 'Computing fit...'); drawnow;
         
-        methods = cellstr(get(handles.vignetting_fit_method, 'String'));
-        method = methods{get(handles.vignetting_fit_method, 'Value')};
+        % Left over from when this was a dropdown on the UI:
+        % methods = cellstr(get(handles.vignetting_fit_method, 'String'));
+        % method = methods{get(handles.vignetting_fit_method, 'Value')};
+        method = 'interpolant';
 
         STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
-        set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
-            'Enable', 'on');
-        STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
+        % Left over for when this was a checkbox
+        %set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
+        %    'Enable', 'on');
+        %STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
 
         s = get(handles.slide_filename_series, 'String');
         if ~strcmp(s, 'Series')
@@ -2059,7 +2071,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', '');
     end
         
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - 190;
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - str2double(get(handles.brightness_height, 'String'));
 
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
@@ -2068,11 +2080,11 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         set(handles.messages, 'String', 'Taking snapshot of current view...');
         
         hSI.hStackManager.framesPerSlice = 100;
+        hSI.hScan2D.logAverageFactor = 100;
         hSI.hChannels.loggingEnable = true;
         hSI.hScan2D.logFramesPerFileLock = true;
         hSI.hScan2D.logFileStem = sprintf('slide_%s_image', desc);
         hSI.hScan2D.logFileCounter = 1;
-        hSI.hScan2D.logAverageFactor = 100;
         hSI.hRoiManager.scanZoomFactor = 1;
         
         if ~STL.logistics.simulated
@@ -2087,6 +2099,17 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         hSI.hChannels.loggingEnable = false;
     end
     
+    
+    % If the hexapod is in 'rotation' coordinate system,
+    % wait for move to finish and then switch to 'ZERO'.
+    if STL.motors.hex.connected
+        [~, b] = STL.motors.hex.C887.qKEN('');
+        if ~strcmpi(b(1:5), 'LEVEL')
+            hexapod_wait();
+            STL.motors.hex.C887.KEN('ZERO');
+        end
+    end
+
     % Positions for the sliding measurements:
     pos = hexapod_get_position_um();
     left = pos; left(1) = left(1) - 500;
@@ -2095,6 +2118,9 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     top = pos; top(2) = top(2) + 500;
 
     %% Measure brightness along X axis
+    
+    % This should be in the base leveling coordinate system
+    
 
     move('hex', left, 1);
     set(handles.messages, 'String', 'Sliding along current view...');
@@ -2185,7 +2211,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         end
     end
     set(handles.messages, 'String', '');
-    
+        
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
 end
 
@@ -2216,4 +2242,21 @@ function slide_filename_series_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+
+function brightness_height_Callback(hObject, eventdata, handles)
+end
+
+function brightness_height_CreateFcn(hObject, eventdata, handles)
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+end
+
+
+function level_slide_Callback(hObject, eventdata, handles)
+    global STL;
+    STL.motors.hex.C887.MOV('u v', STL.motors.hex.slide_level(4:5));
 end
