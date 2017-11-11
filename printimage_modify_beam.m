@@ -7,11 +7,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % and readability, but it's okay, since any change that affects it
     % (besides tweaking parameters) depends on zoom and thus requires
     % re-voxelising anyway.
-    VIGNETTING_POWER_COMPENSATION = 'none';
+    VIGNETTING_POWER_COMPENSATION = 'cos3';
     
     % Beam speed compensation was computed with voxelise(), but has not
     % been applied yet.
-    BEAM_SPEED_POWER_COMPENSATION = 0;
+    BEAM_SPEED_POWER_COMPENSATION = 1;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -107,8 +107,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
 
         case 'fit'
             disp('Using the current curvefit vignetting compensator.');
-            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') ...
-                    & isfield(STL.print, 'vignetting_compensation') & STL.print.vignetting_compensation
+            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
                 xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
                 yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
                 [vig_x, vig_y] = meshgrid(xc, yc);

@@ -18,15 +18,16 @@ function falloff_slide
 % 610: same order
 % cos(ax^2+b^2...)
 
-collection = '15'; % Or "series" in the UI, but that's a MATLAB function
+collection = '16'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
 methods = {'none', 'speed', 'vignetting', 'both'};%, 'interp', 'cos^4', 'cos^3'};
 methods_long = {'None', 'Speed only', 'Vignetting only', 'Both'};%, 'Fit from data', 'Cos^4 model', 'Cos^3 model'};
+methods_long = methods;
 %methods = {'300', '380', '400'};
 %methods_long = methods;
 FOV = 666; % microns
-how_much_to_include = .2;
+how_much_to_include = 0.3;
 speed = 100; % um/s of the sliding stage
 frame_rate = 15.21; % Hz
 frame_spacing = speed / frame_rate;
@@ -80,11 +81,15 @@ for f = 1:length(methods)
     try
         while true
             i = i + 1;
+            if i == 2
+                tiffX{f}(3000,1,1) = 0;
+            end
             t = imread(sprintf('slide_%s_%s_x_00001_00001.tif', methods{f}, collection), i);
             tiffX{f}(i,:,:) = double(t) ./ tiffCal;
         end
     catch ME
     end
+    tiffX{f} = tiffX{f}(1:i-1,:,:);
     
     
     middle = round(size(tiffX{f}, 3)/2);
@@ -104,12 +109,16 @@ for f = 1:length(methods)
     try
         while true
             i = i + 1;
+            if i == 2
+                tiffY{f}(3000,1,1) = 0;
+            end
             t = imread(sprintf('slide_%s_%s_y_00001_00001.tif', methods{f}, collection), i);
             tiffY{f}(i,:,:) = double(t) ./ tiffCal;
         end
     catch ME
     end
-    
+    tiffY{f} = tiffY{f}(1:i-1,:,:);
+
     % Normalise brightness
     baselineY = mean(mean(tiffY{f}(1:30,middle,indices), 3), 1);
     tiffY{f} = tiffY{f}/baselineY;
@@ -130,9 +139,10 @@ for f = 1:length(methods)
     cla;
     
     foo = tiffS{f};
-    % Manual gain control :)
-    foo = min((foo - min(min(tiffS{f}))), 0.7);
-    foo = min(tiffS{f}, 1.2);
+    %foo(find(isinf(foo))) = max(foo(~isinf(foo)));
+    % Manual gain control
+    foo = min(foo - min(foo(:)), 0.5);
+    foo = min(tiffS{f}, 1.1);
     
     imagesc(foo);
     title(methods2{f});
@@ -207,4 +217,4 @@ p(3,1,1,1).select();
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
 %p.export('BeamGraph.eps', '-w240', '-a1.2');
-%p.export('BeamGraph.png', '-w240', '-a1.2');
+p.export('BeamGraph.png', '-w240', '-a1.2');
