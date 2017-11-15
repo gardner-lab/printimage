@@ -29,6 +29,8 @@ function [] = voxelise(handles, target)
     % quantises.
     
     if strcmp(target, 'print') & STL.print.voxelise_needed
+        
+        
         if exist('hSI', 'var') & ~isempty(fieldnames(hSI.hWaveformManager.scannerAO))
             if ~STL.print.voxelise_needed
                 set(handles.messages, 'String', '');
@@ -37,6 +39,22 @@ function [] = voxelise(handles, target)
             % When we create the scan, we must add 0 to the right edge of the
             % scan pattern, so that the flyback is blanked. Or is this
             % automatic?
+            
+            % 0: compute maximum laser speed. This is the same as the
+            % computation below, but for zoom=1. It's all just in aid of
+            % finding the maximum speed, so we can scale power
+            % appropriately. Yes, could be done elegantly, but
+            % cut-and-paste is always elegant ;)
+            xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
+            xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative times (as phase) for pixel centres
+            xc = sin(xc_t); % Locations x = sin(t), t in [-pi/2...pi/2] --> x in [ -1...1], but zoomed in above so x in [-D...D]
+            %STL.print.beam_speed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
+            xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Scale to workspace size: step 1 is back to [-1,1]
+            xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
+            xc = xc * STL.bounds_1(1); % Now spans actual printing workspace (for zoom = 1)
+            foo = diff(xc) * STL.calibration.pockelsFrequency;
+            STL.calibration.beam_speed_max_um = max(foo);
+
                         
             % 1. Compute metavoxels based on user-selected print zoom:
             overlap_needed = (STL.print.size > STL.print.bounds);
@@ -75,11 +93,25 @@ function [] = voxelise(handles, target)
             xc_t = linspace(-1, 1, STL.print.resolution(1)); % On [-1 1] for asin()
             xc_t = xc_t * asin(hSI.hScan_ResScanner.fillFractionSpatial); % Relative times (as phase) for pixel centres
             xc = sin(xc_t); % Locations x = sin(t), t in [-pi/2...pi/2] --> x in [ -1...1], but zoomed in above so x in [-D...D]
-            STL.print.beam_speed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
+            %STL.print.beam_speed_x = cos(xc_t); % Relative speed of focal point = dx/dt = cos(t)
             xc = xc / hSI.hScan_ResScanner.fillFractionSpatial; % Scale to workspace size: step 1 is back to [-1,1]
             xc = (xc + 1) / 2;  % Now on [0, 1]. This is now relative x locations, independent of zoom
             xc = xc * STL.print.bounds_best(1); % Now spans actual printing workspace
+            foo = diff(xc) * STL.calibration.pockelsFrequency;
+            foo(end+1) = foo(1);
             
+            STL.print.beam_speed_x = foo;
+            beam_power_comp_x = ((foo - STL.calibration.beam_speed_max_um) * 0.8 ...
+                + STL.calibration.beam_speed_max_um) ...
+                / STL.calibration.beam_speed_max_um;
+
+            figure(34);
+            subplot(1,2,1);
+            plot(1:length(foo), foo/(STL.calibration.beam_speed_max_um), 'r', ...
+                1:length(foo), beam_power_comp_x, 'b');
+            title('Beam speed vs max');
+            legend('speed', 'power');
+            set(gca, 'XLim', [1 length(foo)]);
             % Y (galvo) centres. FIXME as above
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             

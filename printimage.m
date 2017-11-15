@@ -206,7 +206,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     guidata(hObject, handles);
     
     UpdateBounds_Callback([], [], handles);
-    
+        
     %hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     %motorHold(handles, 'reset');
     
@@ -290,6 +290,8 @@ function set_up_params()
     STL.bounds_1 = [NaN NaN  zbound ];
     STL.print.bounds_max = [NaN NaN  zbound ];
     STL.print.bounds = [NaN NaN  zbound ];
+    
+    STL.calibration.pockelsFrequency = 3333333; % Frequency of Pockels cell controller
 
     % ScanImage's LinePhase adjustment. Save it here, just for good measure.
     STL.calibration.ScanImage.ScanPhase = 0;
@@ -914,8 +916,8 @@ function powertest_Callback(hObject, eventdata, handles)
     hSI.hScan2D.bidirectional = false;
     
     
-    gridx = 5;
-    gridy = 6;
+    gridx = 1;
+    gridy = 1;
     gridn = gridx * gridy;
     low = str2double(get(handles.powertest_start, 'String'));
     high = str2double(get(handles.powertest_end, 'String'));
@@ -2000,11 +2002,11 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         set(handles.messages, 'String', 'Taking snapshot of current view...'); drawnow;
         
         hSI.hStackManager.framesPerSlice = 100;
+        hSI.hScan2D.logAverageFactor = 100;
         hSI.hChannels.loggingEnable = true;
         hSI.hScan2D.logFramesPerFileLock = true;
         hSI.hScan2D.logFileStem = 'vignetting_cal';
         hSI.hScan2D.logFileCounter = 1;
-        hSI.hScan2D.logAverageFactor = 100;
         hSI.hRoiManager.scanZoomFactor = 1;
         
         if ~STL.logistics.simulated
@@ -2075,6 +2077,9 @@ function measure_brightness_Callback(hObject, eventdata, handles)
 
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
+    hSI.hFastZ.enable = 0;
+    hSI.hStackManager.numSlices = 1;
+
     if true
         %% First: take a snapshot.
         set(handles.messages, 'String', 'Taking snapshot of current view...');
@@ -2095,6 +2100,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
             end
         end
         
+        hSI.hScan2D.logAverageFactor = 1;
         hSI.hStackManager.framesPerSlice = 1;
         hSI.hChannels.loggingEnable = false;
     end

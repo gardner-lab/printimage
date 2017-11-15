@@ -11,7 +11,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     
     % Beam speed compensation was computed with voxelise(), but has not
     % been applied yet.
-    BEAM_SPEED_POWER_COMPENSATION = 1;
+    BEAM_SPEED_POWER_COMPENSATION = 0.8;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -30,7 +30,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     mvy = STL.print.mvy_now;
     mvz = STL.print.mvz_now;
     voxelpower = STL.print.metavoxels{mvx, mvy, mvz} * STL.print.power;
-    disp(sprintf('Voxel power is on [%g, %g]', ...
+    disp(sprintf('~ Voxel power is on [%g, %g]', ...
         min(min(min(voxelpower))), ...
         max(max(max(voxelpower)))));
     
@@ -41,80 +41,62 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     foo = size(voxelpower);
     voxelpower(end,:,:) = zeros(foo(2:3));
     
+    xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
+    yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
 
     if BEAM_SPEED_POWER_COMPENSATION
-        voxelpower = voxelpower .* repmat(STL.print.beam_speed_x', [1, foo(2), foo(3)]);
-        disp(sprintf('Beam speed power compensation applied. Adjusted power is on [%g, %g]', ...
-            min(min(min(voxelpower))), ...
-            max(max(max(voxelpower)))));
+        % Compensate proportionally--generalise Christos's ad-hoc
+        % compensation due to a nonlinearity in polymerisation vs speed
+        % e.g., ((v - 1) * 0.5) + 1
+        beamspeed = diff(xc) * STL.calibration.pockelsFrequency;
+        beamspeed(end+1) = beamspeed(1);
+        beam_power_comp_x = ((beamspeed - STL.calibration.beam_speed_max_um) * BEAM_SPEED_POWER_COMPENSATION ...
+            + STL.calibration.beam_speed_max_um) ...
+            / STL.calibration.beam_speed_max_um;
+        voxelpower = voxelpower .* repmat(beam_power_comp_x', [1, foo(2), foo(3)]);
+        disp(sprintf('~ Beam speed power compensation (factor %g) applied. Adjusted power is on [%g, %g]', ...
+            BEAM_SPEED_POWER_COMPENSATION, ...
+            min(voxelpower(:)), ...
+            max(voxelpower(:))));
         if SHOW_COMPENSATION
             figure(SHOW_COMPENSATION);
             subplot(1,2,1);
             plot(STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x, STL.print.power ./ voxelpower(:,256,end));
         end
     else
-        disp('Beam speed power compensation NOT applied.');
+        disp('~ Beam speed power compensation NOT applied.');
     end
     
     
     % Vignetting power compensation lives here.
-    switch VIGNETTING_POWER_COMPENSATION            
+    switch VIGNETTING_POWER_COMPENSATION
         case 'cos4'
-            disp('Using cos^4 vignetting compensation.');
-                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
-                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
-                [vig_x, vig_y] = meshgrid(xc, yc);
-                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
-                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-                voxelpower = voxelpower ./ vignetting_falloff;
+            [vig_x, vig_y] = meshgrid(xc, yc);
+            vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
+            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+            voxelpower = voxelpower ./ vignetting_falloff;
+            disp(sprintf('~ Vignetting power compensation (cos^4) applied. Adjusted power is on [%g, %g]', ...
+                min(voxelpower(:)), ...
+                max(voxelpower(:))));
 
         case 'cos3'
-            disp('Using cos^3 vignetting compensation.');
-                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
-                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
-                [vig_x, vig_y] = meshgrid(xc, yc);
-                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
-                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-                voxelpower = voxelpower ./ vignetting_falloff;
-                
-                if SHOW_COMPENSATION
-                    figure(SHOW_COMPENSATION);
-                    subplot(1,2,1);
-                    hold on;
-                    plot(xc, vignetting_falloff(:,256,end));
-                    plot(xc, STL.print.power ./ voxelpower(:,256,end));
-                    hold off;
-                    title('Expected energy deposition along Y=0');
-                    xlabel('X (\mu{}m)');
-                    ylabel('Total energy');
-                    legend('speed', 'vignetting', 'both');
-                    xlim(xc([1 end]));
-                    yl = get(gca, 'YLim');
-                    ylim([0 yl(2)]);
-                    
-                    subplot(1,2,2);
-                    imagesc(STL.print.voxelpos_wrt_fov{1,1,1}.x, ...
-                        STL.print.voxelpos_wrt_fov{1,1,1}.y, ...
-                        squeeze(voxelpower(:,:,end))');                    
-                    axis square;
-                    colorbar;
-                    colormap(jet);
-                    title('Power compensation');
-                    xlabel('X (\mu{}m)');
-                    ylabel('Y (\mu{}m)');
-                end
-                
-
+            [vig_x, vig_y] = meshgrid(xc, yc);
+            vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
+            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+            voxelpower = voxelpower ./ vignetting_falloff;
+            
+            disp(sprintf('~ Vignetting power compensation (cos^3) applied. Adjusted power is on [%g, %g]', ...
+                min(voxelpower(:)), ...
+                max(voxelpower(:))));
+            
         case 'fit'
-            disp('Using the current curvefit vignetting compensator.');
+            disp('~ Using the current curvefit vignetting compensator.');
             if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
-                xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
-                yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
                 [vig_x, vig_y] = meshgrid(xc, yc);
                 vignetting_falloff = STL.calibration.vignetting_fit(vig_x, vig_y);
                 vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
             else
-                disp('No vignetting fit available. Vignetting power compensation NOT applied.');
+                disp('~ No vignetting fit available. Vignetting power compensation NOT applied.');
                 vignetting_falloff = ones(STL.print.resolution(1:2));
             end
             % Transpose: xc is the first index of the matrix (row #)
@@ -123,25 +105,58 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             voxelpower = voxelpower ./ vignetting_falloff;
             
         case 'none'
-            disp('Vignetting power compensation NOT applied.');
+            disp('~ Vignetting power compensation NOT applied.');
             
         otherwise
-            warning('Illegal value specified. Vignetting power compensation NOT applied.');
+            warning('~ Illegal value specified. Vignetting power compensation NOT applied.');
     end
     
     % Do not ask for more than 100% power:
     if max(voxelpower(:)) > 1
-        warning(sprintf('Vignetting compensation is requesting power %g%%! Squashing to 100%%.', 100*max(voxelpower(:))));
+        warning(sprintf('~ Vignetting compensation is requesting power %g%%! Squashing to 100%%.', 100*max(voxelpower(:))));
         voxelpower = min(voxelpower, 1);
     end
     
     if min(voxelpower(:) < 0)
-        error('Someone requested power < 0. You''ll want to fix that.');
+        error('~ Someone requested power < 0. You''ll want to fix that.');
     end
             
-    disp(sprintf('Final adjusted power is on [%g, %g]', ...
+    disp(sprintf('~ Final adjusted power is on [%g, %g]', ...
         min(voxelpower(:)), ...
         max(voxelpower(:))));
+    
+    if SHOW_COMPENSATION
+        figure(SHOW_COMPENSATION);
+        if exist('vignetting_falloff', 'var')
+            subplot(1,2,1);
+            hold on;
+            middle = round(size(vignetting_falloff, 2));
+            plot(xc, vignetting_falloff(:, middle, end));
+            plot(xc, STL.print.power ./ voxelpower(:, middle, end));
+            hold off;
+            title('Expected energy deposition along Y=0');
+            xlabel('X (\mu{}m)');
+            ylabel('Total energy');
+            legend('speed', 'vignetting', 'both');
+            xlim(xc([1 end]));
+            yl = get(gca, 'YLim');
+            ylim([0 yl(2)]);
+            
+            subplot(1,2,2);
+        else
+            subplot(1,1,1);
+        end
+        
+        imagesc(STL.print.voxelpos_wrt_fov{1,1,1}.x, ...
+            STL.print.voxelpos_wrt_fov{1,1,1}.y, ...
+            squeeze(voxelpower(:,:,end))');
+        axis square;
+        colorbar;
+        colormap(jet);
+        title('Power compensation');
+        xlabel('X (\mu{}m)');
+        ylabel('Y (\mu{}m)');
+    end
 
     % Put it in STL, which facilitates debugging:
     STL.print.ao_volts_out = ao_volts_raw;
@@ -158,7 +173,4 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     %STL.print.ao_volts_raw.B = STL.print.ao_volts_raw.B / hSI.hRoiManager.scanZoomFactor;
     
     ao_volts_out = STL.print.ao_volts_out;
-    
-    %figure(33);
-    %plot(ao_volts_out.Z);
 end
