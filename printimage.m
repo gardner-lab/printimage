@@ -2061,9 +2061,12 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
 end
 
 
+% Measure brightness of an object by sliding the object over the lens and
+% taking a video.
 function measure_brightness_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
+    
     
     
     if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
@@ -2077,8 +2080,14 @@ function measure_brightness_Callback(hObject, eventdata, handles)
 
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
+    
     hSI.hFastZ.enable = 0;
     hSI.hStackManager.numSlices = 1;
+    
+    xc = STL.print.voxelpos_wrt_fov{1,1,1}.x;
+    yc = STL.print.voxelpos_wrt_fov{1,1,1}.y;
+    p = STL.print.voxelpower_adjustment;
+    save(sprintf('slide_%s_adj', desc), 'xc', 'yc', 'p');
 
     if true
         %% First: take a snapshot.

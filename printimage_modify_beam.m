@@ -38,8 +38,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % Flyback blanking workaround KLUDGE!!! This means that
     % metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
-    foo = size(voxelpower);
-    voxelpower(end,:,:) = zeros(foo(2:3));
+    workspace_size = size(voxelpower);
+    voxelpower(end,:,:) = zeros(workspace_size(2:3));
     
     xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
     yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
@@ -53,7 +53,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         beam_power_comp_x = ((beamspeed - STL.calibration.beam_speed_max_um) * BEAM_SPEED_POWER_COMPENSATION ...
             + STL.calibration.beam_speed_max_um) ...
             / STL.calibration.beam_speed_max_um;
-        voxelpower = voxelpower .* repmat(beam_power_comp_x', [1, foo(2), foo(3)]);
+        adj = repmat(beam_power_comp_x', [1, workspace_size(2), workspace_size(3)]);
+        voxelpower = voxelpower .* adj;
         disp(sprintf('~ Beam speed power compensation (factor %g) applied. Adjusted power is on [%g, %g]', ...
             BEAM_SPEED_POWER_COMPENSATION, ...
             min(voxelpower(:)), ...
@@ -64,6 +65,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             plot(STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x, STL.print.power ./ voxelpower(:,256,end));
         end
     else
+        adj = ones(workspace_size);
         disp('~ Beam speed power compensation NOT applied.');
     end
     
@@ -75,6 +77,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
             vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
             voxelpower = voxelpower ./ vignetting_falloff;
+            adj = adj ./ vignetting_falloff;
+            
             disp(sprintf('~ Vignetting power compensation (cos^4) applied. Adjusted power is on [%g, %g]', ...
                 min(voxelpower(:)), ...
                 max(voxelpower(:))));
@@ -84,6 +88,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
             vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
             voxelpower = voxelpower ./ vignetting_falloff;
+            adj = adj ./ vignetting_falloff;
             
             disp(sprintf('~ Vignetting power compensation (cos^3) applied. Adjusted power is on [%g, %g]', ...
                 min(voxelpower(:)), ...
@@ -101,6 +106,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             end
             % Transpose: xc is the first index of the matrix (row #)
             vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+            adj = adj ./ vignetting_falloff;
+
 
             voxelpower = voxelpower ./ vignetting_falloff;
             
@@ -149,7 +156,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         
         imagesc(STL.print.voxelpos_wrt_fov{1,1,1}.x, ...
             STL.print.voxelpos_wrt_fov{1,1,1}.y, ...
-            squeeze(voxelpower(:,:,end))');
+            squeeze(adj(:,:,end))');
         axis square;
         colorbar;
         colormap(jet);
@@ -158,8 +165,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         ylabel('Y (\mu{}m)');
     end
 
-    % Put it in STL, which facilitates debugging:
+    % Save for analysis
+    STL.print.voxelpower_adjustment = adj;
+    STL.print.voxelpower_actual = voxelpower;
     STL.print.ao_volts_out = ao_volts_raw;
+
     if STL.logistics.simulated
         STL.print.ao_volts_out.B(:, STL.print.whichBeam) = voxelpower(:);
     else

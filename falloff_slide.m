@@ -18,27 +18,24 @@ function falloff_slide
 % 610: same order
 % cos(ax^2+b^2...)
 
-collection = '27'; % Or "series" in the UI, but that's a MATLAB function
+collection = '30'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
 methods = {};
 methods{end+1} = 'none';
-%methods{end+1} = 'speed';
-methods{end+1} = 'adhoc5';
-methods{end+1} = 'adhoc6';
-methods{end+1} = 'adhoc6_300';
-methods{end+1} = 'adhoc7';
-methods{end+1} = 'adhoc7_200';
+methods{end+1} = 'speed8';
+methods{end+1} = 'vignetting';
+%methods{end+1} = 'adhoc5';
+%methods{end+1} = 'adhoc6';
+%methods{end+1} = 'adhoc7';
 methods{end+1} = 'adhoc8';
-methods{end+1} = 'adhoc8_200';
-methods{end+1} = 'adhoc9';
+%methods{end+1} = 'adhoc9';
 %methods{end+1} = 'adhoc9_300';
-%methods{end+1} = 'vignetting';
-methods{end+1} = 'adhoc10';
-%methods{end+1} = 'cos4';
+methods{end+1} = 'both100';
+methods{end+1} = 'cos4';
 
 methods_long = methods;
-how_much_to_include = 0.3;
+how_much_to_include = 0.2;
 
 FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
@@ -53,11 +50,6 @@ colours = [0 0 0; ...
     0 1 1];
 colours = distinguishable_colors(length(methods));
 
-letter = 'c';
-for i = 1:length(methods)
-    letter = char(letter+1);
-    methods2{i} = sprintf('(%c) %s', letter, methods_long{i});
-end
 image_crop_x = 10;
 image_crop_y = 40;
 
@@ -66,7 +58,7 @@ if exist('p', 'var')
     delete(p);
 end
 p = panel();
-p.pack(3, 1);
+p.pack(4, 1);
 p(1,1).marginbottom = 100;
 make_sine_plot_3(p(1,1));
 
@@ -92,6 +84,12 @@ for f = 1:length(methods)
     tiffS{f} = tiffS{f} ./ tiffCal;
     tiffS{f} = tiffS{f}(1+image_crop_y:end-image_crop_y, 1+image_crop_x:end-image_crop_x);
     
+    try
+        tiffAdj{f} = load(sprintf('slide_%s_%s_adj.mat', methods{f}, collection));
+    catch ME
+        ME
+    end
+    
     tiffX{f} = [];
     i = 0;
     try
@@ -115,9 +113,9 @@ for f = 1:length(methods)
     
     % Normalise brightness
     scanposX = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
-    baseline_indices = find(scanposX > -50 & scanposX < 50);
+    baseline_indices = find(scanposX > -20 & scanposX < 20);
     baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
-    %tiffX{f} = tiffX{f}/baselineX;
+    tiffX{f} = tiffX{f}/baselineX;
     
     bright_x(f,:) = mean(tiffX{f}(:, indices, middle), 2);
     bright_x_std(f,:) = std(tiffX{f}(:,indices, middle), [], 2);
@@ -142,19 +140,39 @@ for f = 1:length(methods)
     scanposY = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
     baseline_indices = find(scanposY > -50 & scanposY < 50);
     baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
-    %tiffY{f} = tiffY{f}/baselineY;
+    tiffY{f} = tiffY{f}/baselineY;
     
     
     bright_y(f,:) = mean(tiffY{f}(:, middle, indices), 3);
     bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
 end
 
+letter = 'c';
+for i = find(methodsValid)
+    letter = char(letter+1);
+    methods2{i} = sprintf('(%c) %s', letter, methods_long{i});
+end
+
 
 p(2,1).pack(1, sum(methodsValid));
+p(3,1).pack(1, sum(methodsValid));
 
 c = 0;
 for f = find(methodsValid)
     c = c + 1;
+    p(3,1, 1,c).pack('h', {.9 []});
+    p(3,1, 1,c, 1).select();
+    cla;
+    
+    if exist('tiffAdj', 'var') & length(tiffAdj) >= f & ~isempty(tiffAdj{f})
+        imagesc(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p(:,:,end)');
+        axis equal ij off;
+        colormap jet;
+        %cb = colorbar('EastOutside');
+        p(3,1,1,c,2).select(colorbar);
+        %title('Power adjustment');
+    end
+    
     p(2,1, 1,c).select();
     cla;
     
@@ -167,11 +185,11 @@ for f = find(methodsValid)
     imagesc(foo);
     title(methods2{f});
     axis equal ij off;
-    colormap gray;
+    %colormap gray;
 end
 
-p(3,1).pack(1, 2);
-p(3,1,1,1).select();
+p(4,1).pack(1, 2);
+p(4,1,1,1).select();
 cla;
 h = [];
 hold on;
@@ -188,14 +206,15 @@ hold off;
 axis tight;
 grid on;
 ylimits = get(gca, 'YLim');
-set(gca, 'XLim', [-320 320]);
-legend(h, methods_long(find(methodsValid)), 'Location', 'North');
+set(gca, 'XLim', [-320 600]);
+p(4,1,1,2).select();
+l = legend(h, methods_long(find(methodsValid)), 'Location', 'NorthEast');
 letter = letter + 1;
 title(sprintf('(%c) X brightness', letter));
 xlabel('\mu{}m');
 ylabel('normalised brightness');
 
-p(3,1,1,2).select();
+p(4,1,1,2).select();
 cla;
 h = [];
 hold on;
@@ -214,9 +233,9 @@ for f = 1:length(methods)
 end
 hold off;
 axis tight;
-set(gca, 'XLim', [-320 320]);
+set(gca, 'XLim', [-320 600]);
 grid on;
-legend(h, methods_long(find(methodsValid)), 'Location', 'North');
+legend(h, methods_long(find(methodsValid)), 'Location', 'NorthEast');
 letter = letter + 1;
 title(sprintf('(%c) Y brightness', letter));
 xlabel('\mu{}m');
@@ -225,7 +244,7 @@ ylabel('normalised brightness');
 ylimits2 = get(gca, 'YLim');
 ylimits = [min(ylimits(1), ylimits2(1)) max(ylimits(2), ylimits2(2))];
 set(gca, 'YLim', ylimits);
-p(3,1,1,1).select();
+p(4,1,1,1).select();
 %set(gca, 'YLim', ylimits);
 
 %Figure sizing
