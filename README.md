@@ -30,7 +30,7 @@
 - Install PrintImage and the above packages in the MATLAB path
 - Modify the appropriate PrintImage default parameters (this will be in a configuration file eventually)
 
-# Calibration: getting the size right
+# Calibration
 
 Calibration is done through parameters in ScanImage's `Machine_Data_File.m`, not through PrintImage. This is because we figure you'll want your microscope calibrated properly whether or not you're printing anything today.
 
@@ -107,6 +107,39 @@ Same thing here--the sensor was off by the same amount. That led us to double-ch
         actuators(1).maxCommandPosn = 450;           % Maximum allowable position command in microns
         actuators(1).minCommandVolts = 0;          % Minimum allowable voltage command
         actuators(1).minCommandPosn = 0;           % Minimum allowable position command in microns
+
+## Leveling (with a hexapod)
+
+### Background:
+
+Desiderata:
+- We want the slide (or printable medium) to be parallel with the optical plane.
+- We want moves to track the optical plane.
+
+Now imagine that your printable medium is a piece of something (e.g. an electrode in need of a cuff) loosely taped onto a slide. It may not be parallel to, well, anything. First step is to tilt the medium into alignment with the optical plane. Second step is to align the movement coordinate system.
+
+### Tilting
+
+Start a "focus", and add a bullseye. Focus on the substrate, and then bring the lens up just far enough to see a hint of fluorescence beginning to show. Use the hexapod's angle controls to put that hint of fluorescence in the middle of the FOV (using the bullseye). It will probably be necessary to tilt the object and then re-focus on the hint-of-fluorescence, tilt some more, re-focus again, etc.
+
+### Leveling
+
+Again focus on the substrate and then bring the lens up just far enough to see a hint of fluorescence, as above. Run a "brightness test" and look at the results (FIXME `falloff_slide.m` right now, but that's not ready for primetime). The goal will be to set the leveling coordinate system so that the (possibly tilted, but optically aligned) substrate moves along the optical XY plane. This is controlled by 
+  `STL.motors.hex.leveling = [ X Y Z U V W ];`
+Set it in `printimage_config.m`, and adjust as needed. For example, on our printer:
+- If brightness increases as X increases, increase V (pos 5)
+- If brightness increases as Y increases, increase U (pos 4)
+Your printer may differ.
+
+My favourite workflow: edit the values in `printimage_config.m`, copy and paste the definition into the MATLAB commandline, and run `hexapod_set_leveling()`, which will store the values in the hexapod. Run another brightness test and repeat until the brightness traces don't change too much over XY movement (I can usually get them down to about 10% variation, depending on how close I am to the substrate).
+
+The sixth value of `STL.motors.hex.leveling` controls the alignment of stitched parts. Print something stitched and adjust W in order to align the hexapod's XY motion with the resonant-galvo axis.
+
+### Saving the tilt
+
+One more parameter should be saved in `printimage_config.m`:
+  `STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];`
+These numbers are the tilt offsets from the tilt calibration process, above, but they must be read _after_ the leveling coordinate system is correctly defined and tuned.
 
 # Printing
 
