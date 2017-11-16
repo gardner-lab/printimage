@@ -40,6 +40,11 @@ function [] = voxelise(handles, target)
             % scan pattern, so that the flyback is blanked. Or is this
             % automatic?
             
+            STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
+                hSI.hRoiManager.linesPerFrame ...
+                round(STL.print.size(3) / STL.print.zstep)];
+
+            
             % 0: compute maximum laser speed. This is the same as the
             % computation below, but for zoom=1. It's all just in aid of
             % finding the maximum speed, so we can scale power
@@ -79,9 +84,6 @@ function [] = voxelise(handles, target)
             STL.print.metavoxel_shift = STL.print.bounds_best - STL.print.metavoxel_overlap;
             % 4. Get voxel centres for metavoxel 0,0,0
             
-            STL.print.resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
-                hSI.hRoiManager.linesPerFrame ...
-                round(STL.print.size(3) / STL.print.zstep)];
             
             % X (resonant scanner) centres. Correct for sinusoidal
             % velocity. This computes the locations of pixel centres given
