@@ -154,9 +154,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             subplot(1,1,1);
         end
         
+        adj = adj(:,:,1); % Don't need all the repeats!
+        
         imagesc(STL.print.voxelpos_wrt_fov{1,1,1}.x, ...
             STL.print.voxelpos_wrt_fov{1,1,1}.y, ...
-            squeeze(adj(:,:,end))');
+            adj');
         axis square;
         colorbar;
         colormap(jet);
