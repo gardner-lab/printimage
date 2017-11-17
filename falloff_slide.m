@@ -172,9 +172,7 @@ for f = find(methodsValid)
         %colo = colorbar('Peer', h_axes);
         colo = colorbar('Location', 'WestOutside');
         %p(2,1,1,c,1,2).select(colo);
-        pos = get(colo, 'Position');
-        pos(1) = pos(1) - 0.04;
-        set(colo, 'Position', pos);
+        set(colo, 'Position', get(colo, 'Position') + [-0.04 -0.03 0 0.06]);
 
         title(methods2{f});
     end
@@ -266,4 +264,4 @@ l = legend(ah, h, methods_long(find(methodsValid)), 'Location', 'West');
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
 %p.export('BeamGraph.eps', '-w240', '-a1.2');
-%p.export('BeamGraph.png', '-w240', '-a1.2');
+p.export('BeamGraph.png', '-w240', '-a1.1');
