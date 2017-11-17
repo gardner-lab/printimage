@@ -1,22 +1,4 @@
-function falloff_slide
-
-%addpath('~/Downloads');
-
-%imgs{1}.file = 'picture_00006_00001.tif';
-%imgs{1}.desc = 'Ref 1';
-%imgs{2}.file = 'picture_00007_00001.tif';
-%imgs{2}.desc = 'Cube a (500 \mu{}m)';
-%imgs{2}.size = 500;
-
-% 400: left-to-right in original rotation: interpolant, cos4, ad-hoc, sine
-
-% 600: left-to-right in original rotation: interpolant, cos4, ad-hoc, sine
-% a+b*cos...
-
-% 3: left-to-right: sin, interp, cos3, cos4, adhoc
-
-% 610: same order
-% cos(ax^2+b^2...)
+function falloff_slide(RELOAD)
 
 collection = '30'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
@@ -25,17 +7,21 @@ methods = {};
 methods{end+1} = 'none';
 methods{end+1} = 'speed8';
 methods{end+1} = 'vignetting';
-%methods{end+1} = 'adhoc5';
-%methods{end+1} = 'adhoc6';
-%methods{end+1} = 'adhoc7';
+methods{end+1} = 'adhoc5';
+methods{end+1} = 'adhoc6';
+methods{end+1} = 'adhoc7';
 methods{end+1} = 'adhoc8';
-%methods{end+1} = 'adhoc9';
+methods{end+1} = 'adhoc9';
 %methods{end+1} = 'adhoc9_300';
-methods{end+1} = 'both100';
+%methods{end+1} = 'both100';
 methods{end+1} = 'cos4';
 
+if nargin == 0
+    RELOAD = false;
+end
+
 methods_long = methods;
-how_much_to_include = 0.2;
+how_much_to_include = 0.95;
 
 FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
@@ -58,94 +44,107 @@ if exist('p', 'var')
     delete(p);
 end
 p = panel();
-p.pack(4, 1);
+p.pack('v', {25 [] 25}, 1);
 p(1,1).marginbottom = 100;
 make_sine_plot_3(p(1,1));
 
-if exist(sprintf('vignetting_cal_%s.tif', collection), 'file')
-    tiffCal = double(imread(sprintf('vignetting_cal_%s.tif', collection)));
-elseif exist(sprintf('vignetting_cal_%s_00001_00001.tif', collection), 'file')
-    tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
+last_filename = sprintf('last_falloff_%s.mat', collection);
+
+tic
+if ~RELOAD & exist(last_filename, 'file')
+    load(last_filename);
 else
-    warning('No baseline calibration file ''%s'' found.', ...
-        sprintf('vignetting_cal_%s.tif', collection));
-    tiffCal = ones(512, 512);
-end
-
-for f = 1:length(methods)
-    try
-        tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
-        methodsValid(f) = 1;
-    catch ME
-        disp(sprintf('Could not load ''slide_%s_%s_image_00001_00001.tif''', methods{f}, collection));
-        methodsValid(f) = 0;
-        continue;
-    end
-    tiffS{f} = tiffS{f} ./ tiffCal;
-    tiffS{f} = tiffS{f}(1+image_crop_y:end-image_crop_y, 1+image_crop_x:end-image_crop_x);
-    
-    try
-        tiffAdj{f} = load(sprintf('slide_%s_%s_adj.mat', methods{f}, collection));
-    catch ME
-        ME
+    if exist(sprintf('vignetting_cal_%s.tif', collection), 'file')
+        tiffCal = double(imread(sprintf('vignetting_cal_%s.tif', collection)));
+    elseif exist(sprintf('vignetting_cal_%s_00001_00001.tif', collection), 'file')
+        tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
+    else
+        warning('No baseline calibration file ''%s'' found.', ...
+            sprintf('vignetting_cal_%s.tif', collection));
+        tiffCal = ones(512, 512);
     end
     
-    tiffX{f} = [];
-    i = 0;
-    try
-        while true
-            i = i + 1;
-            if i == 2
-                tiffX{f}(3000,1,1) = 0;
-            end
-            t = imread(sprintf('slide_%s_%s_x_00001_00001.tif', methods{f}, collection), i);
-            tiffX{f}(i,:,:) = double(t) ./ tiffCal;
+    for f = 1:length(methods)
+        try
+            tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
+            methodsValid(f) = 1;
+        catch ME
+            disp(sprintf('Could not load ''slide_%s_%s_image_00001_00001.tif''', methods{f}, collection));
+            methodsValid(f) = 0;
+            continue;
         end
-    catch ME
-    end
-    tiffX{f} = tiffX{f}(1:i-1,:,:);
-    
-    
-    middle = round(size(tiffX{f}, 3)/2);
-    pixelpos = linspace(-FOV/2, FOV/2, size(tiffX{f}, 2));
-    indices = find(pixelpos > -how_much_to_include * sz / 2 ...
-        & pixelpos < how_much_to_include * sz / 2);
-    
-    % Normalise brightness
-    scanposX = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
-    baseline_indices = find(scanposX > -20 & scanposX < 20);
-    baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
-    tiffX{f} = tiffX{f}/baselineX;
-    
-    bright_x(f,:) = mean(tiffX{f}(:, indices, middle), 2);
-    bright_x_std(f,:) = std(tiffX{f}(:,indices, middle), [], 2);
-    
-    
-    tiffY{i} = [];
-    i = 0;
-    try
-        while true
-            i = i + 1;
-            if i == 2
-                tiffY{f}(3000,1,1) = 0;
-            end
-            t = imread(sprintf('slide_%s_%s_y_00001_00001.tif', methods{f}, collection), i);
-            tiffY{f}(i,:,:) = double(t) ./ tiffCal;
+        tiffS{f} = tiffS{f} ./ tiffCal;
+        tiffS{f} = tiffS{f}(1+image_crop_y:end-image_crop_y, 1+image_crop_x:end-image_crop_x);
+        
+        try
+            tiffAdj{f} = load(sprintf('slide_%s_%s_adj.mat', methods{f}, collection));
+            % Oops. I saved the whole thing, which means one copy per
+            % Zstack layer.
+            tiffAdj{f}.p = tiffAdj{f}.p(:,:,1);
+        catch ME
+            ME
         end
-    catch ME
+        
+        tiffX{f} = [];
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                if i == 2
+                    tiffX{f}(1000,1,1) = 0;
+                end
+                t = imread(sprintf('slide_%s_%s_x_00001_00001.tif', methods{f}, collection), i);
+                tiffX{f}(i,:,:) = double(t) ./ tiffCal;
+            end
+        catch ME
+        end
+        tiffX{f} = tiffX{f}(1:i-1,:,:);
+        
+        
+        middle = round(size(tiffX{f}, 3)/2);
+        pixelpos = linspace(-FOV/2, FOV/2, size(tiffX{f}, 2));
+        indices = find(pixelpos > -how_much_to_include * sz / 2 ...
+            & pixelpos < how_much_to_include * sz / 2);
+        
+        % Normalise brightness
+        scanposX = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
+        baseline_indices = find(scanposX > sz / 2 + 20);
+        baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
+        tiffX{f} = tiffX{f}/baselineX;
+        
+        bright_x(f,:) = mean(tiffX{f}(:, indices, middle), 2);
+        bright_x_std(f,:) = std(tiffX{f}(:,indices, middle), [], 2);
+        
+        
+        tiffY{f} = zeros(size(tiffX{f}));
+        i = 0;
+        try
+            while true
+                i = i + 1;
+                t = imread(sprintf('slide_%s_%s_y_00001_00001.tif', methods{f}, collection), i);
+                tiffY{f}(i,:,:) = double(t) ./ tiffCal;
+            end
+        catch ME
+        end
+                
+        % Normalise brightness
+        scanposY = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
+        %baseline_indices = find(scanposY > -50 & scanposY < 50);
+        baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
+        tiffY{f} = tiffY{f}/baselineY;
+        
+        
+        bright_y(f,:) = mean(tiffY{f}(:, middle, indices), 3);
+        bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
     end
-    tiffY{f} = tiffY{f}(1:i-1,:,:);
-
-    % Normalise brightness
-    scanposY = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
-    baseline_indices = find(scanposY > -50 & scanposY < 50);
-    baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
-    tiffY{f} = tiffY{f}/baselineY;
     
-    
-    bright_y(f,:) = mean(tiffY{f}(:, middle, indices), 3);
-    bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
+    save(last_filename, 'tiffCal', ...
+        'tiffS', 'tiffAdj', 'scanposX', 'scanposY', ...
+        'baselineX', 'baselineY', 'methodsValid', ...
+        'methods', 'methods_long', 'bright_x', 'bright_y', ...
+        'bright_x_std', 'bright_y_std', 'indices', 'baseline_indices');
 end
+disp(sprintf('Loaded data in %d seconds.', round(toc)));
 
 letter = 'c';
 for i = find(methodsValid)
@@ -155,41 +154,53 @@ end
 
 
 p(2,1).pack(1, sum(methodsValid));
-p(3,1).pack(1, sum(methodsValid));
+%p(3,1).pack(1, sum(methodsValid));
 
 c = 0;
 for f = find(methodsValid)
     c = c + 1;
-    p(3,1, 1,c).pack('h', {.9 []});
-    p(3,1, 1,c, 1).select();
+    p(2,1, 1,c).pack(2, 1);
+    h_axes = p(2,1, 1,c, 1,1).select();
     cla;
     
     if exist('tiffAdj', 'var') & length(tiffAdj) >= f & ~isempty(tiffAdj{f})
-        imagesc(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p(:,:,end)');
+        contourf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p', 100, ...
+            'LineColor', 'none');
+        %surf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p');
         axis equal ij off;
         colormap jet;
-        %cb = colorbar('EastOutside');
-        p(3,1,1,c,2).select(colorbar);
-        %title('Power adjustment');
+        %colo = colorbar('Peer', h_axes);
+        colo = colorbar('Location', 'WestOutside');
+        %p(2,1,1,c,1,2).select(colo);
+        pos = get(colo, 'Position');
+        pos(1) = pos(1) - 0.04;
+        set(colo, 'Position', pos);
+
+        title(methods2{f});
     end
     
-    p(2,1, 1,c).select();
+    p(2,1, 1,c, 2,1).select();
     cla;
     
     foo = tiffS{f};
-    %foo(find(isinf(foo))) = max(foo(~isinf(foo)));
     % Manual gain control
-    foo = min(foo - min(foo(:)), 0.5);
-    foo = min(tiffS{f}, 1.1);
-    
+    foo = max(foo - 0.5, 0.5);
+    foo = tiffS{f} / 1.2;
+    foo = min(foo, 1);
+    foo(1,1) = 0; % Stupid kludge: image() isn't scaling right; force imagesc() to do so.
+    foo = max(foo, 0.25);
     imagesc(foo);
-    title(methods2{f});
-    axis equal ij off;
+    axis tight equal ij off;
+    
+    
+    %p(2,1,1,c,2).select();
+    %hist(foo(:), 100);
     %colormap gray;
 end
 
-p(4,1).pack(1, 2);
-p(4,1,1,1).select();
+
+p(3,1).pack(1, {42 42 []}); % Third is for the shared legend
+p(3,1,1,1).select();
 cla;
 h = [];
 hold on;
@@ -206,15 +217,14 @@ hold off;
 axis tight;
 grid on;
 ylimits = get(gca, 'YLim');
-set(gca, 'XLim', [-320 600]);
-p(4,1,1,2).select();
-l = legend(h, methods_long(find(methodsValid)), 'Location', 'NorthEast');
+set(gca, 'XLim', [-400 400]);
+
 letter = letter + 1;
 title(sprintf('(%c) X brightness', letter));
 xlabel('\mu{}m');
-ylabel('normalised brightness');
+ylabel('relative brightness');
 
-p(4,1,1,2).select();
+p(3,1,1,2).select();
 cla;
 h = [];
 hold on;
@@ -233,22 +243,27 @@ for f = 1:length(methods)
 end
 hold off;
 axis tight;
-set(gca, 'XLim', [-320 600]);
+set(gca, 'XLim', [-400 400]);
 grid on;
-legend(h, methods_long(find(methodsValid)), 'Location', 'NorthEast');
+%legend(h, methods_long(find(methodsValid)), 'Location', 'EastOutside');
 letter = letter + 1;
 title(sprintf('(%c) Y brightness', letter));
 xlabel('\mu{}m');
-ylabel('normalised brightness');
+%ylabel('relative brightness');
 
 ylimits2 = get(gca, 'YLim');
 ylimits = [min(ylimits(1), ylimits2(1)) max(ylimits(2), ylimits2(2))];
 set(gca, 'YLim', ylimits);
-p(4,1,1,1).select();
-%set(gca, 'YLim', ylimits);
+p(3,1,1,1).select();
+set(gca, 'YLim', ylimits);
+
+ah = p(3,1,1,3).select();
+axis off;
+l = legend(ah, h, methods_long(find(methodsValid)), 'Location', 'West');
+
 
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
 %p.export('BeamGraph.eps', '-w240', '-a1.2');
-p.export('BeamGraph.png', '-w240', '-a1.2');
+%p.export('BeamGraph.png', '-w240', '-a1.2');
