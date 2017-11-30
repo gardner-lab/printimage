@@ -1,27 +1,21 @@
 function falloff_slide(RELOAD)
 
-collection = '30'; % Or "series" in the UI, but that's a MATLAB function
+collection = '32'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
 methods = {};
 methods{end+1} = 'none';
-methods{end+1} = 'speed8';
-methods{end+1} = 'vignetting';
-methods{end+1} = 'adhoc5';
-methods{end+1} = 'adhoc6';
-methods{end+1} = 'adhoc7';
-methods{end+1} = 'adhoc8';
-methods{end+1} = 'adhoc9';
-%methods{end+1} = 'adhoc9_300';
-%methods{end+1} = 'both100';
-methods{end+1} = 'cos4';
+methods{end+1} = 'speed';
+methods{end+1} = 'fit';
+methods{end+1} = 'both';
+methods{end+1} = 'both2';
 
 if nargin == 0
     RELOAD = false;
 end
 
 methods_long = methods;
-how_much_to_include = 0.95;
+how_much_to_include = 0.9; % How much of the printed structure's size perpendicular to the direction of the sliding motion
 
 FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
@@ -51,7 +45,7 @@ make_sine_plot_3(p(1,1));
 last_filename = sprintf('last_falloff_%s.mat', collection);
 
 tic
-if ~RELOAD & exist(last_filename, 'file')
+if RELOAD & exist(last_filename, 'file')
     load(last_filename);
 else
     if exist(sprintf('vignetting_cal_%s.tif', collection), 'file')
@@ -106,15 +100,24 @@ else
         indices = find(pixelpos > -how_much_to_include * sz / 2 ...
             & pixelpos < how_much_to_include * sz / 2);
         
-        % Normalise brightness
-        scanposX = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
+        % Normalise brightness. The starting position (500) is from
+        % printimage.m: how much is the stage commanded to move before
+        % starting the acquisition?
+        scanposX = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - 500;
         baseline_indices = find(scanposX > sz / 2 + 20);
         baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
         tiffX{f} = tiffX{f}/baselineX;
         
+        % Show the image as scanned
+        %imgx = squeeze(tiffX{f}(:, :, middle));
+        %imgx = imgx(:, 1+image_crop_y:end-image_crop_y);
+        %imagesc(scanposX, 1:size(imgx, 2), imgx');
+        
         bright_x(f,:) = mean(tiffX{f}(:, indices, middle), 2);
         bright_x_std(f,:) = std(tiffX{f}(:,indices, middle), [], 2);
         
+        
+        slid_img_x{f} = tiffX{f}(1:end);
         
         tiffY{f} = zeros(size(tiffX{f}));
         i = 0;
@@ -128,7 +131,7 @@ else
         end
                 
         % Normalise brightness
-        scanposY = (1:size(tiffX{f}, 1)) * frame_spacing - 500;
+        scanposY = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - 500;
         %baseline_indices = find(scanposY > -50 & scanposY < 50);
         baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
         tiffY{f} = tiffY{f}/baselineY;
@@ -138,7 +141,7 @@ else
         bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
     end
     
-    save(last_filename, 'tiffCal', ...
+    save(last_filename, 'tiffCal', 'tiffX', 'tiffY', ...
         'tiffS', 'tiffAdj', 'scanposX', 'scanposY', ...
         'baselineX', 'baselineY', 'methodsValid', ...
         'methods', 'methods_long', 'bright_x', 'bright_y', ...
@@ -154,7 +157,6 @@ end
 
 
 p(2,1).pack(1, sum(methodsValid));
-%p(3,1).pack(1, sum(methodsValid));
 
 c = 0;
 for f = find(methodsValid)

@@ -7,11 +7,10 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % and readability, but it's okay, since any change that affects it
     % (besides tweaking parameters) depends on zoom and thus requires
     % re-voxelising anyway.
-    VIGNETTING_POWER_COMPENSATION = 'cos3';
+    POWER_COMPENSATION = {'speed', 'cos3', 'fit'};
     
-    % Beam speed compensation was computed with voxelise(), but has not
-    % been applied yet.
-    BEAM_SPEED_POWER_COMPENSATION = 0.8;
+    BEAM_SPEED_POWER_COMPENSATION_FACTOR = 0.7;
+    FIT_COMPENSATION_FACTOR = 2;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -40,82 +39,100 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % to be, by one voxel.
     workspace_size = size(voxelpower);
     voxelpower(end,:,:) = zeros(workspace_size(2:3));
+    adj = ones(workspace_size);
     
     xc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x;
     yc = STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.y;
 
-    if BEAM_SPEED_POWER_COMPENSATION
-        % Compensate proportionally--generalise Christos's ad-hoc
-        % compensation due to a nonlinearity in polymerisation vs speed
-        % e.g., ((v - 1) * 0.5) + 1
-        beamspeed = diff(xc) * STL.calibration.pockelsFrequency;
-        beamspeed(end+1) = beamspeed(1);
-        beam_power_comp_x = ((beamspeed - STL.calibration.beam_speed_max_um) * BEAM_SPEED_POWER_COMPENSATION ...
-            + STL.calibration.beam_speed_max_um) ...
-            / STL.calibration.beam_speed_max_um;
-        adj = repmat(beam_power_comp_x', [1, workspace_size(2), workspace_size(3)]);
-        voxelpower = voxelpower .* adj;
-        disp(sprintf('~ Beam speed power compensation (factor %g) applied. Adjusted power is on [%g, %g]', ...
-            BEAM_SPEED_POWER_COMPENSATION, ...
-            min(voxelpower(:)), ...
-            max(voxelpower(:))));
-        if SHOW_COMPENSATION
-            figure(SHOW_COMPENSATION);
-            subplot(1,2,1);
-            plot(STL.print.voxelpos_wrt_fov{mvx, mvy, mvz}.x, STL.print.power ./ voxelpower(:,256,end));
-        end
-    else
-        adj = ones(workspace_size);
-        disp('~ Beam speed power compensation NOT applied.');
-    end
     
-    
-    % Vignetting power compensation lives here.
-    switch VIGNETTING_POWER_COMPENSATION
-        case 'cos4'
-            [vig_x, vig_y] = meshgrid(xc, yc);
-            vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
-            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-            voxelpower = voxelpower ./ vignetting_falloff;
-            adj = adj ./ vignetting_falloff;
-            
-            disp(sprintf('~ Vignetting power compensation (cos^4) applied. Adjusted power is on [%g, %g]', ...
-                min(voxelpower(:)), ...
-                max(voxelpower(:))));
+    for powercomp = 1:length(POWER_COMPENSATION)
+        % Vignetting power compensation lives here.
+        switch POWER_COMPENSATION{powercomp}
+            case 'speed'
+                % Compensate proportionally--generalise Christos's ad-hoc
+                % compensation due to a nonlinearity in polymerisation vs speed
+                % e.g., ((v - 1) * 0.5) + 1
+                beamspeed = diff(xc) * STL.calibration.pockelsFrequency;
+                beamspeed(end+1) = beamspeed(1);
+                beam_power_comp_x = ((beamspeed - STL.calibration.beam_speed_max_um) * BEAM_SPEED_POWER_COMPENSATION_FACTOR ...
+                    + STL.calibration.beam_speed_max_um) ...
+                    / STL.calibration.beam_speed_max_um;
+                adj = repmat(beam_power_comp_x', [1, workspace_size(2), workspace_size(3)]);
+                voxelpower = voxelpower .* adj;
+                disp(sprintf('~ Beam speed power compensation (factor %g) applied. Adjusted power is on [%g, %g]', ...
+                    BEAM_SPEED_POWER_COMPENSATION_FACTOR, ...
+                    min(voxelpower(:)), ...
+                    max(voxelpower(:))));
 
-        case 'cos3'
-            [vig_x, vig_y] = meshgrid(xc, yc);
-            vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
-            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-            voxelpower = voxelpower ./ vignetting_falloff;
-            adj = adj ./ vignetting_falloff;
-            
-            disp(sprintf('~ Vignetting power compensation (cos^3) applied. Adjusted power is on [%g, %g]', ...
-                min(voxelpower(:)), ...
-                max(voxelpower(:))));
-            
-        case 'fit'
-            disp('~ Using the current curvefit vignetting compensator.');
-            if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
+            case 'cos4'
                 [vig_x, vig_y] = meshgrid(xc, yc);
-                vignetting_falloff = STL.calibration.vignetting_fit(vig_x, vig_y);
-                vignetting_falloff = vignetting_falloff / max(max(vignetting_falloff));
-            else
-                disp('~ No vignetting fit available. Vignetting power compensation NOT applied.');
-                vignetting_falloff = ones(STL.print.resolution(1:2));
-            end
-            % Transpose: xc is the first index of the matrix (row #)
-            vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-            adj = adj ./ vignetting_falloff;
-
-
-            voxelpower = voxelpower ./ vignetting_falloff;
-            
-        case 'none'
-            disp('~ Vignetting power compensation NOT applied.');
-            
-        otherwise
-            warning('~ Illegal value specified. Vignetting power compensation NOT applied.');
+                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
+                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                voxelpower = voxelpower ./ vignetting_falloff;
+                adj = adj ./ vignetting_falloff;
+                
+                disp(sprintf('~ Vignetting power compensation (cos^4) applied. Adjusted power is on [%g, %g]', ...
+                    min(voxelpower(:)), ...
+                    max(voxelpower(:))));
+                
+            case 'cos3'
+                [vig_x, vig_y] = meshgrid(xc, yc);
+                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
+                if SHOW_COMPENSATION
+                    figure(SHOW_COMPENSATION);
+                    subplot(2,1,1);
+                    imagesc(1./vignetting_falloff);
+                    colorbar;
+                end
+                
+                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                voxelpower = voxelpower ./ vignetting_falloff;
+                adj = adj ./ vignetting_falloff;
+                
+                disp(sprintf('~ Vignetting power compensation (cos^3) applied. Adjusted power is on [%g, %g]', ...
+                    min(voxelpower(:)), ...
+                    max(voxelpower(:))));
+                
+            case 'fit'
+                if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
+                    [vig_x, vig_y] = meshgrid(xc, yc);
+                    vignetting_falloff = STL.calibration.vignetting_fit(vig_x, -vig_y);
+                    
+                    % Rescale until we approximate the right output
+                    m = min(min(vignetting_falloff));
+                    vignetting_falloff = vignetting_falloff - m;
+                    vignetting_falloff = vignetting_falloff * FIT_COMPENSATION_FACTOR;
+                    vignetting_falloff = vignetting_falloff + m;
+                    
+                    % Base adjustment should be 1, and edges (higher luminance)
+                    % demonstrated higher falloff, so it needs to be inverted.
+                    vignetting_falloff = m ./ vignetting_falloff;
+                    
+                    if SHOW_COMPENSATION
+                        figure(SHOW_COMPENSATION);
+                        subplot(2,1,2);
+                        imagesc(1./vignetting_falloff);
+                        colorbar;
+                    end
+                else
+                    disp('~ No vignetting fit available. Vignetting power compensation NOT applied.');
+                    vignetting_falloff = ones(STL.print.resolution(1:2));
+                end
+                % Transpose: xc is the first index of the matrix (row #)
+                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                adj = adj ./ vignetting_falloff;
+                voxelpower = voxelpower ./ vignetting_falloff;
+                disp(sprintf('~ Vignetting power compensation (current fit, factor %g) applied. Adjusted power is on [%g, %g]', ...
+                    FIT_COMPENSATION_FACTOR, ...
+                    min(voxelpower(:)), ...
+                    max(voxelpower(:))));
+                
+            case 'none'
+                disp('~ Vignetting power compensation NOT applied.');
+                
+            otherwise
+                warning('~ Illegal value specified. Vignetting power compensation NOT applied.');
+        end
     end
     
     % Do not ask for more than 100% power:

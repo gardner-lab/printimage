@@ -65,7 +65,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting falloff', 'Callback', @calibrate_vignetting_Callback);
+    menu_calibrate_vignetting_compensation_wrong = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting falloff from camera (WRONG)', 'Callback', @calibrate_vignetting_from_camera_Callback);
+    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting falloff', 'Callback', @calibrate_vignetting_slide);
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
@@ -1985,8 +1986,12 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);
 end
 
-
+%% Obsolete! Just a passthrough for now.
 function calibrate_vignetting_Callback(hObject, eventdata)
+    calibrate_vignetting_from_camera_Callback(hObject, eventdata);
+end
+
+function calibrate_vignetting_from_camera_Callback(hObject, eventdata)
         hSI = evalin('base', 'hSI');
         global STL;
         
@@ -2027,7 +2032,7 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         % method = methods{get(handles.vignetting_fit_method, 'Value')};
         method = 'interpolant';
 
-        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
+        STL.calibration.vignetting_fit_from_image = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
         % Left over for when this was a checkbox
         %set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
         %    'Enable', 'on');
@@ -2037,6 +2042,7 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         if ~strcmp(s, 'Series')
             copyfile('vignetting_cal_00001_00001.tif', sprintf('vignetting_cal_%s.tif', s));
         end
+        copyfile('vignetting_cal_00001_00001.tif', 'vignetting_cal.tif');
         
         set(handles.messages, 'String', '');
         
@@ -2061,8 +2067,6 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% Measure brightness of an object by sliding the object over the lens and
-% taking a video.
 function measure_brightness_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
