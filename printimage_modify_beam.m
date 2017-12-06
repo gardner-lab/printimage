@@ -7,10 +7,10 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % and readability, but it's okay, since any change that affects it
     % (besides tweaking parameters) depends on zoom and thus requires
     % re-voxelising anyway.
-    POWER_COMPENSATION = {'speed', 'cos3', 'fit'};
+    POWER_COMPENSATION = {'speed', 'fit'}
     
     BEAM_SPEED_POWER_COMPENSATION_FACTOR = 0.7;
-    FIT_COMPENSATION_FACTOR = 2;
+    FIT_COMPENSATION_FACTOR = 3;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -80,7 +80,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                 vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
                 if SHOW_COMPENSATION
                     figure(SHOW_COMPENSATION);
-                    subplot(2,1,1);
+                    subplot(1,2,1);
                     imagesc(1./vignetting_falloff);
                     colorbar;
                 end
@@ -94,38 +94,40 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                     max(voxelpower(:))));
                 
             case 'fit'
-                if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit')
+                if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
                     [vig_x, vig_y] = meshgrid(xc, yc);
-                    vignetting_falloff = STL.calibration.vignetting_fit(vig_x, -vig_y);
-                    
-                    % Rescale until we approximate the right output
-                    m = min(min(vignetting_falloff));
-                    vignetting_falloff = vignetting_falloff - m;
-                    vignetting_falloff = vignetting_falloff * FIT_COMPENSATION_FACTOR;
-                    vignetting_falloff = vignetting_falloff + m;
-                    
-                    % Base adjustment should be 1, and edges (higher luminance)
-                    % demonstrated higher falloff, so it needs to be inverted.
-                    vignetting_falloff = m ./ vignetting_falloff;
-                    
-                    if SHOW_COMPENSATION
-                        figure(SHOW_COMPENSATION);
-                        subplot(2,1,2);
-                        imagesc(1./vignetting_falloff);
-                        colorbar;
+                    for fit_function = 1:length(STL.calibration.vignetting_fit)
+                        vignetting_falloff = STL.calibration.vignetting_fit{fit_function}(vig_x, -vig_y);
+                        
+                        % Rescale until we approximate the right output
+                        m = min(min(vignetting_falloff));
+                        vignetting_falloff = vignetting_falloff - m;
+                        vignetting_falloff = vignetting_falloff * FIT_COMPENSATION_FACTOR;
+                        vignetting_falloff = vignetting_falloff + m;
+                        
+                        % Base adjustment should be 1, and edges (higher luminance)
+                        % demonstrated higher falloff, so it needs to be inverted.
+                        vignetting_falloff = m ./ vignetting_falloff;
+                        
+                        if SHOW_COMPENSATION
+                            figure(SHOW_COMPENSATION);
+                            subplot(1,2,2);
+                            surfc(vig_x, vig_y, 1./vignetting_falloff);
+                            colorbar;
+                        end
+                        % Transpose: xc is the first index of the matrix (row #)
+                        vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                        adj = adj ./ vignetting_falloff;
+                        voxelpower = voxelpower ./ vignetting_falloff;
+                        disp(sprintf('~ Vignetting power compensation (current fit %d, factor %g) applied. Adjusted power is on [%g, %g]', ...
+                            fit_function, ...
+                            FIT_COMPENSATION_FACTOR, ...
+                            min(voxelpower(:)), ...
+                            max(voxelpower(:))));
                     end
                 else
-                    disp('~ No vignetting fit available. Vignetting power compensation NOT applied.');
-                    vignetting_falloff = ones(STL.print.resolution(1:2));
+                    warning('~ No vignetting power compensation fit functions available.');
                 end
-                % Transpose: xc is the first index of the matrix (row #)
-                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-                adj = adj ./ vignetting_falloff;
-                voxelpower = voxelpower ./ vignetting_falloff;
-                disp(sprintf('~ Vignetting power compensation (current fit, factor %g) applied. Adjusted power is on [%g, %g]', ...
-                    FIT_COMPENSATION_FACTOR, ...
-                    min(voxelpower(:)), ...
-                    max(voxelpower(:))));
                 
             case 'none'
                 disp('~ Vignetting power compensation NOT applied.');
@@ -141,8 +143,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
         voxelpower = min(voxelpower, 1);
     end
     
-    if min(voxelpower(:) < 0)
-        error('~ Someone requested power < 0. You''ll want to fix that.');
+    if min(voxelpower(:)) < 0
+        voxelpower = max(voxelpower, 0);
+        %error('~ Someone requested power < 0. You''ll want to fix that.');
     end
             
     disp(sprintf('~ Final adjusted power is on [%g, %g]', ...
@@ -163,8 +166,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             ylabel('Total energy');
             legend('speed', 'vignetting', 'both');
             xlim(xc([1 end]));
-            yl = get(gca, 'YLim');
-            ylim([0 yl(2)]);
+            %yl = get(gca, 'YLim');
+            %ylim([0 yl(2)]);
             
             subplot(1,2,2);
         else

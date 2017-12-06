@@ -1,14 +1,21 @@
 function falloff_slide(RELOAD)
 
-collection = '32'; % Or "series" in the UI, but that's a MATLAB function
+collection = '500a'; % Or "series" in the UI, but that's a MATLAB function
 sz = 500;
 
 methods = {};
-methods{end+1} = 'none';
-methods{end+1} = 'speed';
-methods{end+1} = 'fit';
-methods{end+1} = 'both';
-methods{end+1} = 'both2';
+%methods{end+1} = 'none';
+%methods{end+1} = 'speed';
+%methods{end+1} = 'fit';
+%methods{end+1} = 'both';
+%methods{end+1} = 'both2';
+%methods{end+1} = 'type';
+methods{end+1} = '1';
+methods{end+1} = '2';
+methods{end+1} = '3';
+methods{end+1} = '4';
+methods{end+1} = '5';
+
 
 if nargin == 0
     RELOAD = false;
@@ -52,6 +59,8 @@ else
         tiffCal = double(imread(sprintf('vignetting_cal_%s.tif', collection)));
     elseif exist(sprintf('vignetting_cal_%s_00001_00001.tif', collection), 'file')
         tiffCal = double(imread(sprintf('vignetting_cal_%s_00001_00001.tif', collection)));
+    elseif exist(sprintf('vignetting_cal.tif', collection), 'file')
+        tiffCal = double(imread('vignetting_cal.tif'));
     else
         warning('No baseline calibration file ''%s'' found.', ...
             sprintf('vignetting_cal_%s.tif', collection));
