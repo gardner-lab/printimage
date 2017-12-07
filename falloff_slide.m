@@ -1,20 +1,19 @@
 function falloff_slide(RELOAD)
 
-collection = '500a'; % Or "series" in the UI, but that's a MATLAB function
-sz = 500;
+collection = '400c'; % Or "series" in the UI, but that's a MATLAB function
+sz = 400;
 
 methods = {};
-%methods{end+1} = 'none';
-%methods{end+1} = 'speed';
+methods{end+1} = 'none';
+methods{end+1} = 'speed';
 %methods{end+1} = 'fit';
 %methods{end+1} = 'both';
 %methods{end+1} = 'both2';
 %methods{end+1} = 'type';
-methods{end+1} = '1';
-methods{end+1} = '2';
-methods{end+1} = '3';
-methods{end+1} = '4';
-methods{end+1} = '5';
+methods{end+1} = 'iteration 1';
+methods{end+1} = 'iteration 2';
+methods{end+1} = 'iteration 3';
+methods{end+1} = 'iteration 4';
 
 
 if nargin == 0
@@ -28,6 +27,7 @@ FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
 frame_rate = 15.21; % Hz
 frame_spacing = speed / frame_rate;
+sweep_halfsize = 500;
 
 colours = [0 0 0; ...
     0 0.5 0; ...
@@ -109,10 +109,10 @@ else
         indices = find(pixelpos > -how_much_to_include * sz / 2 ...
             & pixelpos < how_much_to_include * sz / 2);
         
-        % Normalise brightness. The starting position (500) is from
+        % Normalise brightness. The starting position (sweep_halfsize) is from
         % printimage.m: how much is the stage commanded to move before
         % starting the acquisition?
-        scanposX = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - 500;
+        scanposX = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - sweep_halfsize;
         baseline_indices = find(scanposX > sz / 2 + 20);
         baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
         tiffX{f} = tiffX{f}/baselineX;
@@ -140,7 +140,7 @@ else
         end
                 
         % Normalise brightness
-        scanposY = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - 500;
+        scanposY = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - sweep_halfsize;
         %baseline_indices = find(scanposY > -50 & scanposY < 50);
         baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
         tiffY{f} = tiffY{f}/baselineY;
@@ -237,7 +237,7 @@ p(3,1,1,2).select();
 cla;
 h = [];
 hold on;
-scanposY = (1:size(bright_y, 2)) * frame_spacing - 500;
+scanposY = (1:size(bright_y, 2)) * frame_spacing - sweep_halfsize;
 for f = 1:length(methods)
     if ~methodsValid(f)
         continue;

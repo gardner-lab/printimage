@@ -5,12 +5,17 @@ function motorHold(handles, v);
     hSI = evalin('base', 'hSI');
     
     if strcmp(v, 'on')
-        set(handles.crushThing, 'BackgroundColor', [1 0 0]);
+        if STL.print.nmetavoxels(3) > 1
+            % If we've printed more than 1 metavoxel (lens FOV) high, we
+            % risk crushing what we just printed. Remind the user.
+            set(handles.crushThing, 'BackgroundColor', [1 0 0]);
+            STL.print.motor_reset_needed = true;
+        end
         %%%%%% FIXME Disabled! STL.print.FastZhold = true;
         %STL.print.FastZhold = true;
-        STL.print.motorHold = true;
         %warning('Disabled fastZ hold hack.');
-        STL.print.motor_reset_needed = true;
+
+        STL.print.motorHold = true;
         STL.motors.mom.tmp_origin = move('mom');
         
         [~, b] = STL.motors.hex.C887.qKEN('');

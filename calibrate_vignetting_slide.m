@@ -14,7 +14,8 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     
     %% Print the test object
     height = 100;
-    sz = 500;
+    sz = 400;
+    safety_margin = 10;
     % FIXME also set zoom=1
     
     updateSTLfile(handles, 'STL files/cube.stl');
@@ -34,15 +35,15 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         return;
     end
     
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 5);
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - safety_margin);
     
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
     
-    n_sweeps = 7;
-    how_much_to_include = 0.05; % How much of the printed structure's size perpendicular to the direction of the sliding motion
+    n_sweeps = 11;
+    how_much_to_include = 10; % How many microns +- perpendicular to the direction of the sliding motion
     FOV = 666; % microns
-    scanspeed_mms = 0.3; % mm/s of the sliding stage
+    scanspeed_mms = 0.2; % mm/s of the sliding stage
     frame_rate = 15.21; % Hz
     frame_spacing_um = scanspeed_mms * 1000 / frame_rate;
     
@@ -99,8 +100,8 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         end
     end
     
-    sweep_halfsize = 500; % x halfsize
-    sweep_pos = linspace(-(sz/2 - 30), (sz/2 - 30), n_sweeps); % y positions
+    sweep_halfsize = sz/2 + 200; % x halfsize
+    sweep_pos = linspace(-(sz/2 - safety_margin - how_much_to_include), (sz/2 - safety_margin - how_much_to_include), n_sweeps); % y positions
 
     % Positions for the sliding measurements:
     pos = hexapod_get_position_um();
@@ -157,16 +158,16 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         tiffX = tiffX(1:i-1,:,:);
         middle = round(size(tiffX, 3)/2);
         pixelposY = linspace(-FOV/2, FOV/2, size(tiffX, 2));
-        indicesY = find(pixelposY > -how_much_to_include * sz / 2 ...
-            & pixelposY < how_much_to_include * sz / 2);
+        indicesY = find(pixelposY > -how_much_to_include ...
+            & pixelposY < how_much_to_include);
         
         % Normalise brightness
         scanposX = (0:(size(tiffX, 1) - 1)) * frame_spacing_um - sweep_halfsize;
-        baseline_indices = find(scanposX > sz / 2 + 20);
+        baseline_indices = find(scanposX > sz / 2 + 20); % background (well outside the printed object)
         baselineX = mean(mean(tiffX(baseline_indices, indicesY, middle), 2), 1);
         tiffX = tiffX/baselineX;
         bright_x = mean(tiffX(:, indicesY, middle), 2);
-        i = find(scanposX > -(sz/2 - 10) & scanposX < (sz/2 - 10));
+        i = find(scanposX > -(sz/2 - safety_margin) & scanposX < (sz/2 - safety_margin));
         x = [x scanposX(i)'];
         y = [y ones(size(i))'*-sweep_pos(sweep)]; % When hexapod (understage) is at y, we're looking at object at -y
         z = [z bright_x(i)];
@@ -181,7 +182,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             
     set(handles.messages, 'String', 'Processing fit...');
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
-    ft = fittype( 'poly55' );
+    ft = fittype( 'poly33' );
     [fitresult, gof] = fit( [xData, yData], zData, ft );
     if ~isfield(STL.calibration, 'vignetting_fit')
         STL.calibration.vignetting_fit = {};
