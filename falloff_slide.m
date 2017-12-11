@@ -1,7 +1,7 @@
 function falloff_slide(RELOAD)
 
 collection = '30'; % Or "series" in the UI, but that's a MATLAB function
-sz = 500;
+sz = 400;
 
 methods = {};
 methods{end+1} = 'none';
@@ -144,7 +144,7 @@ else
         'methods', 'methods_long', 'bright_x', 'bright_y', ...
         'bright_x_std', 'bright_y_std', 'indices', 'baseline_indices');
 end
-disp(sprintf('Loaded data in %d seconds.', round(toc)));
+disp(sprintf('Loaded data in %d seconds. StdDev n = %d.', round(toc), length(indices)));
 
 letter = 'c';
 for i = find(methodsValid)
@@ -263,5 +263,5 @@ l = legend(ah, h, methods_long(find(methodsValid)), 'Location', 'West');
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-%p.export('BeamGraph.eps', '-w240', '-a1.2');
+p.export('BeamGraph.eps', '-w240', '-a1.2');
 p.export('BeamGraph.png', '-w240', '-a1.1');
