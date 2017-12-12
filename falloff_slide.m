@@ -13,7 +13,6 @@ methods{end+1} = 'speed';
 methods{end+1} = 'Iteration 1';
 methods{end+1} = 'Iteration 2';
 methods{end+1} = 'Iteration 3';
-methods{end+1} = 'Iteration 4';
 
 
 if nargin == 0
@@ -21,7 +20,7 @@ if nargin == 0
 end
 
 methods_long = methods;
-how_much_to_include = 0.9; % How much of the printed structure's size perpendicular to the direction of the sliding motion
+how_much_to_include = 0.4; % How much of the printed structure's size perpendicular to the direction of the sliding motion
 
 FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
@@ -30,12 +29,11 @@ frame_spacing = speed / frame_rate;
 sweep_halfsize = 500;
 
 colours = [0 0 0; ...
-    0 0.5 0; ...
     1 0 0; ...
+    0 0.5 0; ...
     0 0 1; ...
-    1 0 1; ...
     0 1 1];
-colours = distinguishable_colors(length(methods));
+%colours = distinguishable_colors(length(methods));
 
 image_crop_x = 10;
 image_crop_y = 40;
@@ -44,10 +42,8 @@ figure(23);
 if exist('p', 'var')
     delete(p);
 end
+
 p = panel();
-p.pack('v', {25 [] 25}, 1);
-p(1,1).marginbottom = 100;
-make_sine_plot_3(p(1,1));
 
 last_filename = sprintf('last_falloff_%s.mat', collection);
 
@@ -156,7 +152,8 @@ else
         'methods', 'methods_long', 'bright_x', 'bright_y', ...
         'bright_x_std', 'bright_y_std', 'indices', 'baseline_indices');
 end
-disp(sprintf('Loaded data in %d seconds.', round(toc)));
+disp(sprintf('Loaded data in %d seconds. StdDev n = %d.', round(toc), length(indices)));
+
 
 letter = 'c';
 for i = find(methodsValid)
@@ -164,49 +161,82 @@ for i = find(methodsValid)
     methods2{i} = sprintf('(%c) %s', letter, methods_long{i});
 end
 
+p.pack('v', {25 [] 25}, 1);
+p(1,1).marginbottom = 100;
+make_sine_plot_4(p(1,1), tiffAdj, methods, colours);
+
+
 
 p(2,1).pack(1, sum(methodsValid));
 
 c = 0;
 for f = find(methodsValid)
     c = c + 1;
+    
+    centreX = round(length(tiffAdj{f}.xc) / 2);
+    centreY = round(length(tiffAdj{f}.yc) / 2);
+    tiffAdj{f}.p = tiffAdj{f}.p / tiffAdj{f}.p(centreX, centreY);
+    
     p(2,1, 1,c).pack(2, 1);
     h_axes = p(2,1, 1,c, 1,1).select();
     cla;
     
     if exist('tiffAdj', 'var') & length(tiffAdj) >= f & ~isempty(tiffAdj{f})
-        contourf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p', 100, ...
-            'LineColor', 'none');
-        %surf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p');
-        axis equal ij off;
-        colormap jet;
-        %colo = colorbar('Peer', h_axes);
-        colo = colorbar('Location', 'WestOutside');
-        %p(2,1,1,c,1,2).select(colo);
-        set(colo, 'Position', get(colo, 'Position') + [-0.04 -0.03 0 0.06]);
+        if false
+            % Show power compensation function as a colormap
 
-        title(methods2{f});
+            [~,cf] = contourf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p', 100, ...
+                'LineColor', 'none');
+            
+            cffigpos = get(get(cf, 'Parent'), 'Position');
+            %surf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p');
+            axis equal ij off;
+            colo = colorbar('Location', 'WestOutside');
+            set(colo, 'Position', get(colo, 'Position') .* [1 0 1 0] + cffigpos .* [0 1 0 1]);
+            
+            title(methods2{f});
+        else
+            % Show power compensation function as a surface
+            
+            h = surf(tiffAdj{f}.xc(1:5:end), tiffAdj{f}.yc(1:20:end), ...
+                tiffAdj{f}.p(1:5:end,1:20:end)');
+            %cffigpos = get(get(cf, 'Parent'), 'Position');
+            %surf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p');
+            %axis equal ij off;
+            %colormap jet;
+            %colo = colorbar('Location', 'WestOutside');
+            %set(colo, 'Position', get(colo, 'Position') .* [1 0 1 0] + cffigpos .* [0 1 0 1]);
+            xlabel('x (\mu{}m)');
+            ylabel('y (\mu{}m)');
+            zlabel('Power');
+            set(gca, 'xlim', [-290 290], 'ylim', [-290 290], 'zlim', [0.5 1.8], ...
+                'xtick', [-200 0 200], 'ytick', [-200 0 200]);
+            title(methods2{f});
+        end
     end
     
+            
     p(2,1, 1,c, 2,1).select();
     cla;
     
     foo = tiffS{f};
     % Manual gain control
-    foo = max(foo - 0.5, 0.5);
-    foo = tiffS{f} / 1.2;
-    foo = min(foo, 1);
+    %foo = max(foo - 0.4, 0.65);
+    foo = tiffS{f};
     foo(1,1) = 0; % Stupid kludge: image() isn't scaling right; force imagesc() to do so.
-    foo = max(foo, 0.25);
+    foo = min(foo, 0.9);
+    foo = max(foo, 0.5);
     imagesc(foo);
     axis tight equal ij off;
-    
     
     %p(2,1,1,c,2).select();
     %hist(foo(:), 100);
     %colormap gray;
+    drawnow;
 end
 
+
+colormap jet;
 
 p(3,1).pack(1, {42 42 []}); % Third is for the shared legend
 p(3,1,1,1).select();
@@ -274,5 +304,5 @@ l = legend(ah, h, methods_long(find(methodsValid)), 'Location', 'West');
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-%p.export('BeamGraph.eps', '-w240', '-a1.2');
+p.export('BeamGraph.eps', '-w240', '-a1.2');
 p.export('BeamGraph.png', '-w240', '-a1.1');
