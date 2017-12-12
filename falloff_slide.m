@@ -31,9 +31,8 @@ sweep_halfsize = 500;
 
 colours = [0 0 0; ...
     1 0 0; ...
-    0 0 1; ...
     0 0.5 0; ...
-    1 0 1; ...
+    0 0 1; ...
     0 1 1];
 %colours = distinguishable_colors(length(methods));
 
@@ -193,7 +192,6 @@ for f = find(methodsValid)
             cffigpos = get(get(cf, 'Parent'), 'Position');
             %surf(tiffAdj{f}.xc, tiffAdj{f}.yc, tiffAdj{f}.p');
             axis equal ij off;
-            colormap jet;
             colo = colorbar('Location', 'WestOutside');
             set(colo, 'Position', get(colo, 'Position') .* [1 0 1 0] + cffigpos .* [0 1 0 1]);
             
@@ -212,10 +210,12 @@ for f = find(methodsValid)
             xlabel('x (\mu{}m)');
             ylabel('y (\mu{}m)');
             zlabel('Power');
-            set(gca, 'xlim', [-290 290], 'ylim', [-290 290], 'zlim', [0.5 1.8]);
+            set(gca, 'xlim', [-290 290], 'ylim', [-290 290], 'zlim', [0.5 1.8], ...
+                'xtick', [-200 0 200], 'ytick', [-200 0 200]);
             title(methods2{f});
         end
     end
+    
             
     p(2,1, 1,c, 2,1).select();
     cla;
@@ -237,6 +237,7 @@ for f = find(methodsValid)
 end
 
 
+colormap jet;
 
 p(3,1).pack(1, {42 42 []}); % Third is for the shared legend
 p(3,1,1,1).select();
