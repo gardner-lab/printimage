@@ -1,6 +1,6 @@
 function falloff_slide(RELOAD)
 
-collection = '400c'; % Or "series" in the UI, but that's a MATLAB function
+collection = '400_d'; % Or "series" in the UI, but that's a MATLAB function
 sz = 400;
 
 methods = {};
@@ -10,10 +10,10 @@ methods{end+1} = 'speed';
 %methods{end+1} = 'both';
 %methods{end+1} = 'both2';
 %methods{end+1} = 'type';
-methods{end+1} = 'iteration 1';
-methods{end+1} = 'iteration 2';
-methods{end+1} = 'iteration 3';
-methods{end+1} = 'iteration 4';
+methods{end+1} = 'Iteration 1';
+methods{end+1} = 'Iteration 2';
+methods{end+1} = 'Iteration 3';
+methods{end+1} = 'Iteration 4';
 
 
 if nargin == 0

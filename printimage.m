@@ -1421,7 +1421,9 @@ function clear_vignetting_compensation_functions(hObject, eventdata)
     handles = guihandles(hObject);
     
     % In case I hit the menu item by mistake:
-    STL.calibration.vignetting_fit_backup = STL.calibration.vignetting_fit;
+    if isfield(STL.calibration, 'vignetting_fit')
+        STL.calibration.vignetting_fit_backup = STL.calibration.vignetting_fit;
+    end
     
     STL.calibration.vignetting_fit = {};
     disp('~ You now have no vignetting compensation functions.');
