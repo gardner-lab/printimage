@@ -1573,12 +1573,13 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         end
     end
 
+    sweep_halfsize = 400;
     % Positions for the sliding measurements:
     pos = hexapod_get_position_um();
-    left = pos; left(1) = left(1) - 500;
-    right = pos; right(1) = right(1) + 500;
-    bottom = pos; bottom(2) = bottom(2) - 500;
-    top = pos; top(2) = top(2) + 500;
+    left = pos; left(1) = left(1) - sweep_halfsize;
+    right = pos; right(1) = right(1) + sweep_halfsize;
+    bottom = pos; bottom(2) = bottom(2) - sweep_halfsize;
+    top = pos; top(2) = top(2) + sweep_halfsize;
 
     %% Measure brightness along X axis
     
@@ -1588,11 +1589,14 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     move('hex', left, 1);
     set(handles.messages, 'String', 'Sliding along current view...');
 
-    scanspeed = 0.1; % mm/s
+    scanspeed_mms = 0.1; % mm/s of the sliding stage
+    scanspeed_ums = scanspeed_mms * 1000;
+    frame_rate = 15.21; % Hz
+
     % Time taken for the scan will be 666 um / 100 um/s; frame rate is
     % 15.21 Hz (can't figure out where that is in hSI, but somewhere...)
-    scantime = STL.bounds_1(1) / (scanspeed * 1000);
-    scanframes = ceil(scantime * 25);
+    scantime = 2*sweep_halfsize / scanspeed_ums;
+    scanframes = ceil(scantime * frame_rate);
     hSI.hStackManager.framesPerSlice = scanframes;
     hSI.hChannels.loggingEnable = true;
     hSI.hScan2D.logFramesPerFileLock = true;
@@ -1605,7 +1609,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         hSI.startGrab();
     end
     
-    move('hex', right, scanspeed);
+    move('hex', right, scanspeed_mms);
     
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
@@ -1622,7 +1626,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
         hSI.startGrab();
     end
     
-    move('hex', bottom, scanspeed);
+    move('hex', bottom, scanspeed_mms);
 
     while ~strcmpi(hSI.acqState,'idle')
         pause(0.1);
