@@ -9,8 +9,8 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % re-voxelising anyway.
     POWER_COMPENSATION = {'speed', 'fit'};
     
-    BEAM_SPEED_POWER_COMPENSATION_FACTOR = 0.7;
-    FIT_COMPENSATION_FACTOR = 3;
+    BEAM_SPEED_POWER_COMPENSATION_FACTOR = 1;
+    FIT_COMPENSATION_FACTOR = 2;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -29,12 +29,12 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     mvy = STL.print.mvy_now;
     mvz = STL.print.mvz_now;
     voxelpower = STL.print.metavoxels{mvx, mvy, mvz} * STL.print.power;
-    disp(sprintf('~ Voxel power is on [%g, %g]', ...
-        min(min(min(voxelpower))), ...
-        max(max(max(voxelpower)))));
-    
     v_i = find(voxelpower(:)); % indices into voxels to be printed
 
+    disp(sprintf('~ Voxel power is on [%g, %g]', ...
+        min(voxelpower(v_i)), ...
+        max(voxelpower(v_i))));
+    
     % Flyback blanking workaround KLUDGE!!! This means that
     % metavoxel_overlap will need to be bigger than it would otherwise need
     % to be, by one voxel.
@@ -60,6 +60,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                 % Compensate proportionally--generalise Christos's ad-hoc
                 % compensation due to a nonlinearity in polymerisation vs speed
                 % e.g., ((v - 1) * 0.5) + 1
+                
+                % Normalisation: as we zoom in, absolute speed decreasees,
+                % so no normalisation is necessary.
                 beamspeed = diff(xc) * STL.calibration.pockelsFrequency;
                 beamspeed(end+1) = beamspeed(1);
                 beam_power_comp_x = ((beamspeed - STL.calibration.beam_speed_max_um) * BEAM_SPEED_POWER_COMPENSATION_FACTOR ...
@@ -80,47 +83,38 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                     legend_entries{end+1} = 'speed';
                     hold off;
                 end
-
-            case 'cos4'
-                [vig_x, vig_y] = meshgrid(xc, yc);
-                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^4;
-                vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
-                voxelpower = voxelpower ./ vignetting_falloff;
-                adj = adj ./ vignetting_falloff;
                 
-                disp(sprintf('~ Vignetting power compensation (cos^4) applied. Adjusted power is on [%g, %g]', ...
-                    min(voxelpower(v_i)), ...
-                    max(voxelpower(v_i))));
-                
-            case 'cos3'
+            case 'cos'
                 [vig_x, vig_y] = meshgrid(xc, yc);
-                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance)).^3;
+                vignetting_falloff = cos(atan(((vig_x.^2 + vig_y.^2).^(1/2))/STL.calibration.lens_optical_working_distance));
                 
                 vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
                 voxelpower = voxelpower ./ vignetting_falloff;
                 adj = adj ./ vignetting_falloff;
                 
-                disp(sprintf('~ Vignetting power compensation (cos^3) applied. Adjusted power is on [%g, %g]', ...
+                disp(sprintf('~ Vignetting power compensation (cos(theta)) applied. Adjusted power is on [%g, %g]', ...
                     min(voxelpower(v_i)), ...
                     max(voxelpower(v_i))));
                 
             case 'fit'
                 if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
                     [vig_x, vig_y] = meshgrid(xc, yc);
+                    centreX = round(length(vig_x / 2));
+                    centreY = round(length(vig_y / 2));
                     for fit_function = 1:length(STL.calibration.vignetting_fit)
                         vignetting_falloff = STL.calibration.vignetting_fit{fit_function}(vig_x, -vig_y);
+                        
+                        % So far, vignetting_falloff is still in arbitrary
+                        % units of TIFF brightness! Set power change in centre
+                        % of FOV to 1.
+                        vignetting_falloff = vignetting_falloff / vignetting_falloff(centreX, centreY);
                         
                         % Rescale compensation (like a learning rate and a
                         % photoresist responsiveness factor rolled into
                         % one)
-                        m = min(vignetting_falloff(:));
-                        vignetting_falloff = vignetting_falloff - m;
-                        vignetting_falloff = vignetting_falloff * FIT_COMPENSATION_FACTOR;
-                        vignetting_falloff = vignetting_falloff + m;
-
-                        % If power is only ever boosted, each calibration
-                        % iteration gets darker. So set mean power change = 1
-                        vignetting_falloff = vignetting_falloff / mean(mean(vignetting_falloff));
+                        %vignetting_falloff = ((vignetting_falloff-1) * FIT_COMPENSATION_FACTOR) + 1;
+                        vignetting_falloff = vignetting_falloff ^ FIT_COMPENSATION_FACTOR;
+                        
                         
                         % Higher luminance (e.g. edges) indicates higher
                         % falloff, so it needs to be inverted.
@@ -186,7 +180,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             title('Compensation factors @ Y=0');
             xlabel('X (\mu{}m)');
             ylabel('Factor');
-            legend(legend_entries);
+            legend(legend_entries, 'Location', 'South');
             subplot(1,2,2);
         else
             subplot(1,1,1);
