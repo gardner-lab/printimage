@@ -65,7 +65,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting falloff', 'Callback', @calibrate_vignetting_Callback);
+    menu_calibrate_vignetting_compensation_wrong = uimenu(menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_from_camera_Callback);
+    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
+    menu_clear_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Clear vignetting compensation', 'Callback', @clear_vignetting_compensation_functions);
+    
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
@@ -221,6 +224,7 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     colormap(handles.axes2, 'gray');
     
+    handles.menu_clear_vignetting_compensation = menu_clear_vignetting_compensation;
     guidata(hObject, handles);
 end
 
@@ -236,12 +240,12 @@ function set_up_params()
     STL.print.zstep = 1;     % microns per step in z (vertical)
     STL.print.xaxis = 1;     % axis of raw STL over which the resonant scanner scans
     STL.print.zaxis = 3;     % axis of raw STL over which we print upwards (fastZ etc)
-    STL.print.power = 0.6;
+    STL.print.power = 0.5;
     STL.print.whichBeam = 1; % if scanimage gets to play with >1 laser...
-    STL.print.size = [360 360 360];
-    STL.print.zoom_min = 1.2;
-    STL.print.zoom = 1.2;
-    STL.print.zoom_best = 1.2;
+    STL.print.size = [400 400 360];
+    STL.print.zoom_min = 1;
+    STL.print.zoom = 1;
+    STL.print.zoom_best = 1;
     STL.print.armed = false;
     STL.preview.resolution = [120 120 120];
     STL.print.metavoxel_overlap = [8 8 8]; % Microns of overlap (positive is more overlap) in order to get good bonding
@@ -303,115 +307,6 @@ function set_up_params()
     load_params(params_file, 'STL');
 end
 
-% Sets STL.print.dims, and calls for reorientation of the model.
-function update_dimensions(handles, dim, val)
-    global STL;
-    % Recompute all dimensions based on aspect ratio and build axes
-        
-    yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
-    
-    if isfield(STL.print, 'dims')
-        olddims = STL.print.dims;
-    else
-        olddims = [NaN NaN NaN];
-    end
-    STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
-    
-    if isfield(STL, 'aspect_ratio')
-        if get(handles.lockAspectRatio, 'Value') == 0
-            % This is a total kludge for squashing the object for test
-            % purposes. Thus, it's ugly.
-            old_aspect_ratio = STL.aspect_ratio;
-            dims_operator = eye(3);
-            dims_operator = dims_operator(:, STL.print.dims);
-            STL.print.size = [str2double(get(handles.size1, 'String')) ...
-                str2double(get(handles.size2, 'String')) ...
-                str2double(get(handles.size3, 'String'))];
-            STL.aspect_ratio = (STL.print.size * inv(dims_operator)) / max(STL.print.size);
-            
-            dim_scale = diag(STL.aspect_ratio ./ old_aspect_ratio);
-            STL.patchobj1.vertices = STL.patchobj1.vertices * dim_scale;
-            STL.aspect_ratio = max(STL.patchobj1.vertices, [], 1);
-            STL.aspect_ratio = STL.aspect_ratio / max(STL.aspect_ratio);
-            STL.patchobj1.vertices = STL.patchobj1.vertices / max(STL.aspect_ratio);
-            for i = 1:3
-                STL.mesh1(:, i, :) = STL.mesh1(:, i, :) * dim_scale(i, i);
-            end
-            STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
-        end
-        aspect_ratio = STL.aspect_ratio(STL.print.dims);
-        
-        if nargin == 1
-            % If we're not looking to change a particular dimension,
-            % default to holding Z constant and adjusting X and Y.
-            dim = 3;
-            val = STL.print.size(3);
-        end
-        if isfield(STL.print, 'size')
-            oldsize = STL.print.size;
-        end
-        
-        % Include a roundoff fudge factor (nearest nanometre)
-        STL.print.size = round(1e3 * aspect_ratio/aspect_ratio(dim) * val)/1e3;
-        if ~isfield(STL.print, 'size') | any(STL.print.size ~= oldsize) | any(STL.print.dims ~= olddims)
-            STL.print.rescale_needed = true;
-            STL.preview.voxelise_needed = true;
-            STL.print.voxelise_needed = true;
-        end
-        
-        update_gui(handles);
-        update_3d_preview(handles);
-    end
-    
-    %set(handles.messages, 'String', sprintf('New dims are [ %s]', sprintf('%d ', STL.print.dims)));
-end
-
-function [] = rescale_object(handles);
-    global STL;
-    
-    set(handles.messages, 'String', 'Rescaling...');
-    drawnow;
-    
-    % Relies on STL.print.size for desired dimensions.
-    % Stores the result in STL.
-    yaxis = setdiff([1 2 3], [STL.print.xaxis STL.print.zaxis]);
-    
-    STL.print.dims = [STL.print.xaxis yaxis STL.print.zaxis];
-    set(handles.messages, 'String', sprintf('New dims (2) are [ %s]', sprintf('%d ', STL.print.dims)));
-    
-    max_dim = max(STL.print.size);
-    
-    meanz = (max(STL.patchobj1.vertices(:,STL.print.dims(3))) ...
-        - min(STL.patchobj1.vertices(:,STL.print.dims(3))))/2;
-    
-    % Preview maintains original dimension ordering to make it easier to see what's
-    % going on (no transform-order--dependent weirdness)
-    STL.preview.patchobj = STL.patchobj1;
-    STL.preview.mesh = STL.mesh1;
-    if STL.print.invert_z
-        STL.preview.patchobj.vertices(:,STL.print.dims(3)) = ...
-            -(STL.preview.patchobj.vertices(:,STL.print.dims(3)) - meanz) + meanz;
-        STL.preview.mesh(:, STL.print.dims(3), :) = ...
-            -(STL.preview.mesh(:, STL.print.dims(3), :) - meanz) + meanz;
-    end
-    STL.preview.patchobj.vertices = STL.preview.patchobj.vertices * max_dim;
-    
-    % But this one will both scaled and rotated.
-    STL.preview.mesh = STL.preview.mesh(:, STL.print.dims, :) * max_dim;
-    
-    % Print: reorder the dimensions (rotate) and scale.
-    STL.print.mesh = STL.mesh1(:, STL.print.dims, :);
-    if STL.print.invert_z
-        STL.print.mesh(:, 3, :) = -(STL.print.mesh(:, 3, :) - meanz) + meanz;
-    end
-    STL.print.mesh = STL.print.mesh * max_dim;
-    
-    STL.print.rescale_needed = false;
-    STL.preview.voxelise_needed = true;
-    STL.print.voxelise_needed = true;
-    set(handles.messages, 'String', '');
-end
-
 
 
 function varargout = printimage_OutputFcn(hObject, eventdata, handles)
@@ -435,76 +330,6 @@ end
 
 
 
-function updateSTLfile(handles, STLfile)
-    global STL;
-        
-    STL.file = STLfile;
-    STL.mesh1 = READ_stl(STL.file);
-    % This is stupid, but patch() likes this format, so easiest to just read it
-    % again.
-    STL.patchobj1 = stlRead(STL.file);
-    
-    % Reset one or two things...
-    STL.print.invert_z = 0;
-    set(handles.invert_z, 'Value', 0);
-    
-    % Position the object at the origin+.
-    llim = min(STL.patchobj1.vertices);
-    STL.patchobj1.vertices = bsxfun(@minus, STL.patchobj1.vertices, llim);
-    STL.mesh1 = bsxfun(@minus, STL.mesh1, llim);
-    
-    % Scale into the desired dimensions--in microns--from the origin to
-    % positive-everything.
-    STL.aspect_ratio = max(STL.patchobj1.vertices);
-    
-    % Squeeze the object into a unit cube (hence the 1 in the name), for later easier scaling
-    STL.patchobj1.vertices = STL.patchobj1.vertices / max(STL.aspect_ratio);
-    STL.mesh1 = STL.mesh1 / max(STL.aspect_ratio);
-    
-    % Aspect ratio is normalised so max is 1
-    STL.aspect_ratio = STL.aspect_ratio / max(STL.aspect_ratio);
-    
-    update_dimensions(handles); % First pass at object dimensions according to aspect ratio
-end
-
-
-
-
-function update_3d_preview(handles);
-    global STL;
-    
-    if STL.print.rescale_needed
-        rescale_object(handles);
-    end
-    
-    axes(handles.axes1);
-    cla;
-    patch(STL.preview.patchobj, ...
-        'FaceColor',       [0.8 0.8 0.8], ...
-        'EdgeColor',       'none',        ...
-        'FaceLighting',    'gouraud',     ...
-        'AmbientStrength', 0.15);
-    xlabel('x');
-    ylabel('y');
-    zlabel('z');
-    material('dull');
-    axis('image');
-    daspect([1 1 1]);
-    view([-135 35]);
-    camlight_handle = camlight('right');
-    rotate_handle = rotate3d;
-    rotate_handle.enable = 'on';
-end
-
-
-% When the zSlider is moved, update things. If a build mesh is available, use that.
-function zslider_Callback(hObject, eventdata, handles, pos)
-    draw_slice(handles, get(handles.zslider, 'Value'));
-end
-
-
-
-
 function zslider_CreateFcn(hObject, eventdata, handles)
     if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor',[.9 .9 .9]);
@@ -512,356 +337,6 @@ function zslider_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% Called when the user presses "PRINT". Various things need to happen, some
-% of them before the scan is initiated and some right before the print
-% waveform goes out. This function handles the former, and instructs
-% WaveformManager to call printimage_modify_beam() to do the latter.
-function print_Callback(hObject, eventdata, handles)
-    global STL;
-    
-    global wbar;
-    
-    hSI = evalin('base', 'hSI');
-    
-    if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
-        set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents printing.');
-        return;
-    else
-        set(handles.messages, 'String', '');
-    end
-    
-    if STL.print.motor_reset_needed
-        set(handles.messages, 'String', 'CRUSH THE THING!!! Reset lens position before printing!');
-        return;
-    else
-        set(handles.messages, 'String', '');
-    end
-    
-    if STL.logistics.simulated
-        userZoomFactor = 1;
-    else
-        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
-    end
-    % Save home positions. They won't be restored so as not to crush the
-    % printed object, but they should be reset later.
-    
-    %foo = hSI.hFastZ.positionTarget;
-    %hSI.hFastZ.positionTarget = 0;
-    %pause(0.1);
-    %hSI.hMotors.zprvResetHome();
-    %hSI.hBeams.zprvResetHome();
-    %hSI.hFastZ.positionTarget = foo;
-    hexapos = hexapod_get_position_um();
-    if any(abs(hexapos(1:3)) > 1)
-        set(handles.messages, 'String', ...
-            sprintf('Hexapod position is [%s ], not [ 0 0 0 ]. Please fix that first', ...
-            sprintf(' %g', hexapos(1:3))));
-        return;
-    else
-        set(handles.messages, 'String', '');
-    end
-    
-    if STL.print.rescale_needed
-        rescale_object(handles);
-    end
-    
-    UpdateBounds_Callback([], [], handles);
-        
-    if ~STL.logistics.simulated & isempty(fieldnames(hSI.hWaveformManager.scannerAO))
-        set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
-        return;
-    else
-        set(handles.messages, 'String', '');
-        update_dimensions(handles); % In case the boundaries are newly available
-    end
-    
-    hSI.hDisplay.roiDisplayEdgeAlpha = 0.1;
-    
-    % Make sure we haven't changed the desired resolution or anything else that
-    % ScanImage can change without telling us. This should be a separate
-    % function eventually!
-    
-    
-    resolution = [hSI.hWaveformManager.scannerAO.ao_samplesPerTrigger.B ...
-        hSI.hRoiManager.linesPerFrame ...
-        round(STL.print.size(3) / STL.print.zstep)];
-    if ~isfield(STL.print, 'resolution') | any(resolution ~= STL.print.resolution)
-        STL.print.voxelise_needed = true;
-    end
-    
-    
-    if STL.print.voxelise_needed
-        voxelise(handles, 'print');
-        if STL.logistics.abort
-            STL.logistics.abort = false;
-            return;
-        end
-    end
-    
-    
-    % This relies on voxelise() being called, above
-    hSI.hRoiManager.scanZoomFactor = STL.print.zoom_best;
-    
-    % Number of slices at 1 micron per slice:
-    hSI.hScan2D.bidirectional = false;
-    
-    hSI.hFastZ.enable = 1;
-    hSI.hStackManager.numSlices = round(STL.print.size(3) / STL.print.zstep);
-    hSI.hStackManager.stackZStepSize = -STL.print.zstep;
-    hSI.hFastZ.flybackTime = 0.025; % SHOULD BE IN MACHINE_DATA_FILE?!?!
-    hSI.hStackManager.stackReturnHome = false;
-    %hSI.hStackManager.stackZStartPos = 0;
-    %hSI.hStackManager.stackZEndPos = NaN;
-    tic
-    STL.print.armed = true;
-    
-    % The main printing loop. How to manage the non-blocking call to
-    % startLoop()?
-    
-    motorHold(handles, 'on');
-    
-    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        waitbar(0, wbar, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
-    else
-        wbar = waitbar(0, 'Printing...', 'CreateCancelBtn', 'cancel_button_callback');
-        set(wbar, 'Units', 'Normalized');
-        wp = get(wbar, 'Position');
-        wp(1:2) = STL.logistics.wbar_pos(1:2);
-        set(wbar, 'Position', wp);
-        drawnow;
-    end
-    
-    start_time = datetime('now');
-    eta = 'next weekend';
-    
-    eval(sprintf('motor = STL.motors.%s;', STL.motors.stitching));
-
-    metavoxel_counter = 0;
-    metavoxel_total = prod(STL.print.nmetavoxels);
-    for mvz = 1:STL.print.nmetavoxels(3)
-        for mvy = 1:STL.print.nmetavoxels(2)
-            for mvx = 1:STL.print.nmetavoxels(1)
-                
-                if STL.logistics.abort
-                    % The caller has to unset STL.logistics.abort
-                    % (and presumably return).
-                    disp('Aborting due to user.');
-                    motorHold(handles, 'resetXY');
-                    
-                    if ishandle(wbar) & isvalid(wbar)
-                        STL.logistics.wbar_pos = get(wbar, 'Position');
-                        delete(wbar);
-                    end
-                    if exist('handles', 'var');
-                        set(handles.messages, 'String', 'Canceled.');
-                        drawnow;
-                    end
-                    STL.logistics.abort = false;
-                    
-                    STL.print.armed = false;
-                    hSI.hStackManager.numSlices = 1;
-                    hSI.hFastZ.enable = false;
-                    
-                    if ~STL.logistics.simulated
-                        while ~strcmpi(hSI.acqState,'idle')
-                            pause(0.1);
-                        end
-                    end
-                    hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-                    
-                    return;
-                end
-                
-                disp(sprintf('Starting on metavoxel [ %d %d %d ]...', mvx, mvy, mvz));
-                
-                % 0. Update the slice preview, because why the hell not?
-                set(handles.show_metavoxel_slice, 'String', sprintf('%d %d %d', mvx, mvy, mvz));
-                show_metavoxel_slice_Callback(hObject, eventdata, handles)
-                
-                % 1. Servo the slow stage to the correct starting position. This is convoluted
-                % because (1) startPos may be 1x3 or 1x4, (2) we always want to approach from the
-                % same side
-                
-                if STL.print.metavoxel_resolution{mvx, mvy, mvz}(3) == 0
-                    disp(sprintf(' ...which is empty. Moving on...'));
-                    continue;
-                end
-                
-                % How many mvs are we away from the origin? Always positive.
-                this_metavoxel_relative_origin = [ mvx mvy mvz] - 1;
-                
-                % Convert newpos from metavoxels to microns
-                newpos = STL.print.metavoxel_shift .* this_metavoxel_relative_origin;
-                
-                % Some of the axes may want the opposite sign. This should be done in Machine_Data_File but I don't see how; see
-                % below.
-                newpos = newpos .* motor.axis_signs;
-                
-                % My axes and the motor's may be at odds, so reshuffle the order. This should be done in Machine_Data_File but I
-                % don't see how; the docs are a little obsolete (or ahead of the free version?).
-                newpos = newpos(motor.axis_order);
-                
-                % Add the motor origin from the start of this function
-                newpos = newpos + motor.tmp_origin(1:3);
-                
-                move(STL.motors.stitching, newpos, 1);
-                hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-                pause(0.1);
-                
-                % 2. Set up printimage_modify_beam with the appropriate
-                % voxels and their power
-                
-                STL.print.mvx_now = mvx;
-                STL.print.mvy_now = mvy;
-                STL.print.mvz_now = mvz;
-                
-                %STL.print.voxels = STL.print.metavoxels{mvx, mvy, mvz};
-                %STL.print.voxelpower = STL.print.metapower{mvx, mvy, mvz};
-                
-                % 3. Set resolution appropriately
-                hSI.hStackManager.numSlices = STL.print.metavoxel_resolution{mvx, mvy, mvz}(3);
-                
-                % 4. Do whatever is necessary to get a blocking
-                % startLoop(), like setting up a callback in acqModeDone?
-                
-                % 5. Print this metavoxel
-                if ~STL.logistics.simulated
-                    evalin('base', 'hSI.startLoop()');
-                    
-                    % 4a. Await callback from the user function "acqModeDone" or "acqAbort"? Or
-                    % constantly poll... :(
-                    while ~strcmpi(hSI.acqState,'idle')
-                        pause(0.1);
-                    end
-                end
-                
-                % Show progress
-                metavoxel_counter = metavoxel_counter + 1;
-                if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-                    current_time = datetime('now');
-                    eta_date = start_time + (current_time - start_time) / (metavoxel_counter / metavoxel_total);
-                    if strcmp(datestr(eta_date, 'yyyymmdd'), datestr(current_time, 'yyyymmdd'))
-                        eta = datestr(eta_date, 'HH:MM:SS');
-                    else
-                        eta = datestr(eta_date, 'dddd HH:MM');
-                    end
-                    
-                    waitbar(metavoxel_counter / metavoxel_total, wbar, sprintf('Printing. Done around %s.', eta));
-                end
-            end
-        end
-    end
-    
-    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-        STL.logistics.wbar_pos = get(wbar, 'Position');
-        delete(wbar);
-    end
-    
-    STL.print.armed = false;
-    hSI.hStackManager.numSlices = 1;
-    hSI.hFastZ.enable = false;
-    
-    % Reset just the XY plane to the starting point (NOT Z!)
-    motorHold(handles, 'resetXY');
-    
-    if ~STL.logistics.simulated
-        while ~strcmpi(hSI.acqState,'idle')
-            pause(0.1);
-        end
-    end
-    toc;
-    hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-    if get(handles.focusWhenDone, 'Value')
-        hSI.startFocus();
-    end
-end
-
-
-
-
-function motorHold(handles, v);
-    % Control motor position-hold-before-reset: 'on', 'off', 'resetXY',
-    % 'resetZ'
-    global STL;
-    hSI = evalin('base', 'hSI');
-    
-    if strcmp(v, 'on')
-        set(handles.crushThing, 'BackgroundColor', [1 0 0]);
-        %%%%%% FIXME Disabled! STL.print.FastZhold = true;
-        %STL.print.FastZhold = true;
-        STL.print.motorHold = true;
-        %warning('Disabled fastZ hold hack.');
-        STL.print.motor_reset_needed = true;
-        STL.motors.mom.tmp_origin = move('mom');
-        
-        [~, b] = STL.motors.hex.C887.qKEN('');
-        if ~strcmpi(b(1:5), 'LEVEL')
-            hexapod_wait();
-            STL.motors.hex.C887.KEN('ZERO');
-        end
-        STL.motors.hex.tmp_origin = hexapod_get_position_um();
-    end
-    
-    if strcmp(v, 'off')
-        STL.print.motorHold = false;
-        STL.print.motor_reset_needed = true;
-    end
-    
-    if strcmp(v, 'resetXY')
-        if isfield(STL.motors.mom, 'tmp_origin')
-            hSI.hMotors.motorPosition(1:2) = STL.motors.mom.tmp_origin(1:2);
-        end
-        if isfield(STL.motors.hex, 'tmp_origin')
-            if STL.logistics.simulated
-                STL.logistics.simulated_pos(1:2) = STL.motors.hex.tmp_origin(1:2);
-            elseif STL.motors.hex.connected
-                % If the hexapod is in 'rotation' coordinate system,
-                % wait for move to finish and then switch to 'ZERO'.
-                [~, b] = STL.motors.hex.C887.qKEN('');
-                if ~strcmpi(b(1:5), 'LEVEL')
-                    hexapod_wait();
-                    STL.motors.hex.C887.KEN('ZERO');
-                end
-                move('hex', STL.motors.hex.tmp_origin(1:2));
-            end
-        end
-        
-        %STL.print.motorHold = false;
-        %STL.print.motor_reset_needed = false;
-        %set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
-        set(handles.messages, 'String', 'Restored XY position but not Z position. Crush the thing?');
-    end
-    
-    if strcmp(v, 'resetZ')
-        %hSI.hFastZ.goHome; % This takes us to 0 (as I've set it up), which is not what we
-        %want.
-        hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-        
-        % Don't use MOVE, since I haven't written MOVE to just move Z.
-        if isfield(STL.motors.mom, 'tmp_origin')
-            hSI.hMotors.motorPosition(3) = STL.motors.mom.tmp_origin(3);
-        end
-        if isfield(STL.motors.hex, 'tmp_origin')
-            if STL.logistics.simulated
-                STL.logistics.simulated_pos(3) = STL.motors.hex.tmp_origin(3);
-            elseif STL.motors.hex.connected
-                % If the hexapod is in 'rotation' coordinate system,
-                % wait for move to finish and then switch to 'ZERO'.
-                [~, b] = STL.motors.hex.C887.qKEN('');
-                if ~strcmpi(b(1:5), 'LEVEL')
-                    hexapod_wait();
-                    STL.motors.hex.C887.KEN('ZERO');
-                end
-                STL.motors.hex.C887.MOV('Z', STL.motors.hex.tmp_origin(3)/1e3);
-            end
-        end
-        
-        STL.print.motorHold = false;
-        STL.print.motor_reset_needed = false;
-        set(handles.messages, 'String', '');
-        set(handles.crushThing, 'BackgroundColor', 0.94 * [1 1 1]);
-    end
-end
 
 
 function printpowerpercent_Callback(hObject, eventdata, handles)
@@ -1162,44 +637,6 @@ function size3_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% Set STL.print.bounds, either from the callback or from anywhere else.
-function UpdateBounds_Callback(hObject, eventdata, handles)
-    global STL;
-    hSI = evalin('base', 'hSI');
-    
-    if STL.logistics.simulated
-        STL.bounds_1(1:2) = [666 666];
-        STL.print.bounds_max(1:2) = STL.bounds_1(1:2) / STL.print.zoom_min;
-        STL.print.bounds(1:2) = STL.bounds_1(1:2) / STL.print.zoom;
-        update_gui(handles);
-    elseif isempty(fieldnames(hSI.hWaveformManager.scannerAO))
-        set(handles.messages, 'String', 'Cannot read resonant resolution. Run a focus or grab manually first.');
-        return;
-    else
-        set(handles.messages, 'String', '');
-        userZoomFactor = hSI.hRoiManager.scanZoomFactor;
-        
-        % Get bounds at zoom = 1
-        hSI.hRoiManager.scanZoomFactor = 1;
-        fov = hSI.hRoiManager.imagingFovUm;
-        STL.bounds_1([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-        
-        % Get bounds at min zoom
-        hSI.hRoiManager.scanZoomFactor = STL.print.zoom_min;
-        fov = hSI.hRoiManager.imagingFovUm;
-        STL.print.bounds_max([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-        
-        % Now, how about the user-selected print zoom?
-        hSI.hRoiManager.scanZoomFactor = STL.print.zoom;
-        fov = hSI.hRoiManager.imagingFovUm;
-        STL.print.bounds([1 2]) = [fov(3,1) - fov(1,1)      fov(3,2) - fov(1,2)];
-        
-        
-        hSI.hRoiManager.scanZoomFactor = userZoomFactor;
-        update_gui(handles);
-    end
-end
-
 
 
 function whichBeam_Callback(hObject, eventdata, handles)
@@ -1299,13 +736,6 @@ function abort_Callback(hObject, eventdata, handles)
 end
 
 
-
-function show_metavoxel_slice_Callback(hObject, eventdata, handles)
-    global STL;
-    
-    STL.preview.show_metavoxel_slice = str2num(get(handles.show_metavoxel_slice, 'String'));
-    zslider_Callback([], [], handles);
-end
 
 function show_metavoxel_slice_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
@@ -1986,7 +1416,23 @@ function hexapod_zero_pos_Callback(hObject, eventdata, handles)
 end
 
 
-function calibrate_vignetting_Callback(hObject, eventdata)
+function clear_vignetting_compensation_functions(hObject, eventdata)
+    global STL;
+    handles = guihandles(hObject);
+    
+    % In case I hit the menu item by mistake:
+    STL.calibration.vignetting_fit_backup = STL.calibration.vignetting_fit;
+    
+    STL.calibration.vignetting_fit = {};
+    disp('~ You now have no vignetting compensation functions.');
+    %set(handles.menu_clear_vignetting_compensation, ...
+    %    'Label', ...
+    %    sprintf('Clear vignetting compensation [%d]', length(STL.calibration.vignetting_fit)));
+end
+    
+
+% Obsolete! But saves an image of the blank field...
+function calibrate_vignetting_from_camera_Callback(hObject, eventdata)
         hSI = evalin('base', 'hSI');
         global STL;
         
@@ -2020,23 +1466,25 @@ function calibrate_vignetting_Callback(hObject, eventdata)
         hSI.hStackManager.framesPerSlice = 1;
         hSI.hChannels.loggingEnable = false;
         
-        set(handles.messages, 'String', 'Computing fit...'); drawnow;
-        
-        % Left over from when this was a dropdown on the UI:
-        % methods = cellstr(get(handles.vignetting_fit_method, 'String'));
-        % method = methods{get(handles.vignetting_fit_method, 'Value')};
-        method = 'interpolant';
-
-        STL.calibration.vignetting_fit = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
-        % Left over for when this was a checkbox
-        %set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
-        %    'Enable', 'on');
-        %STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
-
-        s = get(handles.slide_filename_series, 'String');
-        if ~strcmp(s, 'Series')
-            copyfile('vignetting_cal_00001_00001.tif', sprintf('vignetting_cal_%s.tif', s));
+        if false
+            
+            set(handles.messages, 'String', 'Computing fit...'); drawnow;
+            
+            % Left over from when this was a dropdown on the UI:
+            % methods = cellstr(get(handles.vignetting_fit_method, 'String'));
+            % method = methods{get(handles.vignetting_fit_method, 'Value')};
+            method = 'interpolant';
+            
+            STL.calibration.vignetting_fit_from_image = fit_vignetting_falloff('vignetting_cal_00001_00001.tif', method, STL.bounds_1(1), handles);
+            % Left over for when this was a checkbox
+            %set(handles.vignetting_compensation, 'Value', 1, 'ForegroundColor', [0 0 0], ...
+            %    'Enable', 'on');
+            %STL.print.vignetting_compensation = get(handles.vignetting_compensation, 'Value');
         end
+        
+        s = get(handles.slide_filename_series, 'String');
+        copyfile('vignetting_cal_00001_00001.tif', sprintf('vignetting_cal_%s.tif', s));
+        copyfile('vignetting_cal_00001_00001.tif', 'vignetting_cal.tif');
         
         set(handles.messages, 'String', '');
         
@@ -2061,8 +1509,6 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% Measure brightness of an object by sliding the object over the lens and
-% taking a video.
 function measure_brightness_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');

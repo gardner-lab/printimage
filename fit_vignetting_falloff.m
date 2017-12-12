@@ -83,7 +83,7 @@ function [vignetting_fit] = fit_vignetting_falloff(filename, method, FOV, handle
         grid off
         colormap jet;
     elseif true
-        figure(11);
+        figure(46);
         h = plot(vignetting_fit);
         hold on;
         scatter3(xData, yData, zData, 1);
