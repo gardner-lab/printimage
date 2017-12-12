@@ -40,7 +40,14 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
     
-    n_sweeps = 11;
+    
+    
+    poly_order = 2;
+    if isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
+        poly_order = 4;
+    end
+
+    n_sweeps = 2 * poly_order + 4;
     how_much_to_include = 10; % How many microns +- perpendicular to the direction of the sliding motion
     FOV = 666; % microns
     scanspeed_mms = 0.2; % mm/s of the sliding stage
@@ -87,8 +94,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         warning('No baseline calibration file ''vignetting_cal.tif'' found.');
         tiffCal = ones(512, 512);
     end
-
-    
     
     % If the hexapod is in 'rotation' coordinate system,
     % wait for move to finish and then switch to 'ZERO'.
@@ -100,7 +105,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         end
     end
     
-    sweep_halfsize = sz/2 + 200; % x halfsize
+    sweep_halfsize = sz/2 + 100; % x halfsize
     sweep_pos = linspace(-(sz/2 - safety_margin - how_much_to_include), (sz/2 - safety_margin - how_much_to_include), n_sweeps); % y positions
 
     % Positions for the sliding measurements:
@@ -118,10 +123,10 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 4);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
-        % Time taken for the scan will be 666 um / 100 um/s; frame rate is
+        % Time taken for the scan will be sweep_halfsize / 100 um/s; frame rate is
         % 15.21 Hz (can't figure out where that is in hSI, but somewhere...)
-        scantime = STL.bounds_1(1) / (scanspeed_mms * 1000);
-        scanframes = ceil(scantime * 24);
+        scantime = 2*sweep_halfsize / (scanspeed_mms * 1000);
+        scanframes = ceil(scantime * frame_rate);
         hSI.hStackManager.framesPerSlice = scanframes;
         hSI.hChannels.loggingEnable = true;
         hSI.hScan2D.logFramesPerFileLock = true;
@@ -179,10 +184,11 @@ function [] = calibrate_vignetting_slide(hObject, handles)
 
     
     save('calibrate_vignetting_slide', 'x', 'y', 'z');
-            
+    
+
     set(handles.messages, 'String', 'Processing fit...');
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
-    ft = fittype( 'poly33' );
+    ft = fittype( sprintf('poly%d%d', poly_order, poly_order ));
     [fitresult, gof] = fit( [xData, yData], zData, ft );
     if ~isfield(STL.calibration, 'vignetting_fit')
         STL.calibration.vignetting_fit = {};
