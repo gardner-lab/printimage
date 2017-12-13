@@ -7,10 +7,11 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
     % and readability, but it's okay, since any change that affects it
     % (besides tweaking parameters) depends on zoom and thus requires
     % re-voxelising anyway.
+    POWER_COMPENSATION = {};
     POWER_COMPENSATION = {'speed', 'fit'};
     
     BEAM_SPEED_POWER_COMPENSATION_FACTOR = 1;
-    FIT_COMPENSATION_FACTOR = 2;
+    FIT_COMPENSATION_FACTOR = 1.5;
     SHOW_COMPENSATION = 34;
     
     hSI = evalin('base', 'hSI');
@@ -99,32 +100,32 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
             case 'fit'
                 if isfield(STL, 'calibration') & isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
                     [vig_x, vig_y] = meshgrid(xc, yc);
-                    centreX = round(length(vig_x / 2));
-                    centreY = round(length(vig_y / 2));
                     for fit_function = 1:length(STL.calibration.vignetting_fit)
                         vignetting_falloff = STL.calibration.vignetting_fit{fit_function}(vig_x, -vig_y);
                         
                         % So far, vignetting_falloff is still in arbitrary
                         % units of TIFF brightness! Set power change in centre
                         % of FOV to 1.
-                        vignetting_falloff = vignetting_falloff / vignetting_falloff(centreX, centreY);
+                        centreY = round(size(vignetting_falloff, 1)/2);
+                        centreX = round(size(vignetting_falloff, 2)/2);
+                        vignetting_falloff = vignetting_falloff / vignetting_falloff(centreY, centreX);
                         
                         % Rescale compensation (like a learning rate and a
                         % photoresist responsiveness factor rolled into
                         % one)
                         %vignetting_falloff = ((vignetting_falloff-1) * FIT_COMPENSATION_FACTOR) + 1;
-                        vignetting_falloff = vignetting_falloff ^ FIT_COMPENSATION_FACTOR;
-                        
+                        vignetting_falloff = vignetting_falloff .^ FIT_COMPENSATION_FACTOR;
                         
                         % Higher luminance (e.g. edges) indicates higher
                         % falloff, so it needs to be inverted.
                         vignetting_falloff = 1 ./ vignetting_falloff;
-                        
+        
                         % Transpose: xc is the first index of the matrix (row #)
                         vignetting_falloff = repmat(vignetting_falloff', [1, 1, size(voxelpower, 3)]);
+                        
                         adj = adj ./ vignetting_falloff;
                         voxelpower = voxelpower ./ vignetting_falloff;
-                        disp(sprintf('~ Vignetting power compensation (current fit %d, factor %g) applied. Adjusted power is on [%g, %g]', ...
+                        disp(sprintf('~ Vignetting power compensation (current fit %d, power factor %g) applied. Adjusted power is on [%g, %g]', ...
                             fit_function, ...
                             FIT_COMPENSATION_FACTOR, ...
                             min(voxelpower(v_i)), ...
