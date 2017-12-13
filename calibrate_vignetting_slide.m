@@ -29,25 +29,25 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     end
     update_gui(handles);
     
+    %success = true; % Use this to just scan+fit an already-printed cube
     success = print_Callback(hObject, [], handles);
+    
     if ~success
         warning('Failed to print. Please fix something.');
         return;
     end
     
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - safety_margin);
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 5);
     
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
     
-    
-    
-    poly_order = 2;
+    poly_order = 4;
     if isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
         poly_order = 4;
     end
 
-    n_sweeps = 2 * poly_order + 4;
+    n_sweeps = 15;
     how_much_to_include = 10; % How many microns +- perpendicular to the direction of the sliding motion
     FOV = 666; % microns
     scanspeed_mms = 0.2; % mm/s of the sliding stage
@@ -61,9 +61,9 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     xc = STL.print.voxelpos_wrt_fov{1,1,1}.x;
     yc = STL.print.voxelpos_wrt_fov{1,1,1}.y;
     p = STL.print.voxelpower_adjustment;
-    %save(sprintf('slide_%s_adj', desc), 'xc', 'yc', 'p');
+    save(sprintf('slide_%s_adj', desc), 'xc', 'yc', 'p');
 
-    if false
+    if true
         %% First: take a snapshot.
         set(handles.messages, 'String', 'Taking snapshot of current view...');
         
@@ -120,7 +120,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     z = [];
 
     for sweep = 1:n_sweeps
-        move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 4);
+        move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 5);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
         % Time taken for the scan will be sweep_halfsize / 100 um/s; frame rate is
@@ -180,11 +180,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
 
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
-    move('hex', pos(1:2), 4);
-
-    
-    save('calibrate_vignetting_slide', 'x', 'y', 'z');
-    
+    move('hex', pos(1:2), 5);    
 
     set(handles.messages, 'String', 'Processing fit...');
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
@@ -194,6 +190,9 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         STL.calibration.vignetting_fit = {};
     end
     STL.calibration.vignetting_fit{end+1} = fitresult;
+    
+    save(sprintf('slide_%s_fit', desc), 'fitresult', 'x', 'y', 'z', 'xData', 'yData', 'zData');
+
     
     % Show how many calibration functions there are
     %set(handles.menu_clear_vignetting_compensation, ...
@@ -217,4 +216,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     set(handles.messages, 'String', '');
     
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
+    
+    measure_brightness_Callback(hObject, [], handles);
 end
