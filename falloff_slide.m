@@ -12,7 +12,7 @@ sz = 400;
 methods = {};
 methods{end+1} = 'None';
 methods{end+1} = 'Speed';
-methods{end+1} = 'SpeedCos3';
+%methods{end+1} = 'SpeedCos3';
 %methods{end+1} = 'fit';
 %methods{end+1} = 'both';
 %methods{end+1} = 'both2';
@@ -246,7 +246,7 @@ for f = find(methodsValid)
     %h = plot( tiffFit{f}.fitresult );
     %hold on;
     surf(tiffFit{f}.x, tiffFit{f}.y, tiffFit{f}.z);
-    caxis([0.45 0.55]);
+    caxis([0.5 0.7]);
     %hold off;
     %h = plot( tiffFit{f}.fitresult );
     %shading interp;
