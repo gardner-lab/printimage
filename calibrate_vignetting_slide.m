@@ -37,17 +37,14 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         return;
     end
     
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 5);
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 2);
     
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
     
     poly_order = 4;
-    if isfield(STL.calibration, 'vignetting_fit') & length(STL.calibration.vignetting_fit) > 0
-        poly_order = 4;
-    end
 
-    n_sweeps = 15;
+    n_sweeps = 17;
     how_much_to_include = 10; % How many microns +- perpendicular to the direction of the sliding motion
     FOV = 666; % microns
     scanspeed_mms = 0.2; % mm/s of the sliding stage
@@ -218,4 +215,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
     
     measure_brightness_Callback(hObject, [], handles);
+    
+    
 end
