@@ -1,6 +1,6 @@
 function make_energy_deposition_graph(RELOAD)
 
-collection = '400_d'; % Or "series" in the UI, but that's a MATLAB function
+collection = '400e'; % Or "series" in the UI, but that's a MATLAB function
 sz = 400;
 
 methods = {};
@@ -10,9 +10,8 @@ methods{end+1} = 'Speed';
 %methods{end+1} = 'both';
 %methods{end+1} = 'both2';
 %methods{end+1} = 'type';
-%methods{end+1} = 'Iteration 1';
+methods{end+1} = 'Iteration 1';
 methods{end+1} = 'Iteration 2';
-methods{end+1} = 'Iteration 3';
 
 
 if nargin == 0
@@ -66,6 +65,7 @@ else
     for f = 1:length(methods)
         try
             tiffS{f} = double(imread(sprintf('slide_%s_%s_image_00001_00001.tif', methods{f}, collection)));
+            disp(sprintf('Loaded ''slide_%s_%s_image_00001_00001.tif''', methods{f}, collection));
             methodsValid(f) = 1;
         catch ME
             disp(sprintf('Could not load ''slide_%s_%s_image_00001_00001.tif''', methods{f}, collection));
@@ -77,82 +77,22 @@ else
         
         try
             tiffAdj{f} = load(sprintf('slide_%s_%s_adj.mat', methods{f}, collection));
+            tiffFit{f} = load(sprintf('slide_%s_%s_fit.mat', methods{f}, collection));
             % Oops. I saved the whole thing, which means one copy per
             % Zstack layer.
             tiffAdj{f}.p = tiffAdj{f}.p(:,:,1);
         catch ME
             ME
         end
-        
-        tiffX{f} = [];
-        i = 0;
-        try
-            while true
-                i = i + 1;
-                if i == 2
-                    tiffX{f}(1000,1,1) = 0;
-                end
-                t = imread(sprintf('slide_%s_%s_x_00001_00001.tif', methods{f}, collection), i);
-                tiffX{f}(i,:,:) = double(t) ./ tiffCal;
-            end
-        catch ME
-        end
-        tiffX{f} = tiffX{f}(1:i-1,:,:);
-        
-        
-        middle = round(size(tiffX{f}, 3)/2);
-        pixelpos = linspace(-FOV/2, FOV/2, size(tiffX{f}, 2));
-        indices = find(pixelpos > -how_much_to_include * sz / 2 ...
-            & pixelpos < how_much_to_include * sz / 2);
-        
-        % Normalise brightness. The starting position (sweep_halfsize) is from
-        % printimage.m: how much is the stage commanded to move before
-        % starting the acquisition?
-        scanposX = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - sweep_halfsize;
-        baseline_indices = find(scanposX > sz / 2 + 20);
-        baselineX = mean(mean(tiffX{f}(baseline_indices, indices, middle), 2), 1);
-        tiffX{f} = tiffX{f}/baselineX;
-        
-        % Show the image as scanned
-        %imgx = squeeze(tiffX{f}(:, :, middle));
-        %imgx = imgx(:, 1+image_crop_y:end-image_crop_y);
-        %imagesc(scanposX, 1:size(imgx, 2), imgx');
-        
-        bright_x(f,:) = mean(tiffX{f}(:, indices, middle), 2);
-        bright_x_std(f,:) = std(tiffX{f}(:,indices, middle), [], 2);
-        
-        
-        slid_img_x{f} = tiffX{f}(1:end);
-        
-        tiffY{f} = zeros(size(tiffX{f}));
-        i = 0;
-        try
-            while true
-                i = i + 1;
-                t = imread(sprintf('slide_%s_%s_y_00001_00001.tif', methods{f}, collection), i);
-                tiffY{f}(i,:,:) = double(t) ./ tiffCal;
-            end
-        catch ME
-        end
-                
-        % Normalise brightness
-        scanposY = (0:(size(tiffX{f}, 1) - 1)) * frame_spacing - sweep_halfsize;
-        %baseline_indices = find(scanposY > -50 & scanposY < 50);
-        baselineY = mean(mean(tiffY{f}(baseline_indices, middle, indices), 3), 1);
-        tiffY{f} = tiffY{f}/baselineY;
-        
-        
-        bright_y(f,:) = mean(tiffY{f}(:, middle, indices), 3);
-        bright_y_std(f,:) = std(tiffY{f}(:, middle, indices), [], 3);
     end
-    
-    save(last_filename, 'tiffCal', 'tiffX', 'tiffY', ...
-        'tiffS', 'tiffAdj', 'scanposX', 'scanposY', ...
-        'baselineX', 'baselineY', 'methodsValid', ...
-        'methods', 'methods_long', 'bright_x', 'bright_y', ...
-        'bright_x_std', 'bright_y_std', 'indices', 'baseline_indices');
+        
+%    save(last_filename, 'tiffCal', 'tiffX', 'tiffY', ...
+%        'tiffS', 'tiffAdj', 'scanposX', 'scanposY', ...
+%        'baselineX', 'baselineY', 'methodsValid', ...
+%        'methods', 'methods_long', 'bright_x', 'bright_y', ...
+%        'bright_x_std', 'bright_y_std', 'indices', 'baseline_indices');
 end
-disp(sprintf('Loaded data in %d seconds. StdDev n = %d.', round(toc), length(indices)));
+disp(sprintf('Loaded data in %d seconds.', round(toc)));
 
 
 letter = 'c';
@@ -161,7 +101,7 @@ for i = find(methodsValid)
     methods2{i} = sprintf('(%c) %s', letter, methods_long{i});
 end
 
-p.pack('v', {25 [] 25}, 1);
+p.pack('v', {25 [] }, 1);
 p(1,1).marginbottom = 100;
 make_sine_plot_3(p(1,1));
 %make_sine_plot_4(p(1,1), tiffAdj, methods, colours);
@@ -178,7 +118,7 @@ for f = find(methodsValid)
     centreY = round(length(tiffAdj{f}.yc) / 2);
     tiffAdj{f}.p = tiffAdj{f}.p / tiffAdj{f}.p(centreX, centreY);
     
-    p(2,1, 1,c).pack(2, 1);
+    p(2,1, 1,c).pack(3, 1);
     h_axes = p(2,1, 1,c, 1,1).select();
     cla;
     
@@ -220,15 +160,29 @@ for f = find(methodsValid)
     p(2,1, 1,c, 2,1).select();
     cla;
     
-    foo = tiffS{f};
     % Manual gain control
     %foo = max(foo - 0.4, 0.65);
     foo = tiffS{f};
     foo(1,1) = 0; % Stupid kludge: image() isn't scaling right; force imagesc() to do so.
-    foo = min(foo, 0.9);
-    foo = max(foo, 0.5);
+    foo = min(foo, 1);
+    foo = max(foo, 0.2);
     imagesc(foo);
     axis tight equal ij off;
+    
+    
+    p(2,1, 1,c, 3,1).select();
+    
+    % h = plot( tiffAdj{f}.fitresult, [tiffAdj{f}.xData, tiffAdj{f}.yData], tiffAdj{f}.zData );
+    h = plot( tiffFit{f}.fitresult );
+    %shading interp;
+    %legend( h, 'untitled fit 1', 'z vs. x, y', 'Location', 'NorthEast' );
+    % Label axes
+    xlabel x
+    ylabel y
+    zlabel brightness
+    grid on
+    %view( -32.7, 15.6 );
+    set(gca, 'ZLim', [0.2 0.9]);
     
     %p(2,1,1,c,2).select();
     %hist(foo(:), 100);
@@ -239,71 +193,8 @@ end
 
 colormap jet;
 
-p(3,1).pack(1, {42 42 []}); % Third is for the shared legend
-p(3,1,1,1).select();
-cla;
-h = [];
-hold on;
-
-for f = find(methodsValid)
-    H = shadedErrorBar(scanposX, ...
-        bright_x(f,:), ...
-        1.96*bright_x_std(f,:)/sqrt(length(indices)), ...
-        'lineprops', {'Color', colours(f,:)}, ...
-        'transparent', 1);
-    h(end+1) = H.mainLine;
-end
-hold off;
-axis tight;
-grid on;
-ylimits = get(gca, 'YLim');
-set(gca, 'XLim', [-400 400]);
-
-letter = letter + 1;
-title(sprintf('(%c) X brightness', letter));
-xlabel('\mu{}m');
-ylabel('relative brightness');
-
-p(3,1,1,2).select();
-cla;
-h = [];
-hold on;
-scanposY = (1:size(bright_y, 2)) * frame_spacing - sweep_halfsize;
-for f = 1:length(methods)
-    if ~methodsValid(f)
-        continue;
-    end
-
-    H = shadedErrorBar(scanposY, ...
-        bright_y(f,:), ...
-        1.96*bright_y_std(f,:)/sqrt(length(indices)), ...
-        'lineprops', {'Color', colours(f,:)}, ...
-        'transparent', 1);
-    h(end+1) = H.mainLine;
-end
-hold off;
-axis tight;
-set(gca, 'XLim', [-400 400]);
-grid on;
-%legend(h, methods_long(find(methodsValid)), 'Location', 'EastOutside');
-letter = letter + 1;
-title(sprintf('(%c) Y brightness', letter));
-xlabel('\mu{}m');
-%ylabel('relative brightness');
-
-ylimits2 = get(gca, 'YLim');
-ylimits = [min(ylimits(1), ylimits2(1)) max(ylimits(2), ylimits2(2))];
-set(gca, 'YLim', ylimits);
-p(3,1,1,1).select();
-set(gca, 'YLim', ylimits);
-
-ah = p(3,1,1,3).select();
-axis off;
-l = legend(ah, h, methods_long(find(methodsValid)), 'Location', 'West');
-
-
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-p.export('BeamGraph.eps', '-w240', '-a1.2');
+%p.export('BeamGraph.eps', '-w240', '-a1.2');
 p.export('BeamGraph.png', '-w240', '-a1.1');

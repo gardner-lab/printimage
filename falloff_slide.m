@@ -6,7 +6,7 @@ function falloff_slide(RELOAD)
 % 400h: compensator uses factor 1.5, poly order = 4 all through.
 % 400i: compensator uses factor 1.5, poly order = 4 all through, +cos^2
 
-collection = '400i'; % Or "series" in the UI, but that's a MATLAB function
+collection = '400h'; % Or "series" in the UI, but that's a MATLAB function
 sz = 400;
 
 methods = {};
@@ -19,7 +19,7 @@ methods{end+1} = 'Speed';
 %methods{end+1} = 'type';
 methods{end+1} = 'Iteration 1';
 methods{end+1} = 'Iteration 2';
-methods{end+1} = 'Iteration 3';
+%methods{end+1} = 'Iteration 3';
 
 
 if nargin == 0
@@ -27,7 +27,7 @@ if nargin == 0
 end
 
 methods_long = methods;
-how_much_to_include = 0.05; % How much of the printed structure's size perpendicular to the direction of the sliding motion
+how_much_to_include = 0.95; % How much of the printed structure's size perpendicular to the direction of the sliding motion
 
 FOV = 666; % microns
 speed = 100; % um/s of the sliding stage
@@ -236,17 +236,18 @@ for f = find(methodsValid)
     % Manual gain control
     %foo = max(foo - 0.4, 0.65);
     foo = tiffS{f};
-    foo(1,1) = 0; % Stupid kludge: image() isn't scaling right; force imagesc() to do so.
-    foo = min(foo, 1);
-    foo = max(foo, 0.4);
+    %foo(1,1) = 0; % Stupid kludge: image() isn't scaling right; force imagesc() to do so.
+    %foo = min(foo, 1);
+    %foo = max(foo, 0.4);
     imagesc(foo);
+    caxis([0.1 1.3]);
     axis tight equal ij off;
     
     p(2,1, 1,c, 3,1).select();
     %h = plot( tiffFit{f}.fitresult );
     %hold on;
     surf(tiffFit{f}.x, tiffFit{f}.y, tiffFit{f}.z);
-    caxis([0.5 0.7]);
+    caxis([0.4 0.6]);
     %hold off;
     %h = plot( tiffFit{f}.fitresult );
     %shading interp;
@@ -257,7 +258,7 @@ for f = find(methodsValid)
     end
     grid on
     view( -60, 60 );
-    set(gca, 'ZLim', [0.3 0.9]);
+    set(gca, 'ZLim', [0.4 0.8]);
 
     
     %p(2,1,1,c,2).select();
