@@ -32,7 +32,7 @@
 
 # Calibration
 
-Calibration is done through parameters in ScanImage's `Machine_Data_File.m`, not through PrintImage. This is because we figure you'll want your microscope calibrated properly whether or not you're printing anything today.
+Size Calibration is done through parameters in ScanImage's `Machine_Data_File.m`, not through PrintImage. This is because we figure you'll want your microscope calibrated properly whether or not you're printing anything today.
 
 I will refer to the axis over which the resonant scanner scans as X. The galvo scans over Y. The "fast Z" stage, perpendicular to the focal plane, is (surprise!) Z.
 
@@ -140,6 +140,26 @@ The sixth value of `STL.motors.hex.leveling` controls the alignment of stitched 
 One more parameter should be saved in `printimage_config.m`:
   `STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];`
 These numbers are the tilt offsets from the tilt calibration process, above, but they must be read _after_ the leveling coordinate system is correctly defined and tuned.
+
+## Vignetting compensation
+
+### Background
+
+This began as an effort to model the falloff due to optical vignetting. The theoretical model of cos(theta)^4 seemed to fit pretty well, but couldn't be justified for a near-field laser (i.e. working less than a few kilometres from the laser source). And then I reasoned that since all models are wrong, it might be better to do something free-form. Hence the adaptive power compensation.
+
+### THINGS I NEED TO FIX
+
+This requires a stitching stage with good precision, and currently actually requires the Physik-Instrumente hexapod controller! Sorry... I'll see about fixing that, or helping someone with other hardware to write a patch.
+
+### How?
+
+Follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
+- Load and print a "cube" (actually a rectangular prism) of the size defined at the top of `calibrate_vignetting_slide.m`.
+- Servo the stitching stage over the printed cube near its surface (currently `height - 2` um) and measure the brightness at lots of points
+- Fit a curve to the measured brightnesses
+All future prints will use this curve to adjust the power in real time as objects print. If the curve isn't producing good results, you may do the same thing again (start with "Finding 0" again), which will print another cube using the curve you just generated, measure output, and create a new fit, _which will be stacked on top of the old one._ In this way, you may iterate until you get good results (I've only tried up to 5 iterations; there is no software limit but I have found that I get diminishing returns or even degradation of results after about 2. YMMV).
+
+To start from scratch, use the `Calibrate / Clear vignetting compensation` menu item. You may then start again. Feel free to add your own calibration procedure! They're applied in `printimage_modify_beam.m`.
 
 # Printing
 
