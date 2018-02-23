@@ -26,7 +26,7 @@
   - Slow XY or XYZ stage accuracy
   - Fast Z stage accuracy
 - Patch the ScanImage code
-  - Patch files coming presently, or email me
+  - [For ScanImage 5.2.4](https://github.com/bwpearre/scanimage-5.2.4/commit/35802a60330c98bb1fddf99361dc6d611c2624b3.patch)
 - Install PrintImage and the above packages in the MATLAB path
 - Modify the appropriate PrintImage default parameters (this will be in a configuration file eventually)
 
