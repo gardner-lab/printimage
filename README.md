@@ -149,11 +149,16 @@ This began as an effort to model the falloff due to optical vignetting. The theo
 
 ### THINGS I NEED TO FIX
 
-This requires a stitching stage with good precision, and currently actually requires the Physik-Instrumente hexapod controller! Sorry... I'll see about fixing that, or helping someone with other hardware to write a patch.
+- This requires a stitching stage with good precision, and currently actually requires the Physik-Instrumente hexapod controller! Sorry... I'll see about fixing that, or helping someone with other hardware to write a patch.
+- I need to figure out at what size and zoom to print the test object!
 
 ### How?
 
-Follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
+Zero: Set your desired print zoom level...? Still working on this.
+
+First, focus within the IP-Dip (yielding a fluorescent image that appears approximately Gaussian). Use `Calibrate / Save baseline image` to save the default brightness at the camera.
+
+Second, find the substrate: follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
 - Load and print a "cube" (actually a rectangular prism) of the size defined at the top of `calibrate_vignetting_slide.m`.
 - Servo the stitching stage over the printed cube near its surface (currently `height - 2` um) and measure the brightness at lots of points
 - Fit a curve to the measured brightnesses
