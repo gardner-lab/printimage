@@ -27,6 +27,7 @@
   - Fast Z stage accuracy
 - Patch the ScanImage code (if you don't see your favourite ScanImage version here, look at the patch: it's dead simple!)
   - [For ScanImage 5.2.4](https://github.com/bwpearre/scanimage-5.2.4/commit/35802a60330c98bb1fddf99361dc6d611c2624b3.patch)
+  - [For ScanImage 5.3](https://github.com/bwpearre/scanimage-5.3/commit/ad890832b752049a7b340883d79a389d95754c30.patch)
 - Install PrintImage and the above packages in the MATLAB path
 - Modify the appropriate PrintImage default parameters (this will be in a configuration file eventually)
 
