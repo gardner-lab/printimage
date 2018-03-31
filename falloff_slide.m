@@ -31,7 +31,7 @@ methods_long = methods;
 how_much_to_include = 0.95; % How much of the printed structure's size perpendicular to the direction of the sliding motion
 
 FOV = 666; % microns
-speed = 100; % um/s of the sliding stage
+speed = 200; % um/s of the sliding stage
 frame_rate = 15.21; % Hz
 frame_spacing = speed / frame_rate;
 sweep_halfsize = 400;
@@ -212,9 +212,13 @@ for f = find(methodsValid)
             axis equal xy ;
             
             colo = colorbar('Location', 'WestOutside');
-            set(colo, 'Position', (get(colo, 'Position') + [-0.03 0 0 0]) .* [1 0 1 0] + cffigpos .* [0 1 0 1]);
+            set(colo, 'Position', (get(colo, 'Position') + [-0.02 0 0 0]) .* [1 0 1 0] + cffigpos .* [0 1 0 0.9]);
             if c == 1
                 colo.Label.String = 'Power';
+                %title(colo, 'Power');
+            end
+            if c >= 3
+                caxis([0.7 1.8]);
             end
             %caxis([0.2 1.8]);
 
@@ -254,17 +258,24 @@ for f = find(methodsValid)
     %foo = max(foo, 0.4);
     imagesc(foo);
     caxis([0.37 1]);
+    %caxis(-[0.8 0.37]);
     axis tight equal ij off;
     
     p(2,1, 1,c, 3,1).select();
     %h = plot( tiffFit{f}.fitresult );
     %hold on;
+    foo = tiffFit{f};
+    foo.z = [];
+    try 
+        for i = 1:2:size(foo.x, 1)
+            foo.z(ceil(i/2),:) = mean(tiffFit{f}.z(i:i+1, :), 1);
+        end
+    end
     s = surf(tiffFit{f}.x(1:2:end,:), tiffFit{f}.y(1:2:end,:), tiffFit{f}.z(1:2:end,:));
+    %s = surf(foo.x(1:2:end-1,:), foo.y(1:2:end-1,:), foo.z);
     caxis([0.4 0.6]);
-    %caxis([0.5 0.7]);
-    %hold off;
-    %h = plot( tiffFit{f}.fitresult );
-    %shading interp;
+    cffig = get(s, 'Parent');
+    set(cffig, 'XTick', [-200 0 200], 'YTick', [-200 0 200]);
     xlabel x
     ylabel y
     if c == 1
@@ -274,10 +285,6 @@ for f = find(methodsValid)
     view( -60, 60 );
     set(gca, 'ZLim', [0.4 0.8]);
 
-    
-    %p(2,1,1,c,2).select();
-    %hist(foo(:), 100);
-    %colormap gray;
     drawnow;
 end
 
@@ -351,5 +358,5 @@ end
 %Figure sizing
 %pos = get(gcf, 'Position');
 %set(gcf, 'Units', 'inches', 'Position', [pos(1) pos(2) 10 8])
-%p.export('BeamGraph.eps', '-w240', '-a1.2');
 %p.export('BeamGraph.png', '-w240', '-a1.1');
+%p.export('BeamGraph.eps', '-w240', '-a1.2');

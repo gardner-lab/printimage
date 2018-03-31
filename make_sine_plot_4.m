@@ -21,7 +21,7 @@ function make_sine_plot_4(panels, tiffAdj, methods, methodsValid, colours)
     ti = find(t >= -pi/2 & t <= pi/2);
     plot(t(ti), x(ti), 'LineWidth', 2); hold on;
     xlabel('Time (phase)');
-    ylabel('Velocity');
+    ylabel('Speed');
     
     %Format
     xlim([-1.8, 1.8]);
@@ -29,7 +29,7 @@ function make_sine_plot_4(panels, tiffAdj, methods, methodsValid, colours)
     set(gca, 'box', 'off', 'TickDir', 'out');
     set(gca, 'XTick', [-pi/2, 0, pi/2], 'XTickLabel', {'-\pi/2', 0, '\pi/2'})
     set(gca, 'YTick', [0, 0.5, 1], 'YTickLabel', [0, 0.5, 1])
-    title('(a) Beam velocity');
+    title('(a) Beam speed');
     
     %Beam position
     panels(1,2).select();
@@ -42,7 +42,12 @@ function make_sine_plot_4(panels, tiffAdj, methods, methodsValid, colours)
     
     % Imaging fraction of beam. Show voxel positions for slower control system for clarity...
     D = 0.9;
-    nsteps_show = 1000000 / 7980;
+    ControlSystemFreq = 1e6;
+    ResonantFreq = 7980;
+    fov = 666; % um for whole FOV
+    zoomlevel = 1.6;
+
+    nsteps_show = ControlSystemFreq / 7980;
     t_show = linspace(-pi, pi, nsteps_show);
     x_show = sin(t_show);
     tt = asin(D);
@@ -69,6 +74,13 @@ function make_sine_plot_4(panels, tiffAdj, methods, methodsValid, colours)
     set(gca, 'XTick', [-pi/2, 0, pi/2], 'XTickLabel', {'-\pi/2', 0, '\pi/2'})
     set(gca, 'YTick', [-1, 0, 1], 'YTickLabel', {'-\xi', 0, '\xi'})
 
+    
+    convert_phase_dist_to_microns = fov/(D*zoomlevel*2);
+    
+    
+    voxelsizes = diff(x_show(ti_show)) * convert_phase_dist_to_microns;
+    disp(sprintf('Voxel size: min %g, max %g um', min(voxelsizes), max(voxelsizes)));
+    
     if SHOW_X_GRAPH
         panels(1,3).select();
         % Power compensation
@@ -78,10 +90,6 @@ function make_sine_plot_4(panels, tiffAdj, methods, methodsValid, colours)
         %% cos^4 vignetting compensation. Show it for zoom=2.2x, since that's what
         %% pstar is calibrated to. That means that the usable part of the X axis has
         %% size FOV/zoom, the lens working distance
-        fov = 666; % um for whole FOV
-        zoomlevel = 1.6;
-        
-        convert_phase_dist_to_microns = fov/(D*zoomlevel*2);
         positions_um = sin(t) * convert_phase_dist_to_microns;
         %positions_um(2,:) = sqrt(positions_um(1,:).^2 + 200^2);
         %disp(sprintf('Working FOV is %g um', D*(max(positions_um)-min(positions_um))));
