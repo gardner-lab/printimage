@@ -1,7 +1,7 @@
 # Requirements
 
 - [ScanImage](http://scanimage.vidriotechnologies.com/)  by Vidrio Technologies.
-  - Version 5.2.4 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
+  - Version ≥5.2.4 ([Requirements](http://scanimage.vidriotechnologies.com/display/SIH/ScanImage+Installation+Instructions))
   - Other versions, including the nonfree versions, may also work, but are untested.
   - PrintImage requires that these pieces of hardware be configured in ScanImage:
     - Resonant scanner
@@ -25,8 +25,9 @@
   - Galvo degrees per volt
   - Slow XY or XYZ stage accuracy
   - Fast Z stage accuracy
-- Patch the ScanImage code
-  - Patch files coming presently, or email me
+- Patch the ScanImage code (if you don't see your favourite ScanImage version here, look at the patch: it's dead simple!)
+  - [For ScanImage 5.2.4](https://github.com/bwpearre/scanimage-5.2.4/commit/35802a60330c98bb1fddf99361dc6d611c2624b3.patch)
+  - [For ScanImage 5.3](https://github.com/bwpearre/scanimage-5.3/commit/ad890832b752049a7b340883d79a389d95754c30.patch)
 - Install PrintImage and the above packages in the MATLAB path
 - Modify the appropriate PrintImage default parameters (this will be in a configuration file eventually)
 
@@ -149,11 +150,16 @@ This began as an effort to model the falloff due to optical vignetting. The theo
 
 ### THINGS I NEED TO FIX
 
-This requires a stitching stage with good precision, and currently actually requires the Physik-Instrumente hexapod controller! Sorry... I'll see about fixing that, or helping someone with other hardware to write a patch.
+- This requires a stitching stage with good precision, and currently actually requires the Physik-Instrumente hexapod controller! Sorry... I'll see about fixing that, or helping someone with other hardware to write a patch.
+- I need to figure out at what size and zoom to print the test object!
 
 ### How?
 
-Follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
+Zero: Set your desired print zoom level...? Still working on this.
+
+First, focus within the IP-Dip (yielding a fluorescent image that appears approximately Gaussian). Use `Calibrate / Save baseline image` to save the default brightness at the camera.
+
+Second, find the substrate: follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
 - Load and print a "cube" (actually a rectangular prism) of the size defined at the top of `calibrate_vignetting_slide.m`.
 - Servo the stitching stage over the printed cube near its surface (currently `height - 2` um) and measure the brightness at lots of points
 - Fit a curve to the measured brightnesses
