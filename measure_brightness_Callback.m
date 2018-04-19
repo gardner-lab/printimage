@@ -24,7 +24,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     save(sprintf('slide_%s_adj', desc), 'xc', 'yc', 'p');
 
     if false
-        %% First: take a snapshot.
+        %% First: take a snapshot. But this has to be aimed into empty IP-Dip, so requires user intervention
         set(handles.messages, 'String', 'Taking snapshot of current view...');
         
         hSI.hStackManager.framesPerSlice = 100;
