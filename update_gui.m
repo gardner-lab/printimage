@@ -18,16 +18,6 @@ function update_gui(handles);
     set(handles.invert_z, 'Value', STL.print.invert_z);
     set(handles.whichBeam, 'Value', STL.print.whichBeam);
     set(handles.show_metavoxel_slice, 'String', sprintf(['%d '], STL.preview.show_metavoxel_slice));
-    set(handles.PrinterBounds, 'String', sprintf('Workspace: [ %s] um', ...
-        sprintf('%d ', round(STL.print.bounds))));
-    %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
-    nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
-    if STL.print.voxelise_needed
-        set(handles.autozoom, 'String', 'Print zoom:');
-    else
-        set(handles.autozoom, 'String', sprintf('Print zoom (auto = %g):', STL.print.zoom_best));
-    end
-    set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
     spinnerSet(handles.minGoodZoom, STL.print.zoom_min);
     spinnerSet(handles.printZoom, STL.print.zoom);
