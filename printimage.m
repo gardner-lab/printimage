@@ -65,8 +65,9 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    menu_calibrate_vignetting_compensation_wrong = uimenu(menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_from_camera_Callback);
+    menu_calibrate_vignetting_compensation_save_baseline = uimenu(menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_save_baseline_Callback);
     menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
+    menu_restore_last_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Restore last vignetting compensation', 'Callback', @calibrate_vignetting_restore);
     menu_clear_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Clear vignetting compensation', 'Callback', @clear_vignetting_compensation_functions);
     
     menu_test = uimenu(hObject, 'Label', 'Test');
@@ -1437,7 +1438,7 @@ end
     
 
 % Obsolete! But saves an image of the blank field...
-function calibrate_vignetting_from_camera_Callback(hObject, eventdata)
+function calibrate_vignetting_save_baseline_Callback(hObject, eventdata)
         hSI = evalin('base', 'hSI');
         global STL;
         
@@ -1513,7 +1514,17 @@ function vignetting_fit_method_CreateFcn(hObject, eventdata, handles)
     end
 end
 
-
+function calibrate_vignetting_restore(hObject, eventdata, handles)
+    global STL;
+    
+    if exist('printimage_last_vignetting_fit.mat', 'file')
+        load('printimage_last_vignetting_fit');
+        vigfit
+        STL.calibration.vignetting_fit = vigfit;
+    else
+        error('No previous fit file (printimage_last_vignetting_fit.m) found.');
+    end
+end
 
 
 function slide_filename_Callback(hObject, eventdata, handles)
