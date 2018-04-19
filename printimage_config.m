@@ -1,5 +1,5 @@
 STL.print.zstep = 1;     % microns per step in z (vertical)
-STL.print.power = 0.6;
+STL.print.power = 0.8;
 STL.calibration.lens_optical_working_distance = 380;
 
 STL.motors.hex.ip_address = '128.197.37.84';
@@ -12,7 +12,7 @@ STL.motors.hex.pivot_z_um = 36700;
 % If stitching stretches objects NW-SE, increase W
 %%STL.motors.hex.leveling = [0 0 0 0.28 -0.365 -1.4]; % [ X Y Z U V W ]
 %STL.motors.hex.leveling = [0 0 0 0.4 -0.52 -1.4]; % [ X Y Z U V W ]
-STL.motors.hex.leveling = [0 0 0 -0.2000   0.5900    -1.4]; % [ X Y Z U V W ]
+STL.motors.hex.leveling = [0 0 0 -0.2500  0    -1.4]; % [ X Y Z U V W ]
 STL.motors.hex.user_rotate_velocity = 20;
 STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];
 STL.calibration.ScanImage.ScanPhase = -5.8e-6;

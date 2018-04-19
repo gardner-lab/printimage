@@ -73,6 +73,10 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     menu_test = uimenu(hObject, 'Label', 'Test');
     menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
+    
+    menu_debug = uimenu(hObject, 'Label', 'Debug');
+    menu_debug_disarm =  uimenu(menu_debug, 'Label', 'Disarm PrintImage (return control to ScanImage)', 'Callback', @disarm_callback);
+
     try
         hSI = evalin('base', 'hSI');
         fprintf('Scanimage %s.%s\n', hSI.VERSION_MAJOR, hSI.VERSION_MINOR); % If the fields don't exist, this will throw an error and dump us into simulation mode.
@@ -256,7 +260,6 @@ function set_up_params()
     STL.print.motor_reset_needed = false;
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
-    STL.calibration.lens_optical_working_distance = 380; % microns, for optical computations
 
     STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
     STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
@@ -290,22 +293,29 @@ function set_up_params()
     
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
-    STL.logistics.lens_working_distance = 370;
-    zbound = min(STL.logistics.lens_working_distance, STL.print.fastZhomePos);
-    STL.bounds_1 = [NaN NaN  zbound ];
-    STL.print.bounds_max = [NaN NaN  zbound ];
-    STL.print.bounds = [NaN NaN  zbound ];
-    
+    STL.calibration.lens_optical_working_distance = 380; % microns, for optical computations
+    STL.calibration.lens_working_distance_safety_um = 30; % microns
     STL.calibration.pockelsFrequency = 3333333; % Frequency of Pockels cell controller
 
     % ScanImage's LinePhase adjustment. Save it here, just for good measure.
     STL.calibration.ScanImage.ScanPhase = 0;
+    
     %%%%%
-    %% Finally, allow the user to override any of these:
+    %% Next, allow the user to override any of these:
     %%%%%
     
     params_file = 'printimage_config'; 
     load_params(params_file, 'STL');
+    
+    %%%%%
+    %% Finally, compute any dependencies:
+    %%%%%
+    
+    zbound = min(STL.calibration.lens_optical_working_distance - STL.calibration.lens_working_distance_safety_um, STL.print.fastZhomePos);
+    STL.bounds_1 = [NaN NaN  zbound ];
+    STL.print.bounds_max = [NaN NaN  zbound ];
+    STL.print.bounds = [NaN NaN  zbound ];
+
 end
 
 
@@ -1569,4 +1579,9 @@ end
 function level_slide_Callback(hObject, eventdata, handles)
     global STL;
     STL.motors.hex.C887.MOV('u v', STL.motors.hex.slide_level(4:5));
+end
+
+function disarm_callback(hObject, eventdata, handles)
+    global STL;
+    STL.print.armed = 0;
 end
