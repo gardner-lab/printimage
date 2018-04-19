@@ -1,0 +1,37 @@
+From 35802a60330c98bb1fddf99361dc6d611c2624b3 Mon Sep 17 00:00:00 2001
+From: Ben Pearre <bwpearre@gmail.com>
+Date: Thu, 27 Apr 2017 17:05:56 -0400
+Subject: [PATCH] Add my PrintImage hook to WaveformManager.m
+
+---
+ +scanimage/+components/WaveformManager.m | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/+scanimage/+components/WaveformManager.m b/+scanimage/+components/WaveformManager.m
+index 3555324..8e396b1 100644
+--- a/+scanimage/+components/WaveformManager.m
++++ b/+scanimage/+components/WaveformManager.m
+@@ -142,6 +142,23 @@ function updateWaveforms(obj,forceOptimizationCheck)
+             % generate ao using scannerset
+             [ao_volts_raw, ao_samplesPerTrigger, sliceScanTime, pathFOV] = ...
+                 rg.scanStackAO(ss,zPowerReference,zs,waveform,fb,zActuator,sliceScanTime,[]);
++            
++            %% BWP (printimage): if called by PRINTIMAGE, replace the motor controls
++            try
++                evalin('base', 'global STL');
++                STL = evalin('base', 'STL');
++            catch ME
++            end
++            if exist('STL', 'var') ...
++                    & isfield(STL, 'print') ...
++                    & isfield(STL.print, 'armed') ...
++                    & STL.print.armed
++                
++                ao_volts_raw = printimage_modify_beam(ao_volts_raw);
++                disp('Printing on ao_volts_raw...');
++            end
++            %% End BWP PrintImage hook
++
+ 
+             if isfield(ao_volts_raw,'G')
+                 assert(size(ao_volts_raw(1).G,1) > 0, 'Generated AO is empty. Ensure that there are active ROIs with scanfields that exist in the current Z series.');
