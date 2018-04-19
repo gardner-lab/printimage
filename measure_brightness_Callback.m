@@ -2,7 +2,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
     
-    
+    %Check if the system is in a state to take that action.
     if ~STL.logistics.simulated & ~strcmpi(hSI.acqState,'idle')
         set(handles.messages, 'String', 'Some other ongoing operation (FOCUS?) prevents calibrating.');
         return;

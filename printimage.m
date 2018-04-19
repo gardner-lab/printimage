@@ -1221,6 +1221,9 @@ function hexapod_reset_to_centre(varargin)
 
     STL.motors.hex.C887.VLS(STL.motors.hex.user_rotate_velocity);
     STL.motors.hex.C887.MOV('x y z u v w', [0 0 0 0 0 0]);
+    
+    handles = guidata(gcbo);
+
     hexapod_wait(handles);
     update_gui(handles);
 end
@@ -1383,8 +1386,8 @@ function align_stages(hObject, eventdata, handles);
     global STL;
     hSI = evalin('base', 'hSI');
     
-    % FIXME (2) make sure the hexapod is in the right coordinate system:
-    % should be in the Leveling system, (1) reset rotation coordinate
+    % Make sure the hexapod is in the right coordinate system:
+    % (2) should be in the Leveling system, (1) reset rotation coordinate
     % system to 0, (3) centre/zero it.
 
     STL.motors.hex.C887.KSD('rotation', 'X Y Z', [0 0 STL.motors.hex.pivot_z_um / 1e3]);
