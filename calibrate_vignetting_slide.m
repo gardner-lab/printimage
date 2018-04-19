@@ -150,7 +150,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             hSI.hFastZ.enable = false;
             hSI.hBeams.enablePowerBox = false;
             hSI.hRoiManager.scanZoomFactor = 1;
-            hSI.hBeams.powers = userPower;
             if ~STL.logistics.simulated
                 while ~strcmpi(hSI.acqState,'idle')
                     pause(0.1);
