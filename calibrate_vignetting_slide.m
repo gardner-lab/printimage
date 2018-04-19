@@ -13,10 +13,10 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     
     
     %% Print the test object
-    height = 100;
-    sz = 400;
+    height = 30;
+    sz = 400;  % STL.bounds_1(1) / STL.print.zoom_best;
     safety_margin = 10;
-    % FIXME also set zoom=1
+    % FIXME also set zoom=?
     
     updateSTLfile(handles, 'STL files/cube.stl');
     set(handles.lockAspectRatio, 'Value', 0);
@@ -212,9 +212,11 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     
     set(handles.messages, 'String', '');
     
+    
+    vigfit = STL.calibration.vignetting_fit;
+    save('printimage_last_vignetting_fit', 'vigfit');
+    
+    %measure_brightness_Callback(hObject, [], handles);
+    move('hex', [0 0 0]);
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
-    
-    measure_brightness_Callback(hObject, [], handles);
-    
-    
 end
