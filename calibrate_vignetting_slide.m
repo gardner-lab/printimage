@@ -13,7 +13,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     
     
     %% Print the test object
-    height = 30;
+    height = 50;
     sz = 400;  % STL.bounds_1(1) / STL.print.zoom_best;
     safety_margin = 10;
     % FIXME also set zoom=?
@@ -59,6 +59,18 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     yc = STL.print.voxelpos_wrt_fov{1,1,1}.y;
     p = STL.print.voxelpower_adjustment;
     save(sprintf('slide_%s_adj', desc), 'xc', 'yc', 'p');
+
+    
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        waitbar(0, wbar, 'Measuring polymerisation...', 'CreateCancelBtn', 'cancel_button_callback');
+    else
+        wbar = waitbar(0, 'Measuring polymerisation...', 'CreateCancelBtn', 'cancel_button_callback');
+        set(wbar, 'Units', 'Normalized');
+        wp = get(wbar, 'Position');
+        wp(1:2) = STL.logistics.wbar_pos(1:2);
+        set(wbar, 'Position', wp);
+        drawnow;
+    end
 
     if true
         %% First: take a snapshot.
@@ -117,6 +129,37 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     z = [];
 
     for sweep = 1:n_sweeps
+        
+        if STL.logistics.abort
+            % The caller has to unset STL.logistics.abort
+            % (and presumably return).
+            disp('Aborting due to user.');
+            if ishandle(wbar) & isvalid(wbar)
+                STL.logistics.wbar_pos = get(wbar, 'Position');
+                delete(wbar);
+            end
+            if exist('handles', 'var');
+                set(handles.messages, 'String', 'Canceled.');
+                drawnow;
+            end
+            STL.logistics.abort = false;
+            
+            STL.print.armed = false;
+            move('hex', [ 0 0 0 ], 20);
+            hSI.hStackManager.numSlices = 1;
+            hSI.hFastZ.enable = false;
+            hSI.hBeams.enablePowerBox = false;
+            hSI.hRoiManager.scanZoomFactor = 1;
+            hSI.hBeams.powers = userPower;
+            if ~STL.logistics.simulated
+                while ~strcmpi(hSI.acqState,'idle')
+                    pause(0.1);
+                end
+            end
+            
+            break;
+        end
+
         move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 5);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
@@ -173,8 +216,19 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         x = [x scanposX(i)'];
         y = [y ones(size(i))'*-sweep_pos(sweep)]; % When hexapod (understage) is at y, we're looking at object at -y
         z = [z bright_x(i)];
+        
+        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+            waitbar(((sweep+1) / (n_sweeps+1)), wbar, sprintf('Pass %d of %d...', sweep, n_sweeps));
+        end
+
     end
 
+    if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+        STL.logistics.wbar_pos = get(wbar, 'Position');
+        delete(wbar);
+    end
+    
+    
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
     move('hex', pos(1:2), 5);    
@@ -189,8 +243,8 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     STL.calibration.vignetting_fit{end+1} = fitresult;
     
     save(sprintf('slide_%s_fit', desc), 'fitresult', 'x', 'y', 'z', 'xData', 'yData', 'zData');
-
     
+
     % Show how many calibration functions there are
     %set(handles.menu_clear_vignetting_compensation, ...
     %    'Label', ...
