@@ -10,7 +10,7 @@ function update_best_zoom(handles);
     end
     
     if all(nmetavoxels(1:2) == 1) & STL.print.zoom_best >= STL.print.zoom_min
-        set(handles.autozoom, 'String', sprintf('Auto: %g', zoom_best));
+        set(handles.autozoom, 'String', sprintf('Print zoom (auto = %g):', zoom_best));
     else
         STL.print.zoom_best = STL.print.zoom;
     end

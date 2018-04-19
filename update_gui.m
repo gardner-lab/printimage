@@ -23,9 +23,9 @@ function update_gui(handles);
     %nmetavoxels = ceil(STL.print.size ./ (STL.print.bounds - STL.print.metavoxel_overlap));
     nmetavoxels = ceil((STL.print.size - 2 * STL.print.metavoxel_overlap) ./ STL.print.bounds);
     if STL.print.voxelise_needed
-        set(handles.autozoom, 'String', '');
+        set(handles.autozoom, 'String', 'Print zoom:');
     else
-        set(handles.autozoom, 'String', sprintf('Auto: %g', STL.print.zoom_best));
+        set(handles.autozoom, 'String', sprintf('Print zoom (auto = %g):', STL.print.zoom_best));
     end
     set(handles.nMetavoxels, 'String', sprintf('Metavoxels: [ %s]', sprintf('%d ', nmetavoxels)));
     set(handles.z_step, 'String', num2str(STL.print.zstep,2));
