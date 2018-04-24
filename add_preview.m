@@ -59,7 +59,13 @@ function add_preview(handles)
         
         
         z = get(hSICtl.hManagedGUIs(i).CurrentAxes, 'ZLim');
-        z = z(2) - 0.0001; % Don't ask
+        % THIS WILL PROBABLY THROW AN ERROR WITH THE FOR-PAY VERSIONS? Open
+        % Source FTW?
+        if str2double(hSI.VERSION_MAJOR) <= 5.3 & ~str2double(hSI.VERSION_MINOR) > 0
+            z = z(2) - 0.0001; % ScanImage < 5.3.1 wanted the z info drawn here.
+        else
+            z = mean(z); % This _MIGHT_ work with versions < 5.3.1 as well. Can't test due to NIDAQ firmware upgrade...
+        end
         
         psz = fig_bounds ./ STL.print.resolution(1:2) / 2;
 
