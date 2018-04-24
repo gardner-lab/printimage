@@ -3,23 +3,7 @@ function add_preview(handles)
     hSI = evalin('base', 'hSI');
     hSICtl = evalin('base', 'hSICtl');
     
-    relevant_images = [];
-    irrelevant_images = [];
-    for i = 1:length(hSICtl.hManagedGUIs)
-        if (strcmp(hSICtl.hManagedGUIs(i).Name, 'Channel 1') ...
-                | strcmp(hSICtl.hManagedGUIs(i).Name, 'Channel 2') ...
-                | strcmp(hSICtl.hManagedGUIs(i).Name, 'Channel Merge')) ...
-                & strcmp(hSICtl.hManagedGUIs(i).Visible, 'on')
-            relevant_images = [relevant_images i];
-        else
-                irrelevant_images = [irrelevant_images i];
-        end
-    end
-    relevant_images
-    irrelevant_images
-    if length(relevant_images) == 0
-            warning('Ben''s assumptions about what the relevant fields are in hSICtl.hManagedGUIs seem to be wrong.');
-    end
+    relevant_images = draw_on_image_get_images();
     
     % Need to know the bounds that we'll be printing at. That's
     % bounds_best, computed in voxelise. So make sure that's been called:
@@ -53,19 +37,10 @@ function add_preview(handles)
         fig_lims = [get(hSICtl.hManagedGUIs(i).CurrentAxes, 'XLim')' ...
             get(hSICtl.hManagedGUIs(i).CurrentAxes, 'YLim')'];
         fig_bounds = diff(fig_lims);
-                
+
         fov_transform = diag([1 1] .* fig_bounds ./ bounds);
         
-        
-        
-        z = get(hSICtl.hManagedGUIs(i).CurrentAxes, 'ZLim');
-        % THIS WILL PROBABLY THROW AN ERROR WITH THE FOR-PAY VERSIONS? Open
-        % Source FTW?
-        if str2double(hSI.VERSION_MAJOR) <= 5.3 & ~str2double(hSI.VERSION_MINOR) > 0
-            z = z(2) - 0.0001; % ScanImage < 5.3.1 wanted the z info drawn here.
-        else
-            z = mean(z); % This _MIGHT_ work with versions < 5.3.1 as well. Can't test due to NIDAQ firmware upgrade...
-        end
+        z = draw_on_image_get_z(hSICtl.hManagedGUIs(i).CurrentAxes);
         
         psz = fig_bounds ./ STL.print.resolution(1:2) / 2;
 
