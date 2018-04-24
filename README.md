@@ -24,7 +24,7 @@
   - Galvo degrees per volt
   - Slow XY or XYZ stage accuracy
   - Fast Z stage accuracy
-- Patch the ScanImage code (if you don't see your favourite ScanImage version here, look at the patch: it's dead simple!)
+- Patch the ScanImage code. In a shell, go to your ScanImage base directory, and run something like `git apply ../printimage/scanimage-integration/patches/scanimage-5.3.1.patch --whitespace=fix` (here I've assumed that scanimage and printimage are subdirectories of a common parent). If you don't see your favourite ScanImage version here, look at the patch: it's dead simple!
   - [For ScanImage 5.2.4](scanimage_integration/patches/scanimage-5.2.4.patch)
   - [For ScanImage 5.3](scanimage_integration/patches/scanimage-5.3.patch)
   - [For ScanImage 5.3.1](scanimage_integration/patches/scanimage-5.3.1.patch)
