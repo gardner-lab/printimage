@@ -24,7 +24,11 @@ function add_bullseye()
         scale_bar_ypos = fov(end,end) - 0.1 * bounds(2);
         
         z = get(hSICtl.hManagedGUIs(i).CurrentAxes, 'ZLim');
-        z = z(2) - 0.0001;
+        if str2double(hSI.VERSION_MAJOR) <= 5.3 & ~str2double(hSI.VERSION_MINOR) > 0
+            z = z(2) - 0.0001; % ScanImage < 5.3.1 wanted the z info drawn here.
+        else
+            z = mean(z); % This _MIGHT_ work with versions < 5.3.1 as well. Can't test due to NIDAQ firmware upgrade...
+        end
         
         sizes = round(linspace(2, 18, 6).^2);
         
