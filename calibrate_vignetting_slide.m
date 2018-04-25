@@ -47,7 +47,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     n_sweeps = 17;
     how_much_to_include = 10; % How many microns +- perpendicular to the direction of the sliding motion
     FOV = 666; % microns
-    scanspeed_mms = 0.2; % mm/s of the sliding stage
+    scanspeed_mms = 0.3; % mm/s of the sliding stage
     frame_rate = 15.21; % Hz
     frame_spacing_um = scanspeed_mms * 1000 / frame_rate;
     
@@ -159,7 +159,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             break;
         end
 
-        move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 5);
+        move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 20);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
         % Time taken for the scan will be sweep_halfsize / 100 um/s; frame rate is
