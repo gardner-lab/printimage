@@ -4,28 +4,24 @@ STL.calibration.lens_optical_working_distance = 380;
 STL.calibration.lens_working_distance_safety_um = 15;
 
 
-if false
-    STL.motors.hex.ip_address = '128.197.37.84';
-    STL.motors.hex.pivot_z_um = 36700;
-    STL.motors.stitching = 'hex';
-    STL.motors.special = 'hex_pi';
-    
-    % On r3D2:
-    % If brightness increases
-    %                         as X increases, increase V (pos 5)
-    %                         as Y increases, increase U (pos 4)
-    % If stitching stretches objects NW-SE, increase W
-    %%STL.motors.hex.leveling = [0 0 0 0.28 -0.365 -1.4]; % [ X Y Z U V W ]
-    %STL.motors.hex.leveling = [0 0 0 0.4 -0.52 -1.4]; % [ X Y Z U V W ]
-    
-    
-    %STL.motors.hex.leveling = [0 0 0 -0.2500  0    -1.4]; % [ X Y Z U V W ]
-    %STL.motors.hex.user_rotate_velocity = 20;
-    %STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];
-else
-    STL.motors.stitching = 'mom';
-    STL.motors.special = 'none';
-end
+STL.motors.stitching = 'mom'; % 'mom' or 'hex'
+STL.motors.special = 'none'; % 'hex_pi', 'rot_esp301', 'none'
+
+STL.motors.hex.ip_address = '128.197.37.84';
+STL.motors.hex.pivot_z_um = 36700;
+
+% On r3D2:
+% If brightness increases
+%                         as X increases, increase V (pos 5)
+%                         as Y increases, increase U (pos 4)
+% If stitching stretches objects NW-SE, increase W
+%%STL.motors.hex.leveling = [0 0 0 0.28 -0.365 -1.4]; % [ X Y Z U V W ]
+%STL.motors.hex.leveling = [0 0 0 0.4 -0.52 -1.4]; % [ X Y Z U V W ]
+
+
+%STL.motors.hex.leveling = [0 0 0 -0.2500  0    -1.4]; % [ X Y Z U V W ]
+%STL.motors.hex.user_rotate_velocity = 20;
+%STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];
 
 STL.calibration.ScanImage.ScanPhase = -5.8e-6;
 

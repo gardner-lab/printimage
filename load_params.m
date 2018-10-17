@@ -22,7 +22,7 @@ function load_params(params_file, vars)
     for i = 1:length(vars)
         a = who('global', vars{i});
         if isempty(a)
-            warning('Global variable ''%s'' ain''t no thang!', vars{i});
+            warning('Global variable ''%s'' undefined, therefore ignored.', vars{i});
         else
             eval(sprintf('global %s;', vars{i}));
         end
@@ -64,7 +64,7 @@ function load_params(params_file, vars)
             disp(sprintf('%s = new_params.%s;', s, s));
             eval(sprintf('%s = new_params.%s;', s, s));
         catch ME
-            warning('Parameter ''%s'' ain''t no thang!', s);
+            warning('Parameter ''%s'' undefined by PrintImage, therefore ignored!', s);
         end
     end
     disp('==================================================');

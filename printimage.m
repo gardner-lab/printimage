@@ -65,8 +65,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     handles.menu_calibrate_reset_rotation_to_centre = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
     handles.menu_calibrate_add_bullseye  = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
     handles.menu_calibrate_rotation_centre = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    handles.menu_calibrate_vignetting_compensation_save_baseline = uimenu(handles.menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_save_baseline_Callback);
-    handles.menu_calibrate_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
+    handles.menu_calibrate_vignetting_compensation_save_baseline = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_save_baseline_Callback);
+    handles.menu_calibrate_vignetting_compensation = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
     handles.menu_restore_last_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Restore last vignetting compensation', 'Callback', @calibrate_vignetting_restore);
     handles.menu_clear_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Clear vignetting compensation', 'Callback', @clear_vignetting_compensation_functions);
     
@@ -152,6 +152,8 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
             set(handles.menu_calibrate_set_hexapod_level, 'visible', 'on');
             set(handles.menu_calibrate_reset_rotation_to_centre, 'visible', 'on');
             set(handles.menu_calibrate_add_bullseye, 'visible', 'on');
+            set(handles.menu_calibrate_rotation_centre, 'visible', 'on');
+            set(handles.menu_calibrate_vignetting_compensation, 'visible', 'on');
             set(handles.menu_calibrate_rotation_centre, 'visible', 'on');
         end
     end

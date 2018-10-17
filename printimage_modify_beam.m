@@ -142,7 +142,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                             hold off;
                             
                             subplot(1,2,2);
-                            surfc(vig_x, vig_y, 1./(adj(:,:,end)'));
+                            surfc(vig_x, vig_y, 1./real(adj(:,:,end)'));
                             colorbar;
                         end
 
@@ -158,6 +158,9 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw);
                 warning('~ Illegal value specified. Vignetting power compensation NOT applied.');
         end
     end
+    
+    adj = real(adj);
+    voxelpower = real(voxelpower);
     
     % Do not ask for more than 100% power:
     if max(voxelpower(:)) > 1
