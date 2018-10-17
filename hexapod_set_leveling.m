@@ -1,7 +1,11 @@
 function hexapod_set_leveling(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
-        
+    
+    if ~STL.motors.hex.connected
+        return;
+    end
+    
     foo = hexapod_get_position_um();
     while any(abs(foo(1:3)) > 1)
         foo = questdlg('Please safely move the hexapod to [0 0 0].', ...

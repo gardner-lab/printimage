@@ -118,7 +118,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     sweep_pos = linspace(-(sz/2 - safety_margin - how_much_to_include), (sz/2 - safety_margin - how_much_to_include), n_sweeps); % y positions
 
     % Positions for the sliding measurements:
-    pos = hexapod_get_position_um();
+    pos = stitching_get_position_um();
 
     %% Measure brightness along X axis
     
@@ -145,7 +145,8 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             STL.logistics.abort = false;
             
             STL.print.armed = false;
-            move('hex', [ 0 0 0 ], 20);
+            
+            move(STL.motors.stitching, pos(1:2), 20);
             hSI.hStackManager.numSlices = 1;
             hSI.hFastZ.enable = false;
             hSI.hBeams.enablePowerBox = false;
@@ -164,7 +165,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         end
         
 
-        move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 20);
+        move(STL.motors.stitching, pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 20);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
         % Time taken for the scan will be sweep_halfsize / 100 um/s; frame rate is
@@ -183,7 +184,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             hSI.startGrab();
         end
         
-        move('hex', pos(1:2) + [sweep_halfsize sweep_pos(sweep)], scanspeed_mms);
+        move(STL.motors.stitching, pos(1:2) + [sweep_halfsize sweep_pos(sweep)], scanspeed_mms);
         
         while ~strcmpi(hSI.acqState,'idle')
             pause(0.1);
@@ -231,7 +232,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
-    move('hex', pos(1:2), 5);    
+    move(STL.motors.stitching, pos(1:2), 5);    
 
     set(handles.messages, 'String', 'Processing fit...');
     [xData, yData, zData] = prepareSurfaceData( x, y, z );
@@ -271,6 +272,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
     save('printimage_last_vignetting_fit', 'vigfit');
     
     %measure_brightness_Callback(hObject, [], handles);
-    move('hex', [0 0 0]);
+    move(STL.motors.stitching, pos(1:2));
     hSI.hFastZ.positionTarget = STL.print.fastZhomePos;
 end

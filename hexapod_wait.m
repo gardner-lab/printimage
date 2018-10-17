@@ -1,6 +1,10 @@
 function hexapod_wait(handles)
     global STL;
     
+    if ~STL.motors.hex.connected
+        return;
+    end
+    
     if exist('handles', 'var')
         set(handles.messages, 'String', 'Waiting for hexapod to finish zeroing...');
     end

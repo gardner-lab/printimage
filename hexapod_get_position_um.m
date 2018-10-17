@@ -5,9 +5,9 @@ function [pos] = hexapod_get_position_um()
         pos = STL.logistics.simulated_pos;
         return;
     end
-    
+        
     if ~STL.motors.hex.connected
-        pos = [ 0 0 0 0 0 0 ];
+        pos = NaN * [ 0 0 0 0 0 0 ];
         return;
     end
     

@@ -18,12 +18,14 @@ function motorHold(handles, v);
         STL.print.motorHold = true;
         STL.motors.mom.tmp_origin = move('mom');
         
-        [~, b] = STL.motors.hex.C887.qKEN('');
-        if ~strcmpi(b(1:5), 'LEVEL')
-            hexapod_wait();
-            STL.motors.hex.C887.KEN('ZERO');
+        if STL.motors.hex.connected
+            [~, b] = STL.motors.hex.C887.qKEN('');
+            if ~strcmpi(b(1:5), 'LEVEL')
+                hexapod_wait();
+                STL.motors.hex.C887.KEN('ZERO');
+            end
+            STL.motors.hex.tmp_origin = hexapod_get_position_um();
         end
-        STL.motors.hex.tmp_origin = hexapod_get_position_um();
     end
     
     if strcmp(v, 'off')

@@ -1,6 +1,10 @@
 function hexapod_pi_connect()
     global STL;
     
+    if ~strcmp(STL.motors.special, 'hex_pi')
+        return;
+    end
+    
     %% Loading the PI_MATLAB_Driver_GCS2
     if     (strfind(evalc('ver'), 'Windows XP'))
         if (~exist('C:\Documents and Settings\All Users\PI\PI_MATLAB_Driver_GCS2','dir'))

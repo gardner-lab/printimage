@@ -55,27 +55,26 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     % Add a menubar
     %hObject.MenuBar = 'none';
-    menu_file = uimenu(hObject, 'Label', 'File');
-    menu__file_OpenSTL = uimenu(menu_file, 'Label', 'Load STL', 'Callback', @chooseSTL_Callback);
-    menu__file_LoadState = uimenu(menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
-    menu__file_SaveState = uimenu(menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
+    handles.menu_file = uimenu(hObject, 'Label', 'File');
+    handles.menu_file_OpenSTL = uimenu(handles.menu_file, 'Label', 'Load STL', 'Callback', @chooseSTL_Callback);
+    handles.menu_file_LoadState = uimenu(handles.menu_file, 'Label', 'Load State', 'Callback', @LoadState_Callback);
+    handles.menu_file_SaveState = uimenu(handles.menu_file, 'Label', 'Save State', 'Callback', @SaveState_Callback);
     
-    menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
-    menu_calibrate_set_hexapod_level =  uimenu(menu_calibrate, 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_leveling);
-    menu_calibrate_reset_rotation_to_centre = uimenu(menu_calibrate, 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
-    menu_calibrate_add_bullseye  = uimenu(menu_calibrate, 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
-    menu_calibrate_rotation_centre = uimenu(menu_calibrate, 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
-    menu_calibrate_vignetting_compensation_save_baseline = uimenu(menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_save_baseline_Callback);
-    menu_calibrate_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
-    menu_restore_last_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Restore last vignetting compensation', 'Callback', @calibrate_vignetting_restore);
-    menu_clear_vignetting_compensation = uimenu(menu_calibrate, 'Label', 'Clear vignetting compensation', 'Callback', @clear_vignetting_compensation_functions);
+    handles.menu_calibrate = uimenu(hObject, 'Label', 'Calibrate');
+    handles.menu_calibrate_set_hexapod_level =  uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Save hexapod leveling coordinates', 'Callback', @hexapod_set_leveling);
+    handles.menu_calibrate_reset_rotation_to_centre = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Reset hexapod to [ 0 0 0 0 0 0 ]', 'Callback', @hexapod_reset_to_centre);
+    handles.menu_calibrate_add_bullseye  = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'MOM--PI alignment', 'Callback', @align_stages);
+    handles.menu_calibrate_rotation_centre = uimenu(handles.menu_calibrate, 'visible', 'off', 'Label', 'Save hexapod-centre alignment', 'Callback', @set_stage_true_rotation_centre_Callback);
+    handles.menu_calibrate_vignetting_compensation_save_baseline = uimenu(handles.menu_calibrate, 'Label', 'Save baseline image', 'Callback', @calibrate_vignetting_save_baseline_Callback);
+    handles.menu_calibrate_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Calibrate vignetting compensation', 'Callback', @calibrate_vignetting_slide);
+    handles.menu_restore_last_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Restore last vignetting compensation', 'Callback', @calibrate_vignetting_restore);
+    handles.menu_clear_vignetting_compensation = uimenu(handles.menu_calibrate, 'Label', 'Clear vignetting compensation', 'Callback', @clear_vignetting_compensation_functions);
     
-    menu_test = uimenu(hObject, 'Label', 'Test');
-    menu_test_linearity = uimenu(menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
+    handles.menu_test = uimenu(hObject, 'Label', 'Test');
+    handles.menu_test_linearity = uimenu(handles.menu_test, 'Label', 'Stitching Stage Linearity', 'Callback', @test_linearity_Callback);
     
-    
-    menu_debug = uimenu(hObject, 'Label', 'Debug');
-    menu_debug_disarm =  uimenu(menu_debug, 'Label', 'Disarm PrintImage (return control to ScanImage)', 'Callback', @disarm_callback);
+    handles.menu_debug = uimenu(hObject, 'Label', 'Debug');
+    handles.menu_debug_disarm =  uimenu(handles.menu_debug, 'Label', 'Disarm ScanImage''s PrintImage hook (return control to ScanImage)', 'Callback', @disarm_callback);
 
     try
         hSI = evalin('base', 'hSI');
@@ -147,6 +146,13 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
                 ;
             otherwise
                 warning('STL.motors.special: I don''t know what a ''%s'' is.', STL.motors.special);
+        end
+        
+        if STL.motors.hex.connected
+            set(handles.menu_calibrate_set_hexapod_level, 'visible', 'on');
+            set(handles.menu_calibrate_reset_rotation_to_centre, 'visible', 'on');
+            set(handles.menu_calibrate_add_bullseye, 'visible', 'on');
+            set(handles.menu_calibrate_rotation_centre, 'visible', 'on');
         end
     end
     
@@ -229,7 +235,6 @@ function printimage_OpeningFcn(hObject, eventdata, handles, varargin)
     
     colormap(handles.axes2, 'gray');
     
-    handles.menu_clear_vignetting_compensation = menu_clear_vignetting_compensation;
     guidata(hObject, handles);
 end
 
@@ -261,15 +266,27 @@ function set_up_params()
     STL.preview.show_metavoxel_slice = NaN;
     STL.print.fastZhomePos = 420;
 
-    STL.motors.stitching = 'hex'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
-    STL.motors.special = 'hex_pi'; % So far: 'hex_pi', 'rot_esp301', 'none'
+    STL.motors.stitching = 'mom'; % 'hex' is a hexapod (so far, only hex_pi), 'mom' is Sutter MOM
+    STL.motors.special = 'none'; % So far: 'hex_pi', 'rot_esp301', 'none'
     STL.motors.rot.connected = false;
     STL.motors.rot.com_port = 'com4';
     STL.motors.mom.understage_centre = [12066 1.0896e+04 1.6890e+04];
-    STL.motors.hex.user_rotate_velocity = 50;
-    
-    STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
-    
+    if strcmp(STL.motors.stitching, 'hex')
+        STL.motors.hex.user_rotate_velocity = 50;
+        STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
+        STL.motors.hex.ip_address = '0.0.0.0';
+        
+        % Hexapod to image: [1 0 0] moves right
+        %                   [0 1 0] moves down
+        %                   [0 0 1] reduces height
+        STL.motors.hex.axis_signs = [ 1 1 -1 ];
+        STL.motors.hex.axis_order = [ 1 2 3 ];
+        STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
+        %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+        STL.motors.hex.slide_level = [ 0 0 0 0 0 0 ]; % Slide is mounted parallel to optical axis
+    end
+    STL.motors.hex.connected = false;
+
     % MOM to image: [1 0 0] moves down
     %               [0 1 0] moves left
     %               [0 0 1] reduces height
@@ -280,17 +297,6 @@ function set_up_params()
     STL.motors.mom.axis_signs = [ -1 1 -1 ];
     STL.motors.mom.axis_order = [ 2 1 3 ];
 
-    STL.motors.hex.connected = false;
-    STL.motors.hex.ip_address = '0.0.0.0';
-    % Hexapod to image: [1 0 0] moves right
-    %                   [0 1 0] moves down
-    %                   [0 0 1] reduces height
-    STL.motors.hex.axis_signs = [ 1 1 -1 ];
-    STL.motors.hex.axis_order = [ 1 2 3 ];
-    STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
-    %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
-    STL.motors.hex.slide_level = [ 0 0 0 0 0 0 ]; % Slide is mounted parallel to optical axis
-    
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     STL.calibration.lens_optical_working_distance = 380; % microns, for optical computations
@@ -1246,6 +1252,10 @@ end
 function hexapod_rotate_x_Callback(hObject, eventdata, handles)
     global STL;
     
+    if ~STL.motors.hex.connected
+        return;
+    end
+
     hexapod_wait();
     %hexapod_set_rotation_centre_Callback();
     try
@@ -1272,6 +1282,10 @@ end
 function hexapod_rotate_y_Callback(hObject, eventdata, handles)
     global STL;
 
+    if ~STL.motors.hex.connected
+        return;
+    end
+
     hexapod_wait();
 
     %hexapod_set_rotation_centre_Callback();
@@ -1293,6 +1307,10 @@ end
 function hexapod_rotate_z_Callback(hObject, eventdata, handles)
     global STL;
     
+    if ~STL.motors.hex.connected
+        return;
+    end
+
     %hexapod_set_rotation_centre_Callback();
     hexapod_wait();
 
@@ -1358,9 +1376,6 @@ function rotate_infinite_slider_CreateFcn(hObject, eventdata, handles)
     end
 end
 
-function hexapod_zero_angles_Callback(hObject, eventdata, handles)
-    hexapod_reset_to_zero_rotation(handles);
-end
 
 % Set the virtual rotation centre to the point under the microscope lens.
 % This is based on STL.motors.mom.understage_centre (MOM's coordinates when
@@ -1369,6 +1384,10 @@ function hexapod_set_rotation_centre_Callback(varargin)
     global STL;
     hSI = evalin('base', 'hSI');
     
+    if ~STL.motors.hex.connected
+        return;
+    end
+
     head_position_rel = hSI.hMotors.motorPosition - STL.motors.mom.understage_centre;
     head_position_rel = head_position_rel * STL.motors.mom.coords_to_hex;
     head_position_rel(3) = STL.motors.hex.pivot_z_um;
@@ -1426,6 +1445,10 @@ end
 function hexapod_zero_pos_Callback(hObject, eventdata, handles)
     global STL;
     hSI = evalin('base', 'hSI');
+    
+    if ~STL.motors.hex.connected
+        return;
+    end
     
     hexapod_wait();
     STL.motors.hex.C887.MOV('X Y Z', [0 0 0]);

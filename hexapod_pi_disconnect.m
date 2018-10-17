@@ -1,7 +1,10 @@
 function hexapod_pi_disconnect()
     global STL;
     
-    
+    if ~STL.motors.hex.connected
+        return;
+    end
+
     try
         STL.motors.hex.C887.CloseConnection;
     catch ME

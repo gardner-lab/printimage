@@ -1,5 +1,9 @@
 function hexapod_reset_to_zero_rotation(handles)
     global STL;
+    
+    if ~STL.motors.hex.connected
+        return;
+    end
 
     %% Some versions of PI Hexapod control crash z into the lens when doing
     %% a big z rotation! So make sure it's okay to pull the lens up before
