@@ -294,7 +294,7 @@ function set_up_params()
     % The Zeiss LCI PLAN-NEOFLUAR 25mm has a nominal working depth of
     % 380um.
     STL.calibration.lens_optical_working_distance = 380; % microns, for optical computations
-    STL.calibration.lens_working_distance_safety_um = 30; % microns
+    STL.calibration.lens_working_distance_safety_um = 15; % microns
     STL.calibration.pockelsFrequency = 3333333; % Frequency of Pockels cell controller
 
     % ScanImage's LinePhase adjustment. Save it here, just for good measure.
@@ -335,8 +335,10 @@ function chooseSTL_Callback(hObject, eventdata, handles)
     
     handles = guidata(gcbo);
     STLfile = strcat(PathName, FileName);
+    set(handles.lockAspectRatio, 'Value', 1);
     set(gcf, 'Name', STLfile);
     updateSTLfile(handles, STLfile);
+    update_3d_preview(handles);
 end
 
 

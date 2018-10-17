@@ -37,7 +37,7 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         return;
     end
     
-    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 2);
+    hSI.hFastZ.positionTarget = STL.print.fastZhomePos - (height - 3);
     
     desc = sprintf('%s_%s', get(handles.slide_filename, 'String'), get(handles.slide_filename_series, 'String'));
     
@@ -159,6 +159,11 @@ function [] = calibrate_vignetting_slide(hObject, handles)
             break;
         end
 
+        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
+            waitbar(((sweep+1) / (n_sweeps+1)), wbar, sprintf('Pass %d of %d...', sweep, n_sweeps));
+        end
+        
+
         move('hex', pos(1:2) + [-sweep_halfsize sweep_pos(sweep)], 20);
         set(handles.messages, 'String', sprintf('Sliding along current view (%d/%d)...', sweep, n_sweeps));
         
@@ -216,10 +221,6 @@ function [] = calibrate_vignetting_slide(hObject, handles)
         y = [y ones(size(i))'*-sweep_pos(sweep)]; % When hexapod (understage) is at y, we're looking at object at -y
         z = [z bright_x(i)];
         
-        if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)
-            waitbar(((sweep+1) / (n_sweeps+1)), wbar, sprintf('Pass %d of %d...', sweep, n_sweeps));
-        end
-
     end
 
     if exist('wbar', 'var') & ishandle(wbar) & isvalid(wbar)

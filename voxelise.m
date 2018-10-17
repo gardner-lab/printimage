@@ -150,22 +150,6 @@ function [] = voxelise(handles, target)
                 for mvy = 1:nmetavoxels(2)
                     for mvz = 1:nmetavoxels(3)
                         
-                        if STL.logistics.abort
-                            % The caller has to unset STL.logistics.abort
-                            % (and presumably return).
-                            disp('Aborting due to user.');
-                            if ishandle(wbar) & isvalid(wbar)
-                                STL.logistics.wbar_pos = get(wbar, 'Position');
-                                delete(wbar);
-                            end
-                            if exist('handles', 'var');
-                                set(handles.messages, 'String', 'Canceled.');
-                                drawnow;
-                            end
-
-                            return;
-                        end
-                        
                         % Voxels for each metavoxel:
                         
                         % Sadly, coordinates for the printed object are currently
@@ -189,6 +173,28 @@ function [] = voxelise(handles, target)
                             STL.print.voxelpos{mvx, mvy, mvz}.y, ...
                             STL.print.voxelpos{mvx, mvy, mvz}.z, ...
                             STL.print.mesh);
+                        
+                        % Placement: this lives here because I have
+                        % parVOXELISE() checking for STL.logistics.abort as
+                        % well---it will terminate early but not reset the
+                        % abort flag.
+                        if STL.logistics.abort
+                            % The caller has to unset STL.logistics.abort
+                            % (and presumably return).
+                            disp('Aborting due to user.');
+                            if ishandle(wbar) & isvalid(wbar)
+                                STL.logistics.wbar_pos = get(wbar, 'Position');
+                                delete(wbar);
+                            end
+                            if exist('handles', 'var');
+                                set(handles.messages, 'String', 'Canceled.');
+                                drawnow;
+                            end
+
+                            return;
+                        end
+                        
+
 
                        
                         parfor vx = 1:xlength
@@ -317,8 +323,8 @@ function [] = voxelise(handles, target)
     end
             
     % Save what we've done... just in case...
-    disp('Saving voxelised file as LastVoxelised.mat');
-    save('LastVoxelised_dont_remove_this_until_last_one_is_rescued', 'STL');
+    %disp('Saving voxelised file as LastVoxelised.mat');
+    %save('LastVoxelised_dont_remove_this_until_last_one_is_rescued', 'STL');
 end
 
 % was used instead of the parfor after parVOXELISE, keeping it as backup    

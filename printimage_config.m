@@ -1,6 +1,8 @@
 STL.print.zstep = 1;     % microns per step in z (vertical)
 STL.print.power = 0.6;   % Seems appropriate for 10 W laser, 0.5 um Z, 512 pix Y (hmmm)
 STL.calibration.lens_optical_working_distance = 380;
+STL.calibration.lens_working_distance_safety_um = 15;
+
 
 STL.motors.hex.ip_address = '128.197.37.84';
 STL.motors.hex.pivot_z_um = 36700;
