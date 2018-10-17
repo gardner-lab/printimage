@@ -1,11 +1,14 @@
+% THIS IS NOT A REAL M FILE. It won't even process IF THEN ELSE statements,
+% just variables as shown here.
+
 STL.print.zstep = 1;     % microns per step in z (vertical)
 STL.print.power = 0.8;   % Seems appropriate for 10 W laser, 0.5 um Z, 512 pix Y (hmmm)
 STL.calibration.lens_optical_working_distance = 380;
 STL.calibration.lens_working_distance_safety_um = 15;
 
 
-STL.motors.stitching = 'mom'; % 'mom' or 'hex'
-STL.motors.special = 'none'; % 'hex_pi', 'rot_esp301', 'none'
+%STL.motors.stitching = 'hex'; % 'mom' or 'hex'. DEFAULT is 'mom'
+%STL.motors.special = 'hex_pi'; % 'hex_pi', 'rot_esp301', 'none'. DEFAULT is 'none'
 
 STL.motors.hex.ip_address = '128.197.37.84';
 STL.motors.hex.pivot_z_um = 36700;

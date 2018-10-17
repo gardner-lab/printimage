@@ -273,20 +273,18 @@ function set_up_params()
     STL.motors.rot.connected = false;
     STL.motors.rot.com_port = 'com4';
     STL.motors.mom.understage_centre = [12066 1.0896e+04 1.6890e+04];
-    if strcmp(STL.motors.stitching, 'hex')
-        STL.motors.hex.user_rotate_velocity = 50;
-        STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
-        STL.motors.hex.ip_address = '0.0.0.0';
-        
-        % Hexapod to image: [1 0 0] moves right
-        %                   [0 1 0] moves down
-        %                   [0 0 1] reduces height
-        STL.motors.hex.axis_signs = [ 1 1 -1 ];
-        STL.motors.hex.axis_order = [ 1 2 3 ];
-        STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
-        %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
-        STL.motors.hex.slide_level = [ 0 0 0 0 0 0 ]; % Slide is mounted parallel to optical axis
-    end
+    STL.motors.hex.user_rotate_velocity = 20;
+    STL.motors.hex.pivot_z_um = 24900; % For hexapods, virtual pivot height offset of sample.
+    STL.motors.hex.ip_address = '0.0.0.0';
+    
+    % Hexapod to image: [1 0 0] moves right
+    %                   [0 1 0] moves down
+    %                   [0 0 1] reduces height
+    STL.motors.hex.axis_signs = [ 1 1 -1 ];
+    STL.motors.hex.axis_order = [ 1 2 3 ];
+    STL.motors.hex.leveling = [0 0 0 0 0 0]; % This leveling zero pos will be manually applied
+    %STL.motors.mom.understage_centre = [11240 10547 19479]; % When are we centred over the hexapod's origin?
+    STL.motors.hex.slide_level = [ 0 0 0 0 0 0 ]; % Slide is mounted parallel to optical axis
     STL.motors.hex.connected = false;
 
     % MOM to image: [1 0 0] moves down
