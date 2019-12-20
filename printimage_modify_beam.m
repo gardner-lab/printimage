@@ -11,7 +11,7 @@ function [ao_volts_out] = printimage_modify_beam(ao_volts_raw)
 
 global STL;
 
-%Type of power compensation function to apply to laser power
+%Type of power compensation function to apply to laser power  
 POWER_COMPENSATION = {};
 POWER_COMPENSATION = {'speed', 'fitNew'}; % <-- these are additive
 
