@@ -3,6 +3,9 @@ function add_preview(handles)
     hSI = evalin('base', 'hSI');
     hSICtl = evalin('base', 'hSICtl');
     
+    %FudgeFactor (TMO 04/21/19)
+    delta = 100;
+    
     relevant_images = draw_on_image_get_images();
     
     % Need to know the bounds that we'll be printing at. That's
@@ -49,7 +52,7 @@ function add_preview(handles)
         scatterme = zeros(3, length(pixx));
         for j = 1: length(pixx)
             pos = [posx(pixx(j)) posy(pixy(j))] * fov_transform;
-            scatterme(:,j) = [pos(1); pos(2); z];
+            scatterme(:,j) = [pos(1)+(delta/1000); pos(2); z];
         end
         scatter3(hSICtl.hManagedGUIs(i).CurrentAxes, ...
             scatterme(1,:), scatterme(2,:), scatterme(3,:), 1, [1 0 0], ...

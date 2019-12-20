@@ -103,17 +103,18 @@ function [] = voxelise(handles, target)
             foo(end+1) = foo(1);
             
             STL.print.beam_speed_x = foo;
-            beam_power_comp_x = ((foo - STL.calibration.beam_speed_max_um) * 0.8 ...
-                + STL.calibration.beam_speed_max_um) ...
-                / STL.calibration.beam_speed_max_um;
-
-            figure(34);
-            subplot(1,2,1);
-            plot(1:length(foo), foo/(STL.calibration.beam_speed_max_um), 'r', ...
-                1:length(foo), beam_power_comp_x, 'b');
-            title('Beam speed vs max');
-            legend('speed', 'power');
-            set(gca, 'XLim', [1 length(foo)]);
+%             beam_power_comp_x = ((foo - STL.calibration.beam_speed_max_um) * 0.8 ...
+%                 + STL.calibration.beam_speed_max_um) ...
+%                 / STL.calibration.beam_speed_max_um;
+% 
+%             figure(34);
+%             subplot(1,2,1);
+%             plot(1:length(foo), foo/(STL.calibration.beam_speed_max_um), 'r', ...
+%                 1:length(foo), beam_power_comp_x, 'b');
+%             title('Beam speed vs max');
+%             legend('speed', 'power');
+%             set(gca, 'XLim', [1 length(foo)]);
+            
             % Y (galvo) centres. FIXME as above
             yc = linspace(0, STL.print.bounds_best(2), hSI.hRoiManager.linesPerFrame);
             

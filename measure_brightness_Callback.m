@@ -124,7 +124,7 @@ function measure_brightness_Callback(hObject, eventdata, handles)
     hSI.hStackManager.framesPerSlice = 1;
     hSI.hChannels.loggingEnable = false;
     
-    if false
+    if true
         set(handles.messages, 'String', 'Processing...');
         tiffx = [];
         i = 0;

@@ -22,7 +22,7 @@ function varargout = printimage(varargin)
     
     % Edit the above text to modify the response to help printimage
     
-    % Last Modified by GUIDE v2.5 10-Nov-2017 18:05:05
+    % Last Modified by GUIDE v2.5 19-Dec-2019 13:58:29
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -959,7 +959,9 @@ function LoadState_Callback(varargin)
     % Some things should not be overwritten by the restored state:
     simulated = STL.logistics.simulated;
     STLmotors = STL.motors;
-    
+    if isfield(STL, 'calibration')
+        STLcalib = STL.calibration;
+    end
     
     [FileName,PathName] = uigetfile('*.mat');
     
@@ -972,6 +974,9 @@ function LoadState_Callback(varargin)
     % Restore the current stuff:
     STL.logistics.simulated = simulated;
     STL.motors = STLmotors;
+    if exist('STLcalib', 'var')
+        STL.calibration = STLcalib;
+    end
     
     % Pull Y axis voxels from loaded file:
     hSI.hRoiManager.linesPerFrame = STL.print.resolution(2);
@@ -1448,6 +1453,8 @@ end
     
 
 % Obsolete! But saves an image of the blank field...
+%
+% Update: not really obsolete, but less important than may first appear
 function calibrate_vignetting_save_baseline_Callback(hObject, eventdata)
         hSI = evalin('base', 'hSI');
         global STL;
@@ -1584,4 +1591,65 @@ end
 function disarm_callback(hObject, eventdata, handles)
     global STL;
     STL.print.armed = 0;
+end
+
+
+
+function edit_test1_Callback(hObject, eventdata, handles)
+% hObject    handle to edit_test1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit_test1 as text
+%        str2double(get(hObject,'String')) returns contents of edit_test1 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit_test1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit_test1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+function edit_test2_Callback(hObject, eventdata, handles)
+% hObject    handle to edit_test2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit_test2 as text
+%        str2double(get(hObject,'String')) returns contents of edit_test2 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit_test2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit_test2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+% --- Executes on button press in push_test1.
+function push_test1_Callback(hObject, eventdata, handles)
+% hObject    handle to push_test1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --- Executes on button press in push_test2.
+function push_test2_Callback(hObject, eventdata, handles)
+% hObject    handle to push_test2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 end
