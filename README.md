@@ -142,7 +142,7 @@ One more parameter should be saved in `printimage_config.m`:
   `STL.motors.hex.slide_level = [ 0 0 0 0.255 -0.09 0 ];`
 These numbers are the tilt offsets from the tilt calibration process, above, but they must be read _after_ the leveling coordinate system is correctly defined and tuned.
 
-## Vignetting compensation
+## Laser power compensation
 
 ### Background
 
@@ -157,15 +157,15 @@ This began as an effort to model the falloff due to optical vignetting. The theo
 
 Zero: Set your desired print zoom level...? Still working on this.
 
-First, focus within the IP-Dip (yielding a fluorescent image that appears approximately Gaussian). Use `Calibrate / Save baseline image` to save the default brightness at the camera.
+First, focus within the IP-Dip (yielding a fluorescent image that appears approximately Gaussian). Use `Calibrate / Save baseline vignetting image` to save the default brightness at the camera.
 
-Second, find the substrate: follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate vignetting compensation` menu item to begin. This will:
-- Load and print a "cube" (actually a rectangular prism) of the size defined at the top of `calibrate_vignetting_slide.m`.
-- Servo the stitching stage over the printed cube near its surface (currently `height - 2` um) and measure the brightness at lots of points
+Second, find the substrate: follow the instructions regarding "Finding 0" in "Printing" (below in this document), and use the `Calibrate / Calibrate laser power compensation` menu item to begin. This will:
+- Load and print a test print object (a rectangular prism) of the size defined at the top of `calibrate_vignetting_slide.m`.
+- Servo the stitching stage over the printed cube near its surface (currently `height - 3` um) and measure the brightness at lots of points
 - Fit a curve to the measured brightnesses
 All future prints will use this curve to adjust the power in real time as objects print. If the curve isn't producing good results, you may do the same thing again (start with "Finding 0" again), which will print another cube using the curve you just generated, measure output, and create a new fit, _which will be stacked on top of the old one._ In this way, you may iterate until you get good results (I've only tried up to 5 iterations; there is no software limit but I have found that I get diminishing returns or even degradation of results after about 2. YMMV).
 
-To start from scratch, use the `Calibrate / Clear vignetting compensation` menu item. You may then start again. Feel free to add your own calibration procedure! They're applied in `printimage_modify_beam.m`.
+To start from scratch, use the `Calibrate / Clear power compensation` menu item. You may then start again. Feel free to add your own calibration procedure! They're applied in `printimage_modify_beam.m`.
 
 # Printing
 
