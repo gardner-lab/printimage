@@ -351,14 +351,40 @@ if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColo
 end
 end
 
-
-
-
 function printpowerpercent_Callback(hObject, eventdata, handles)
+%Pull in the carried variable
 global STL;
-STL.print.power = str2double(get(hObject, 'String')) / 100;
-STL.print.power = min(max(STL.print.power, 0.01), 1);
-set(hObject, 'String', sprintf('%d', round(100*STL.print.power)));
+
+% %Original code/handling
+% STL.print.power = str2double(get(hObject, 'String')) / 100;
+% STL.print.power = min(max(STL.print.power, 0.01), 1);
+% set(hObject, 'String', sprintf('%d', round(100*STL.print.power)));
+
+%Change behavior depending on control state
+if get(handles.check_laserpercent, 'Value')
+    %Percent power control
+    STL.print.power = str2double(get(hObject, 'String')) / 100;
+    STL.print.power = min(max(STL.print.power, 0.01), 1);
+    set(hObject, 'String', sprintf('%d', round(100*STL.print.power)));
+    
+elseif get(handles.check_laserwatts, 'Value') && STL.print.pp
+    %Absolute power control
+    lms = min(max(str2double(get(hObject, 'String')), 1), STL.calibration.perpow(2,end)); %apply limits
+    perequiv = interp1(STL.calibration.perpow(2,:), STL.calibration.perpow(1,:), lms); %interpolate value from mapping curve
+    
+    %Copy these to relevant structures
+    STL.print.power = perequiv;
+    set(hObject, 'String', sprintf('%d', lms));
+    
+else
+    error('Indeterminate power control state selected... returning to prior state.')
+    set(hObject, 'String', sprintf('%d', round(100*STL.print.power)));
+    return
+end
+
+%Troubleshooting
+set(handles.text31, 'String', ['Print power set to ' sprintf('%d', round(100*STL.print.power)) '%']);
+
 end
 
 
