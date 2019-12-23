@@ -1586,10 +1586,36 @@ end
 function push_lasermap_Callback(hObject, eventdata, handles)
 %Initial attempt to implement absolute laser power control
 
+%Pull in the carried variable
+global STL;
 
+%Mock mapping (from old manual measurements -- do not assume this is correct)
+pers = [0, 1.3, 2, 4, 6, 10, 15, 20, 30, 40, 50, 60, 70, 80, 85, 90, 95, 97, 100] ./ 100; %percent power
+pows = [0, 4.5, 7.9, 14, 19.5, 29.3, 39.5, 48.3, 60.8, 70.1, 76.9, 82.3, 87.2, 91.5, 93.3, 95.3, 97, 97.9, 99.1]; %laser power at objective (in mW)
 
+if numel(pers) ~= numel(pows)
+    error('%-to-mW mapping has the wrong number of elements -- double check this and retry.')
+    return
+end
 
+%Display mapping and assemble into a 2D array
+axes(handles.axes3); cla
+plot(pers, pows, '.-k');
+set(gca, 'TickDir', 'out', 'Box', 'off', 'XTick', [0:.5:1], 'YTick', [0:50:100]);
+xlim([0,1]); ylim([0,110])
 
+perpow = [pers; pows];
+
+%Add to carried variable
+STL.calibration.perpow = perpow;
+STL.print.pp = true;
+
+%Change indicator and permisions
+set(handles.check_laserwatts, 'BackgroundColor', 'g')
+
+disp('%-to-mW mapping completed. Change control mode as desired.')
+
+guidata(hObject, handles);
 end
 
 function check_laserpercent_Callback(hObject, eventdata, handles)
@@ -1608,6 +1634,13 @@ guidata(hObject, handles);
 end
 
 function check_laserwatts_Callback(hObject, eventdata, handles)
+%If laser mapping isn't complete, this check shouldn't do anything
+global STL;
+if ~isfield(STL.print, 'pp') || ~STL.print.pp
+    error('%-to-mW mapping is not complete. Create mapping and retry.')
+    return
+end
+
 %Don't allow uncheck function; must select another checkbox to unselect
 if ~get(handles.check_laserwatts,'Value')
     set(handles.check_laserwatts,'Value',1);
