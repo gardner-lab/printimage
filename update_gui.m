@@ -8,7 +8,15 @@ function update_gui(handles);
     end
     set(handles.build_x_axis, 'Value', STL.print.xaxis);
     set(handles.build_z_axis, 'Value', STL.print.zaxis);
-    set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
+    
+    %Switch based on user selections
+    if get(handles.check_laserpercent, 'Value')
+        set(handles.printpowerpercent, 'String', sprintf('%d', round(100*STL.print.power)));
+    else
+        equiv = interp1(STL.calibration.perpow(1,:), STL.calibration.perpow(2,:), STL.print.power); %interpolate value from mapping curve
+        set(handles.printpowerpercent, 'String', sprintf('%d', round(equiv)));
+    end
+
     set(handles.size1, 'String', sprintf('%d', round(STL.print.size(1))));
     set(handles.size2, 'String', sprintf('%d', round(STL.print.size(2))));
     set(handles.size3, 'String', sprintf('%d', round(STL.print.size(3))));
