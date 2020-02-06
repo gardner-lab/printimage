@@ -736,6 +736,8 @@ STL.print.zoom = str2double(contents{get(hObject, 'Value')});
 STL.print.voxelise_needed = true;
 
 UpdateBounds_Callback(hObject, eventdata, handles);
+update_meta_spot(hObject, eventdata, handles);
+
 end
 
 function printZoom_CreateFcn(hObject, eventdata, handles)
@@ -1616,8 +1618,9 @@ function push_lasermap_Callback(hObject, eventdata, handles)
 global STL;
 
 %Mock mapping (from old manual measurements -- do not assume this is correct)
-pers = [0, 1.3, 2, 4, 6, 10, 15, 20, 30, 40, 50, 60, 70] ./ 100; %percent power
-pows = [0, 8.47, 11.7, 22, 31.1, 44.1, 56.6, 65.7, 77.2, 85.3, 91.8, 96.3, 101.2]; %laser power at objective (in mW)
+pers = [0, 1.3, 2, 4, 6, 10, 15, 20, 30, 40, 50, 60, 70, 80, 85, 90, 95, 97, 100] ./ 100; %percent power
+% pows = [0, 8.47, 11.7, 22, 31.1, 44.1, 56.6, 65.7, 77.2, 85.3, 91.8, 96.3, 101.2]; %laser power at objective (in mW)
+pows = [0, 7.56, 9.76, 18.1, 27, 45.7, 69.6, 94.2, 144.1, 196.2, 249.8, 305, 361.8, 422.8, 455.6, 489.1, 526.6, 543.1, 585.1]; %laser power at objective (in mW)
 
 if numel(pers) ~= numel(pows)
     error('%-to-mW mapping has the wrong number of elements -- double check this and retry.')
@@ -1627,8 +1630,8 @@ end
 %Display mapping and assemble into a 2D array
 axes(handles.axes3); cla
 plot(pers, pows, '.-k');
-set(gca, 'TickDir', 'out', 'Box', 'off', 'XTick', [0:.5:1], 'YTick', [0:50:100]);
-xlim([0,1]); ylim([0,110])
+set(gca, 'TickDir', 'out', 'Box', 'off', 'XTick', [0:.5:1], 'YTick', [0:100:500]);
+xlim([0,1]); ylim([0,500])
 xlabel('Laser %');
 ylabel('Laser mW');
 

@@ -59,7 +59,7 @@ if SHOW_COMPENSATION
     figure(SHOW_COMPENSATION);
     subplot(1,2,1);
     cla;
-    legend_entries = {};
+     legend_entries = {};
     
     %Power deposition functions
     figure(100);
